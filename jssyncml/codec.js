@@ -6,7 +6,7 @@
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
 //-----------------------------------------------------------------------------
 
-var us        = require('underscore');
+var _         = require('underscore');
 var common    = require('./common');
 var constants = require('./constants');
 var ET        = require('elementtree');
@@ -22,7 +22,7 @@ exports.Codec = common.Base.extend({
 });
 
 //-----------------------------------------------------------------------------
-us.extend(exports.Codec, {
+_.extend(exports.Codec, {
 
   factory: function(codec) {
     if ( codec == constants.CODEC_XML )

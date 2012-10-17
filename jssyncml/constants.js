@@ -7,9 +7,9 @@
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
 //-----------------------------------------------------------------------------
 
-var us = require('underscore');
+var _ = require('underscore');
 
-us.extend(exports, {
+_.extend(exports, {
 
   // SyncML versions
   SYNCML_VERSION_1_0                      : 'SyncML/1.0',
@@ -47,7 +47,7 @@ us.extend(exports, {
   // SyncML synctype-to-alertcode mapping
   // taking advantage of the fact that 1..7 maps to 200..206
   // (more or less... "7" is a bit "nebulous"...)
-  SyncTypeToAlert: us.object(us.map(us.range(7), function(i) {
+  SyncTypeToAlert: _.object(_.map(_.range(7), function(i) {
     return [ i + 1, i + 200 ];
   })),
 

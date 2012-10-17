@@ -6,7 +6,7 @@
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
 //-----------------------------------------------------------------------------
 
-var us = require('underscore');
+var _ = require('underscore');
 
 //-----------------------------------------------------------------------------
 // object inheritance helper routines shamelessly scrubbed from backbone.js
@@ -37,7 +37,7 @@ var inherits = function(parent, protoProps, staticProps) {
   }
 
   // Inherit class (static) properties from parent.
-  us.extend(child, parent);
+  _.extend(child, parent);
 
   // Set the prototype chain to inherit from `parent`, without calling
   // `parent`'s constructor function.
@@ -46,10 +46,10 @@ var inherits = function(parent, protoProps, staticProps) {
 
   // Add prototype properties (instance properties) to the subclass,
   // if supplied.
-  if (protoProps) us.extend(child.prototype, protoProps);
+  if (protoProps) _.extend(child.prototype, protoProps);
 
   // Add static properties to the constructor function, if supplied.
-  if (staticProps) us.extend(child, staticProps);
+  if (staticProps) _.extend(child, staticProps);
 
   // Correctly set child's `prototype.constructor`.
   child.prototype.constructor = child;
@@ -73,7 +73,7 @@ var SyncmlError = exports.Base.extend({
   }
 });
 
-us.extend(exports, {
+_.extend(exports, {
 
   // exceptions
   SyncmlError:           SyncmlError.extend({name: 'SyncmlError'}),
