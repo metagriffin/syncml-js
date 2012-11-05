@@ -28,7 +28,8 @@ define([
 ) {
 
   return _.extend(
-    {version: '0.1.0'},
+    // TODO: figure out how to pull this dynamically from package.json...
+    {version: '0.0.2'},
     constant,
     codec,
     context,
