@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8"/>
+  <title>Jasmine Test Runner</title>
+
+  <!-- Jasmine -->
+  <link rel="stylesheet" type="text/css" href="lib/jasmine/jasmine.css"/>
+  <script type="text/javascript" src="lib/jasmine/jasmine.js"></script>
+  <script type="text/javascript" src="lib/jasmine/jasmine-html.js"></script>
+
+  <!-- RequireJS -->
+  <script type="text/javascript" src="lib/require.js"></script>
+
+ </head>
+
+ <body>
+  <script type="text/javascript">
+
+function j(obj) { return JSON.stringify(obj); }
+
+var exports = {};
+
+require.config({
+  baseUrl: './',
+  paths: {
+   'underscore':    'lib/wrapper/underscore',
+   'elementtree':   'lib/wrapper/elementtree/elementtree',
+
+   // TODO: this is UGLY.
+   // TODO: actually, it's more than "ugly"... it's BROKEN.
+   // TODO: make this work in browser-mode jasmine!...
+
+   'constants':     'lib/wrapper/elementtree/constants',
+   'elementpath':   'lib/wrapper/elementtree/elementpath',
+   'errors':        'lib/wrapper/elementtree/errors',
+   'parser':        'lib/wrapper/elementtree/parser',
+   'parsers/index': 'lib/wrapper/elementtree/parsers/index',
+   'sax':           'lib/wrapper/elementtree/parsers/sax',
+   'sprintf':       'lib/wrapper/elementtree/sprintf',
+   'treebuilder':   'lib/wrapper/elementtree/treebuilder',
+   'utils':         'lib/wrapper/elementtree/utils',
+   'util':          'lib/wrapper/elementtree/util'
+  }
+});
+
+require([
+  'underscore',
+  'constants',
+  'sprintf',
+  'utils',
+  'util',
+  'errors',
+  'elementpath',
+  'treebuilder',
+  'sax',
+  'parsers/index',
+  'parser',
+  'elementtree',
+  './test-jssyncml.spec.js'
+], function() {
+
+  require(['underscore'], function(_) {
+    console.log('underscore loaded: ' + j(_.range(3)));
+  });
+
+  require(['elementtree'], function(ET) {
+    console.log('ET-loaded: ' + ET);
+    // console.log(ET);
+    // console.dir(ET);
+  });
+
+  jasmine.getEnv().addReporter(new jasmine.TrivialReporter());
+  jasmine.getEnv().execute();
+});
+
+  </script>
+ </body>
+</html>

@@ -1,0 +1,19 @@
+- currently, to make things work, external libraries *must* be
+  amdefine-compatible... for example, underscore.js needs be wrapped with:
+
+    if (typeof define !== 'function')
+      var define = require('amdefine')(module);
+    define([], function() {
+
+      [===] content of original underscore.js [===]
+
+      if ( typeof(root) != 'undefined' )
+        return root._;
+      return _;
+    });
+
+  it would be much better if i did not need to alter libraries...
+
+- look into:
+    - https://github.com/larrymyers/jasmine-reporters
+    - http://rockycode.com/blog/phantomjs-meets-jasmine/

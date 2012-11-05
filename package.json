@@ -1,0 +1,32 @@
+{
+  "name":           "jssyncml",
+  "author":         "metagriffin <metagriffin@uberdev.org>",
+  "description":    "A pure-javascript implementation of the SyncML adapter framework and protocol.",
+  "homepage":       "http://jssyncml.org",
+  "keywords": [
+    "syncml",
+    "javascript",
+    "synchronize",
+    "mobile",
+    "desktop",
+    "framework",
+    "adapter",
+    "open mobile alliance"
+  ],
+  "repository": {
+    "type": "git",
+    "url":  "git://github.com/metagriffin/jssyncml.git"
+  },
+  "main":           "src/jssyncml.js",
+  "version":        "0.0.1",
+  "dependencies": {
+    "amdefine":     ">=0.0.4",
+    "elementtree":  ">=0.1.3",
+    "underscore":   ">=1.4.2",
+    "sqlite3":      ">=2.1.1"
+  },
+  "devDependencies": {
+    "jasmine-node": ">=1.0.26",
+    "jsindexeddb":  ">=0.0.5"
+  }
+}
