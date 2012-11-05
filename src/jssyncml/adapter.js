@@ -227,23 +227,20 @@ define([
         mode = common.synctype2alert(mode);
       if ( ! mode )
         return cb('invalid synctype');
-      if ( ! this.devInfo )
+      if ( ! self.devInfo )
         return cb('cannot synchronize adapter as client: invalid devInfo');
-      if ( ! this.peer )
+      if ( ! self.peer )
         return cb('cannot synchronize adapter as client: invalid peer');
 
-      // if ( _.filter(_.values(this._stores), function(e) { return e.agent; }).length <= 0 )
-      //   return cb('cannot synchronize adapter as client: no agent-backed store');
-
       var session = state.makeSession({
-        id       : ( this.peer.lastSessionID || 0 ) + 1,
+        id       : ( self.peer.lastSessionID || 0 ) + 1,
         isServer : false,
         mode     : mode
       });
 
       var err = null;
 
-      _.each(this._stores, function(store) {
+      _.each(self._stores, function(store) {
         if ( err )
           return;
         if ( ! store.agent )
@@ -291,9 +288,44 @@ define([
       if ( err )
         return cb(err);
 
-      console.log('starting client-side sync with session: ' + JSON.stringify(session));
+      var txn = state.makeTransaction({
+        context : self._c,
+        adapter : self,
+        session : session
+      });
 
-      cb('not implemented');
+      txn.context.protocol.initialize(txn, function(err, commands) {
+        if ( err )
+          return cb(err);
+        self._transmit(txn, commands, function(err) {
+          if ( err )
+            return cb(err);
+          self._save(function(err) {
+            if ( err )
+              return cb(err);
+            return cb(null, self._session2stats(session));
+          });
+        });
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    _session2stats: function(session) {
+      var ret = {};
+      _.each(_.values(session.dsstates), function(ds) {
+        ret[ds.uri] = _.clone(ds);
+        ret[ds.uri].mode = common.alert2synctype(ds.mode);
+      });
+      console.log('session statistics: ' + common.j(ret));
+      return ret;
+    },
+
+    //-------------------------------------------------------------------------
+    _transmit: function(txn, commands, cb) {
+
+      console.log('TODO ::: Adapter._transmit NOT IMPLEMENTED');
+
+      cb();
     }
 
   });

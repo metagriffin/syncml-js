@@ -82,12 +82,10 @@ define([
 
     });
 
-    var sync = {};
-
     //-------------------------------------------------------------------------
-    beforeEach(function(callback) {
+    var setupAdapter = function(callback) {
 
-      sync = {
+      var sync = {
         adapter: null,
         store: null,
         agent: new TestAgent()
@@ -159,18 +157,17 @@ define([
             expect(err).toBeFalsy();
             setupStore(function(err) {
               expect(err).toBeFalsy();
-              callback();
+              callback(null, sync);
             });
           });
         });
 
       });
 
-    });
+    };
 
     //-------------------------------------------------------------------------
-    it('slow-sync synchronizes with a remote server on first sync', function() {
-
+    var doFirstSync = function(sync, callback) {
       expect(sync).not.toBeFalsy();
       expect(sync.adapter).not.toBeFalsy();
       expect(sync.store).not.toBeFalsy();
@@ -190,10 +187,49 @@ define([
 
       scanForChanges(function(err) {
         expect(err).toBeFalsy();
-        synchronize(function(err) {
+        synchronize(function(err, stats) {
           expect(err).toBeFalsy();
-          console.log('ALL DONE.');
+          expect(_.keys(stats)).toEqual(['note']);
+          callback(null, 'complete');
         });
+      });
+
+    };
+
+    var sync = {};
+
+    //-------------------------------------------------------------------------
+    beforeEach(function(callback) {
+      setupAdapter(function(err, ret) {
+        expect(err).toBeFalsy();
+        sync = ret;
+        callback();
+      });
+    });
+
+    //-------------------------------------------------------------------------
+    afterEach(function(callback) {
+      sync = {};
+      callback();
+    });
+
+    //-------------------------------------------------------------------------
+    describe('that synchronizes for the first time', function() {
+
+      var done = 'synchronization';
+
+      //-----------------------------------------------------------------------
+      beforeEach(function(callback) {
+        doFirstSync(sync, function(err, ret) {
+          expect(err).toBeFalsy();
+          done = ret;
+          callback();
+        });
+      });
+
+      //-----------------------------------------------------------------------
+      it('does a slow-sync with all stores', function() {
+        expect(done).toEqual('complete');
       });
 
     });

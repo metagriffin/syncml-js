@@ -1,9 +1,9 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: the base jssyncml include
-// auth: metagriffin <metagriffin@uberdev.org>
-// date: 2012/10/13
+// lib:  jssyncml.synchronizer
+// auth: griffin <griffin@uberdev.org>
+// date: 2012/11/05
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
 //-----------------------------------------------------------------------------
 
@@ -13,38 +13,34 @@ if ( typeof(define) !== 'function')
 
 define([
   'underscore',
-  './jssyncml/constant',
-  './jssyncml/codec',
-  './jssyncml/context',
-  './jssyncml/ctype',
-  './jssyncml/agent',
-  './jssyncml/router',
-  './jssyncml/synchronizer',
-  './jssyncml/protocol'
+  'elementtree',
+  './common',
+  './constant',
+  './codec',
+  './ctype',
+  './storage'
 ], function(
   _,
+  ET,
+  common,
   constant,
   codec,
-  context,
   ctype,
-  agent,
-  router,
-  synchronizer,
-  protocol
+  storage
 ) {
 
-  return _.extend(
-    // TODO: figure out how to pull this dynamically from package.json...
-    {version: '0.0.2'},
-    constant,
-    codec,
-    context,
-    ctype,
-    agent,
-    router,
-    synchronizer,
-    protocol
-  );
+  var exports = {};
+
+  //---------------------------------------------------------------------------
+  exports.Synchronizer = common.Base.extend({
+
+    //-------------------------------------------------------------------------
+    constructor: function(options) {
+    },
+
+  });
+
+  return exports;
 
 });
 

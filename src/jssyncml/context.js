@@ -24,6 +24,8 @@ define([
   './codec',
   './storage',
   './router',
+  './synchronizer',
+  './protocol',
   './adapter'
 ], function(
   _,
@@ -33,6 +35,8 @@ define([
   codec,
   storage,
   router,
+  synchronizer,
+  protocol,
   adapter
 ) {
 
@@ -48,8 +52,8 @@ define([
       this.dbname       = ( options.prefix || '' ) + 'jssynmcl';
       this.autoCommit   = options.autoCommit == undefined ? true : options.autoCommit;
       this.router       = options.router || new router.Router();
-      //this.synchronizer = options.synchronizer || new synchronizer.Synchronizer();
-      //this.protocol     = options.protocol || new protocol.Protocol();
+      this.synchronizer = options.synchronizer || new synchronizer.Synchronizer();
+      this.protocol     = options.protocol || new protocol.Protocol();
       this.codec        = options.codec || codec.Codec.factory(constant.CODEC_XML);
       this._db          = null;
     },

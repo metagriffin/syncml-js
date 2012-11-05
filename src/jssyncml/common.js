@@ -129,6 +129,16 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    alert2synctype: function(alert) {
+      for ( var key in constant.SyncTypeToAlert )
+      {
+        if ( constant.SyncTypeToAlert[key] == alert )
+          return parseInt(key, 10);
+      }
+      return null;
+    },
+
+    //-------------------------------------------------------------------------
     cascade: function(list, iterator, cb) {
       if ( ! list )
         return cb();
@@ -150,6 +160,11 @@ define([
     ts: function() {
       return Math.floor((new Date()).getTime() / 1000);
     },
+
+    //-------------------------------------------------------------------------
+    j: function(obj) {
+      return JSON.stringify(obj);
+    }
 
   });
 

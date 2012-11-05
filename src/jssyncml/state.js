@@ -64,6 +64,15 @@ define([
     });
   };
 
+  //---------------------------------------------------------------------------
+  exports.makeTransaction = function(options) {
+    return _.defaults(options || {}, {
+      context : null,
+      adapter : null,
+      session : null
+    });
+  };
+
   return exports;
 
 });
