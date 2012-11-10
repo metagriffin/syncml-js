@@ -164,7 +164,61 @@ define([
     //-------------------------------------------------------------------------
     j: function(obj) {
       return JSON.stringify(obj);
-    }
+    },
+
+    //-------------------------------------------------------------------------
+    platformBits: function() {
+
+      // TODO: implement this!...
+
+      return 64;
+    },
+
+    //-------------------------------------------------------------------------
+    getMaxMemorySize: function(context) {
+
+      // Returns the maximum size of a memory object. By default this
+      // is, set to ``sys.maxint``, however the `context` may override
+      // this behavior.
+
+      // NOTE: currently, this is being hardcoded to a maximum of 2GB for
+      //       compatibility with funambol servers, which croak above that
+      //       value.
+
+      // TODO: allow the context to control this, or implement auto-detect to
+      //       determine what the remote peer can support...
+
+      return Math.min(Math.pow(2, exports.platformBits() - 1) - 1,
+                      Math.pow(2, 31) - 1);
+    },
+
+    //-------------------------------------------------------------------------
+    normpath: function(path) {
+      if ( path == undefined )
+        return null;
+      if ( path.length <= 0 )
+        return '';
+      if ( path.indexOf('/') < 0 )
+        path = path.replace('\\', '/');
+      var ret = [];
+      var plist = path.split('/');
+      for ( var idx=0 ; idx<plist.length ; idx++ )
+      {
+        var item = plist[idx];
+        if ( item.length <= 0 || item == '.' )
+          continue;
+        if ( item != '..' || ret.length <= 0 || ret[ret.length - 1] == '..' )
+        {
+          ret.push(item);
+          continue;
+        }
+        ret.pop();
+      }
+      ret = ret.join('/');
+      if ( path.charAt(0) != '/' )
+        return ret;
+      return '/' + ret;
+    },
 
   });
 
