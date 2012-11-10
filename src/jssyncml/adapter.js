@@ -425,6 +425,44 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    handleRequest: function(request, cb) {
+
+      var session = state.makeSession({
+        context : self._c,
+        adapter : self,
+        peer    : null,
+        info    : request.session['jssyncml']
+      });
+
+      // TODO
+      log.critical('TODO ::: populate session.peer');
+
+      if ( ! session.info )
+      {
+        // TODO
+        log.critical('TODO ::: get the session-id from the request?...');
+        log.critical('TODO ::: or will that get filled in during the initialize?...');
+
+        session.info = state.makeSessionInfo({
+          id       : ( session.peer.lastSessionID || 0 ) + 1,
+          codec    : self._c.codec,
+          isServer : true,
+          mode     : null
+        })
+      }
+
+      session.send = cb;
+
+      this._receive(session, request, function(err, stats) {
+        if ( err )
+          return cb(err);
+        log.info('syncml transaction stats: ' + common.j(stats));
+        return cb(null, null, null, stats);
+      });
+
+    },
+
+    //-------------------------------------------------------------------------
     _receive: function(session, request, cb) {
       var self = this;
       if ( session.info.msgID > 20 )
