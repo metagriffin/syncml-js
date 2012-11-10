@@ -14,21 +14,22 @@ if ( typeof(define) !== 'function')
 define([
   'underscore',
   'elementtree',
+  './logging',
   './common',
   './constant',
-  './codec',
   './ctype',
   './storage'
 ], function(
   _,
   ET,
+  logging,
   common,
   constant,
-  codec,
   ctype,
   storage
 ) {
 
+  var log = logging.getLogger('jssyncml.synchronizer');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -36,6 +37,22 @@ define([
 
     //-------------------------------------------------------------------------
     constructor: function(options) {
+    },
+
+    //-------------------------------------------------------------------------
+    actions: function(session, commands, cb) {
+
+      log.critical('TODO: Synchronizer.actions() NOT IMPLEMENTED');
+      return cb(new common.NotImplementedError('TODO: Synchronizer.actions NOT IMPLEMENTED'));
+
+    },
+
+    //-------------------------------------------------------------------------
+    settle: function(session, cmd, chkcmd, xnode, cb) {
+
+      log.critical('TODO: Synchronizer.settle() NOT IMPLEMENTED');
+      return cb(new common.NotImplementedError('TODO: Synchronizer.settle() NOT IMPLEMENTED'));
+
     },
 
   });
