@@ -14,91 +14,101 @@ if ( typeof(define) !== 'function')
 define([
   'underscore',
   'elementtree',
+  './logging',
   './common',
   './constant',
   './codec',
   './storage',
   './remote',
   './store',
+  './devinfo',
   './state'
 ], function(
   _,
   ET,
+  logging,
   common,
   constant,
   codec,
   storage,
   remote,
   storemod,
+  devinfomod,
   state
 ) {
 
+  var log = logging.getLogger('jssyncml.adapter');
   var exports = {};
 
   //---------------------------------------------------------------------------
   exports.Adapter = common.Base.extend({
 
     //-------------------------------------------------------------------------
-    constructor: function(context, options) {
+    constructor: function(context, options, devInfo) {
 
       // todo: is there anyway to mark attributes as read-only?...
 
-      //: devInfo is a read-only attribute describing this adapter's
-      //: device info.
-      this.devInfo  = null;
+      //: [read-only] devInfo describes this adapter's device info and
+      //: capabilities.
+      this.devInfo = null;
 
-      //: peer is a read-only attribute that describes the current peer
-      //: with which this adapter is synchronizing with.
-      this.peer     = null;
+      //: [read-only] the device ID of this adapter.
+      this.devID = options.devID || null;
+
+      //: [read-only] specifies whether this Adapter represents a local
+      //: or remote peer.
+      this.isLocal = true;
+
+      // todo: by setting the name here, it interrupts the normal _load
+      // process...
+
+      //: [read-only] human-facing name of this adapter
+      this.name = options.name || null;
 
       // --- private attributes
+      this._id      = options.id || common.makeID();
       this._c       = context;
       // TODO: use _.pick() for these options...
       this._options = options;
+      this._devInfo = devInfo;
       this._model   = null;
       this._stores  = {};
+      this._peers   = [];
     },
 
     //-------------------------------------------------------------------------
     setDevInfo: function(devInfo, cb) {
       if ( this._model == undefined )
         this._model = {
-          id          : common.makeID(),
-          name        : null,
+          id          : this._id,
+          name        : this.name,
           devInfo     : null,
           stores      : [],
           peers       : [],
           isLocal     : true
         };
-      // todo: directly setting the database content here without
-      //       filtering the properties... doh! ensure that devInfo
-      //       is clean!
-      // TODO: use _.pick() for these options...
-      this._model.devInfo = _.defaults(devInfo, {
-        devType           : constant.DEVTYPE_WORKSTATION,
-        manufacturerName  : '-',
-        modelName         : '-',
-        oem               : '-',
-        hardwareVersion   : '-',
-        firmwareVersion   : '-',
-        softwareVersion   : '-',
-        utc               : true,
-        largeObjects      : true,
-        hierarchicalSync  : true,
-        numberOfChanges   : true
-      });
-      this._model.devID = this._model.devInfo.devID;
-      this.devInfo = this._model.devInfo;
 
-      // since the local devinfo has changed, we need to ensure that
-      // we rebroadcast it (in case there are any affects...), thus
-      // resetting all anchors.
-      // TODO: this seems a little heavy-handed, since this will force
-      //       a slow-sync for each datastore. is that really the best
-      //       thing?...
-      this._resetAllAnchors();
+      var di = new devinfomod.DevInfo(this, devInfo);
+      di._updateModel(_.bind(function(err) {
+        if ( err )
+          return cb(err);
 
-      this._save(cb);
+        this._model.devID = this._model.devInfo.devID;
+        this.devID        = this._model.devInfo.devID;
+        this.devInfo      = di;
+
+        // since the local devinfo has changed, we need to ensure that
+        // we rebroadcast it (in case there are any affects...), thus
+        // resetting all anchors.
+        // TODO: this seems a little heavy-handed, since this will force
+        //       a slow-sync for each datastore. is that really the best
+        //       thing?...
+        this._resetAllAnchors();
+
+        this._save(cb);
+
+
+      }, this));
     },
 
     //-------------------------------------------------------------------------
@@ -114,25 +124,6 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    setPeer: function(peerInfo, cb) {
-      var self = this;
-
-      // TODO: if there is already a peer for the specified URL, then
-      //       we have a problem!...
-
-      // TODO: if we are adding a peer to an adapter that alread has
-      //       non-client peers, then we have a problem!...
-
-      var peer = new remote.RemoteAdapter(this, peerInfo);
-      peer._save(function(err) {
-        if ( err )
-          return cb(err);
-        self.peer = peer;
-        cb();
-      });
-    },
-
-    //-------------------------------------------------------------------------
     getStore: function(storeUri) {
       return this._stores[storeUri];
     },
@@ -141,7 +132,7 @@ define([
     addStore: function(storeInfo, cb) {
       var self  = this;
       var store = new storemod.Store(this, storeInfo);
-      store._save(function(err) {
+      store._updateModel(function(err) {
         if ( err )
           return cb(err);
         self._stores[store.uri] = store;
@@ -150,6 +141,37 @@ define([
             return cb(err);
           cb(null, store);
         });
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    normUri: function(uri) {
+      return common.normpath(uri);
+    },
+
+    //-------------------------------------------------------------------------
+    getPeers: function() {
+      return this._peers;
+    },
+
+    //-------------------------------------------------------------------------
+    addPeer: function(peerInfo, cb) {
+      var self = this;
+
+      // TODO: if there is already a peer for the specified URL, then
+      //       we may have a problem!...
+
+      // todo: if we are adding a peer to an adapter that already has
+      //       non-client peers, then we may have a problem!...
+      //       (this is only true while jssyncml is not capable of truly
+      //       operating in peer-to-peer mode)
+
+      var peer = new remote.RemoteAdapter(this, peerInfo);
+      peer._updateModel(function(err) {
+        if ( err )
+          return cb(err);
+        self._peers.push(peer);
+        cb(null, peer);
       });
     },
 
@@ -188,54 +210,81 @@ define([
     //-------------------------------------------------------------------------
     _loadModel: function(model, cb) {
       var self = this;
-      self._model = model;
-      self.devInfo = self._model.devInfo;
-      var loadPeers = function() {
-        var rempeers = _.filter(model.peers, function(e) {
-          return ! e.isLocal;
-        });
-        if ( rempeers.length != 1 )
-          return cb(null, self);
-        var peer = new remote.RemoteAdapter(self, rempeers[0]);
-        return peer._load(function(err) {
+      self._model  = model;
+      self.name    = model.name;
+      self.devID   = model.devID;
+
+      var loadDevInfo = function(cb) {
+        var di = new devinfomod.DevInfo(this, this._model.devInfo);
+        di._load(function(err) {
           if ( err )
             return cb(err);
-          self.peer = peer;
+          self.devInfo = di;
           cb();
         });
       };
-      common.cascade(model.stores, function(e, cb) {
-        var store = new storemod.Store(self, e);
-        store._load(function(err) {
-          if ( err )
-            return cb(err);
-          self._stores[store.uri] = store;
-          return cb();
+
+      var loadStores = function(cb) {
+        common.cascade(model.stores, function(e, cb) {
+          var store = new storemod.Store(self, e);
+          store._load(function(err) {
+            if ( err )
+              return cb(err);
+            self._stores[store.uri] = store;
+            return cb();
+          });
+        }, cb);
+      };
+
+      var loadPeers = function(cb) {
+        var remotes = _.filter(model.peers, function(e) {
+          return ! e.isLocal;
         });
-      }, function(err) {
+        self._peers = [];
+        common.cascade(remotes, function(e, cb) {
+          var peer = new remote.RemoteAdapter(self, e);
+          peer._load(function(err) {
+            self._peers.push(peer);
+            return cb();
+          });
+        }, cb);
+      };
+
+      loadDevInfo(function(err) {
         if ( err )
           return cb(err);
-        loadPeers();
+        loadStores(function(err) {
+          if ( err )
+            return cb(err);
+          loadPeers(cb);
+        });
       });
+
     },
 
     //-------------------------------------------------------------------------
-    sync: function(mode, cb) {
+    sync: function(peer, mode, cb) {
       var self = this;
 
+      if ( ! _.find(self._peers, function(p) { return p === peer; }) )
+        return cb('invalid peer for adapter');
       if ( mode != undefined )
         mode = common.synctype2alert(mode);
       if ( ! mode )
         return cb('invalid synctype');
       if ( ! self.devInfo )
         return cb('cannot synchronize adapter as client: invalid devInfo');
-      if ( ! self.peer )
-        return cb('cannot synchronize adapter as client: invalid peer');
 
       var session = state.makeSession({
-        id       : ( self.peer.lastSessionID || 0 ) + 1,
-        isServer : false,
-        mode     : mode
+        context : self._c,
+        adapter : self,
+        peer    : peer,
+        info    : state.makeSessionInfo({
+          id       : ( peer.lastSessionID || 0 ) + 1,
+          codec    : self._c.codec,
+          isServer : false,
+          mode     : mode
+        })
       });
 
       var err = null;
@@ -245,7 +294,7 @@ define([
           return;
         if ( ! store.agent )
           return;
-        var peerStore = store.getPeer();
+        var peerStore = store.getPeerStore(peer);
         if ( ! peerStore )
           return;
 
@@ -271,8 +320,8 @@ define([
             constant.ALERT_ONE_WAY_FROM_SERVER,
           ], ds.mode) >= 0 )
           {
-            console.log('forcing slow-sync for store "'
-                        + ds.uri + '" (no previous successful synchronization)');
+            log.debug('forcing slow-sync for store "'
+                      + ds.uri + '" (no previous successful synchronization)');
             ds.mode = constant.ALERT_SLOW_SYNC;
           }
           else
@@ -282,22 +331,24 @@ define([
           }
         }
 
-        session.dsstates[store.uri] = ds;
+        session.info.dsstates[store.uri] = ds;
       });
 
       if ( err )
         return cb(err);
 
-      var txn = state.makeTransaction({
-        context : self._c,
-        adapter : self,
-        session : session
-      });
+      session.send = function(contentType, data, cb) {
+        session.peer.sendRequest(session, contentType, data, function(err, response) {
+          if ( err )
+            return cb(err);
+          self._receive(session, response, cb);
+        });
+      };
 
-      txn.context.protocol.initialize(txn, function(err, commands) {
+      session.context.protocol.initialize(session, null, function(err, commands) {
         if ( err )
           return cb(err);
-        self._transmit(txn, commands, function(err) {
+        self._transmit(session, commands, function(err) {
           if ( err )
             return cb(err);
           self._save(function(err) {
@@ -312,21 +363,101 @@ define([
     //-------------------------------------------------------------------------
     _session2stats: function(session) {
       var ret = {};
-      _.each(_.values(session.dsstates), function(ds) {
+      _.each(_.values(session.info.dsstates), function(ds) {
         ret[ds.uri] = _.clone(ds);
         ret[ds.uri].mode = common.alert2synctype(ds.mode);
       });
-      console.log('session statistics: ' + common.j(ret));
+      log.debug('session statistics: ' + common.j(ret));
       return ret;
     },
 
     //-------------------------------------------------------------------------
-    _transmit: function(txn, commands, cb) {
+    _transmit: function(session, commands, cb) {
+      var self = this;
 
-      console.log('TODO ::: Adapter._transmit NOT IMPLEMENTED');
+      session.context.protocol.negotiate(session, commands, function(err, commands) {
+        if ( err )
+          return cb(err);
 
-      cb();
-    }
+        if ( session.context.protocol.isComplete(session, commands) )
+        {
+          // we're done! store all the anchors and session IDs and exit...
+          var pmodel = session.peer._getModel();
+          if ( ! pmodel )
+            return cb('unexpected error: could not locate this peer in local adapter');
+          _.each(session.info.dsstates, function(ds, uri) {
+            var pstore = _.find(pmodel.stores, function(s) { return s.uri == ds.peerUri; });
+            if ( ! pstore )
+              return cb('unexpected error: could not locate bound peer store in local adapter');
+            pstore.binding.sourceAnchor = ds.nextAnchor;
+            pstore.binding.targetAnchor = ds.peerNextAnchor;
+          });
+          session.peer.lastSessionID = session.info.id;
+          pmodel.lastSessionID       = session.info.id;
+          log.debug('synchronization complete for "' + session.peer.devID + '" (s'
+                    + session.info.id + '.m' + session.info.lastMsgID)
+          return cb();
+        }
+
+        session.context.protocol.produce(session, commands, function(err, tree) {
+          if ( err )
+            return cb(err);
+          codec.Codec.autoEncode(tree, session.info.codec, function(err, contentType, data) {
+            if ( err )
+              return cb(err);
+
+            // update the session with the last request commands so
+            // that when we receive the response package, it can be
+            // compared against that.
+
+            // TODO: should that only be done on successful transmit?...
+
+            session.info.lastCommands = commands;
+            session.send(contentType, data, function(err) {
+              if ( err )
+                return cb(err);
+              cb();
+            });
+
+          })
+        });
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    _receive: function(session, request, cb) {
+      var self = this;
+      if ( session.info.msgID > 20 )
+        return cb('too many client/server messages');
+      if ( ! session.info.isServer )
+      {
+        session.info.lastMsgID = session.info.msgID;
+        session.info.msgID += 1;
+      }
+      var ct = request.headers['Content-Type'];
+      codec.Codec.autoDecode(ct, request.body, function(err, xtree, engine) {
+        if ( err )
+          return cb(err);
+        session.info.codec = engine;
+        session.context.protocol.consume(
+          session, session.info.lastCommands, xtree,
+          function(err, commands) {
+            if ( err )
+              return cb(err);
+            self._transmit(session, commands, function(err) {
+              if ( err )
+                return cb(err);
+              if ( ! session.info.isServer )
+                return cb();
+              self._save(function(err) {
+                if ( err )
+                  return cb(err);
+                return cb(null, self._session2stats(session));
+              });
+            });
+          });
+      })
+    },
 
   });
 
