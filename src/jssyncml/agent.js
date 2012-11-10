@@ -14,15 +14,18 @@ if ( typeof(define) !== 'function')
 define([
   'underscore',
   'elementtree',
+  './logging',
   './common',
   './constant'
 ], function(
   _,
   ET,
+  logging,
   common,
   constant
 ) {
 
+  var log = logging.getLogger('jssyncml.agent');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -37,6 +40,31 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    dumpItem: function(item, stream, contentType, version, cb) {
+      return this.dumpsItem(
+        item, contentType, version,
+        function(err, data, new_contentType, new_version) {
+          if ( err )
+            return cb(err);
+          stream.write(data, function(err) {
+            if ( err )
+              return cb(err);
+            cb(null, new_contentType, new_version);
+          });
+        });
+    },
+
+    //-------------------------------------------------------------------------
+    loadItem: function(stream, contentType, version, cb) {
+      var self = this;
+      stream.read(function(err, data) {
+        if ( err )
+          cb(err);
+        self.loadsItem(data, contentType, version, cb);
+      });
+    },
+
+    //-------------------------------------------------------------------------
     deleteAllItems: function(cb) {
       var self = this;
       self.getAllItems(function(err, items) {
@@ -44,17 +72,11 @@ define([
           return cb(err);
         common.cascade(items, function(e, cb) {
           self.deleteItem(e, cb);
-        }, function(err) {
-          if ( err )
-            return cb(err);
-          return cb();
-        });
+        }, cb);
       });
     }
 
     // todo: add documentation about all expected methods...
-
-    // TODO: provide loadsItem(), dumpsItem() helper methods...
     // TODO: provide matchItem()
 
   });
