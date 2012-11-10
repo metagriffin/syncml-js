@@ -16,10 +16,49 @@ define([
   'elementtree',
   'sqlite3',
   'jsindexeddb',
+  'diff',
   '../src/jssyncml'
-], function(_, ET, sqlite3, jsindexeddb, jssyncml) {
+], function(_, ET, sqlite3, jsindexeddb, diff, jssyncml) {
+
+  var xmlMatchers = {
+    toEqualXml: function (expected) {
+
+      var notText  = this.isNot ? ' not' : '';
+      var isEqual  = true;
+      var difftext = '.';
+      var act      = ET.tostring(ET.parse(this.actual).getroot());
+      var exp      = ET.tostring(ET.parse(expected).getroot());
+
+      if ( act != exp )
+      {
+        isEqual = false;
+        // todo: improve this "pretty-fying"...
+        var srcxml = act.replace(/>\s*</g, '>\n<');
+        var dstxml = exp.replace(/>\s*</g, '>\n<');
+        difftext = diff.createPatch('xml', dstxml, srcxml, '(expected)', '(received)');
+        var idx = difftext.indexOf('---');
+        if ( idx >= 0 )
+          difftext = difftext.substr(idx);
+        difftext = difftext
+          .replace(/\-\-\- xml\s*\(expected\)/, '--- expected')
+          .replace(/\+\+\+ xml\s*\(received\)/, '+++ received');
+        difftext = ', differences:\n' + difftext;
+      }
+
+      this.message = function () {
+        return 'Expected "' + this.actual + notText + '" to be "' + expected + '"' + difftext;
+      };
+
+      return isEqual;
+
+    }
+  };
 
   describe('jssyncml-client', function() {
+
+    beforeEach(function () {
+      this.addMatchers(xmlMatchers);
+    });
 
     //-------------------------------------------------------------------------
     var TestAgent = jssyncml.Agent.extend({
@@ -28,17 +67,13 @@ define([
         this._items = {};
       },
 
-      dumpItem: function(item, stream, contentType, version, cb) {
-        stream.write(item.body, cb);
+      dumpsItem: function(item, contentType, version, cb) {
+        cb(null, item.body);
       },
 
-      loadItem: function(stream, contentType, version, cb) {
-        stream.read(function(err, data) {
-          if ( err )
-            cb(err);
-          var item = {body: data};
-          cb(null, item);
-        });
+      loadsItem: function(data, contentType, version, cb) {
+        var item = {body: data};
+        cb(null, item);
       },
 
       getAllItems: function(cb) {
@@ -74,25 +109,37 @@ define([
 
       getContentTypes: function() {
         return [
-          // new jssyncml.ContentTypeInfo('text/x-s4j-sifn', '1.1', {preferred: true}),
-          // new jssyncml.ContentTypeInfo('text/x-s4j-sifn', '1.0'),
-          new jssyncml.ContentTypeInfo('text/plain', '1.0', {preferred: true})
+          new jssyncml.ContentTypeInfo('text/x-s4j-sifn', '1.1', {preferred: true}),
+          new jssyncml.ContentTypeInfo('text/x-s4j-sifn', '1.0'),
+          new jssyncml.ContentTypeInfo('text/plain', ['1.1', '1.0'])
         ];
       },
 
     });
 
     //-------------------------------------------------------------------------
+    var getMaxMemorySize = function() {
+      // because of funambol, jssyncml always limits max-memory-size to 2GB...
+      return 2147483647;
+    };
+
+    //-------------------------------------------------------------------------
+    var getAddressSize = function() {
+      return jssyncml.platformBits();
+    };
+
+    //-------------------------------------------------------------------------
     var setupAdapter = function(callback) {
 
       var sync = {
         adapter: null,
-        store: null,
-        agent: new TestAgent()
+        store:   null,
+        peer:    null,
+        agent:   new TestAgent()
       };
 
-      //var sdb = new sqlite3.Database(':memory:');
-      var sdb = new sqlite3.Database('./test.db');
+      var sdb = new sqlite3.Database(':memory:');
+      // var sdb = new sqlite3.Database('./test.db');
       var idb = new jsindexeddb.indexedDB('sqlite3', sdb);
 
       var context = new jssyncml.Context({
@@ -100,68 +147,111 @@ define([
         prefix:  'memoryBased'
       });
 
-      context.getAdapter(null, function(err, adapter) {
+      // TODO: ensure that this manual way also works!...
 
-        expect(err).toBeFalsy();
+      // context.getAdapter(null, function(err, adapter) {
+      //   expect(err).toBeFalsy();
+      //   sync.adapter = adapter;
+      //   var setupDevInfo = function(cb) {
+      //     if ( adapter.devInfo != undefined )
+      //       return cb();
+      //     console.log('==> setting devInfo...');
+      //     adapter.setDevInfo({
+      //       devID               : 'test-jssyncml-devid',
+      //       devType             : jssyncml.DEVTYPE_WORKSTATION,
+      //       manufacturerName    : 'jssyncml',
+      //       modelName           : 'testclient',
+      //       hierarchicalSync    : false
+      //     }, cb);
+      //   }
+      //   var setupStore = function(cb) {
+      //     sync.store = adapter.getStore('note');
+      //     if ( sync.store != undefined )
+      //     {
+      //       sync.store.agent = sync.agent;
+      //       return cb();
+      //     }
+      //     console.log('==> adding store...');
+      //     adapter.addStore({
+      //       uri          : 'note',
+      //       displayName  : 'Note Storage',
+      //       agent        : sync.agent
+      //     }, function(err, store) {
+      //       if ( err )
+      //         cb(err);
+      //       sync.store = store;
+      //       cb();
+      //     });
+      //   };
+      //   var setupPeer = function(cb) {
+      //     sync.peer = _.find(adapter.getPeers(), function(p) {
+      //       return p.url == 'https://www.example.com/funambol/ds';
+      //     });
+      //     if ( sync.peer != undefined )
+      //       return cb();
+      //     console.log('==> setting peer...');
+      //     adapter.addPeer({
+      //       url      : 'https://www.example.com/funambol/ds',
+      //       auth     : jssyncml.NAMESPACE_AUTH_BASIC,
+      //       username : 'guest',
+      //       password : 'guest'
+      //     }, function(err, peer) {
+      //       if ( err )
+      //         return cb(err);
+      //       sync.peer = peer;
+      //       sync.peer.addRoute('note', 'note', cb);
+      //     });
+      //   }
+      //   setupDevInfo(function(err) {
+      //     expect(err).toBeFalsy();
+      //     setupStore(function(err) {
+      //       expect(err).toBeFalsy();
+      //       setupPeer(function(err) {
+      //         expect(err).toBeFalsy();
+      //         callback(null, sync);
+      //       });
+      //     });
+      //   });
+      // });
 
-        sync.adapter = adapter;
-
-        var setupDevInfo = function(cb) {
-          if ( adapter.devInfo != undefined )
-            return cb();
-          console.log('==> setting devInfo...');
-          adapter.setDevInfo({
-            devID               : 'test-jssyncml-devid',
-            devType             : jssyncml.DEVTYPE_WORKSTATION,
-            manufacturerName    : 'jssyncml',
-            modelName           : 'testclient',
-            hierarchicalSync    : false
-          }, cb);
-        }
-
-        var setupPeer = function(cb) {
-          if ( adapter.peer != undefined )
-            return cb();
-          console.log('==> setting peer...');
-          adapter.setPeer({
-            url      : 'https://www.example.com/funambol/ds',
-            auth     : jssyncml.NAMESPACE_AUTH_BASIC,
-            username : 'guest',
-            password : 'guest'
-          }, cb);
-        }
-
-        var setupStore = function(cb) {
-          sync.store = adapter.getStore('note');
-          if ( sync.store != undefined )
+      context.getEasyClientAdapter({
+        name: 'In-Memory Test Client',
+        devInfo: {
+          devID               : 'test-jssyncml-devid',
+          devType             : jssyncml.DEVTYPE_WORKSTATION,
+          manufacturerName    : 'jssyncml',
+          modelName           : 'jssyncml.test.suite.client',
+          hierarchicalSync    : false
+        },
+        stores: [
           {
-            sync.store.agent = sync.agent;
-            return cb();
-          }
-          console.log('==> adding store...');
-          adapter.addStore({
-            uri          : 'note',
-            displayName  : 'Note Storage',
+            uri          : 'cli_memo',
+            displayName  : 'Memo Taker',
+            maxGuidSize  : getAddressSize(),
+            maxObjSize   : getMaxMemorySize(),
             agent        : sync.agent
-          }, function(err, store) {
-            if ( err )
-              cb(err);
-            sync.store = store;
-            cb();
-          });
-        };
-
-        setupDevInfo(function(err) {
-          expect(err).toBeFalsy();
-          setupPeer(function(err) {
-            expect(err).toBeFalsy();
-            setupStore(function(err) {
-              expect(err).toBeFalsy();
-              callback(null, sync);
-            });
-          });
-        });
-
+          }
+        ],
+        peer: {
+          url      : 'https://www.example.com/sync',
+          auth     : jssyncml.NAMESPACE_AUTH_BASIC,
+          username : 'guest',
+          password : 'guest'
+        },
+        routes: [
+          [ 'cli_memo', 'srv_note' ],
+        ]
+      }, function(err, adapter, stores, peer) {
+        expect(err).toBeFalsy();
+        if ( err )
+          return callback(err);
+        expect(adapter).toBeTruthy();
+        expect(stores.length).toEqual(1);
+        expect(peer).toBeTruthy();
+        sync.adapter = adapter;
+        sync.store   = stores[0];
+        sync.peer    = peer;
+        callback(null, sync);
       });
 
     };
@@ -180,16 +270,232 @@ define([
       };
 
       // TODO: add jasmine spies here...
+      //       note that it may require use of jasmine.Clock.tick()...
 
       var synchronize = function(cb) {
-        sync.adapter.sync(jssyncml.SYNCTYPE_SLOW_SYNC, cb);
+
+        var fake_request_1 = {
+          sendRequest: function(txn, contentType, requestBody, cb) {
+            var chk =
+              '<SyncML>'
+              + ' <SyncHdr>'
+              + '  <VerDTD>1.2</VerDTD>'
+              + '  <VerProto>SyncML/1.2</VerProto>'
+              + '  <SessionID>1</SessionID>'
+              + '  <MsgID>1</MsgID>'
+              + '  <Source>'
+              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocName>In-Memory Test Client</LocName>'
+              + '  </Source>'
+              + '  <Target>'
+              + '   <LocURI>https://www.example.com/sync</LocURI>'
+              + '  </Target>'
+              + '  <Cred>'
+              + '    <Meta>'
+              + '      <Format xmlns="syncml:metinf">b64</Format>'
+              + '      <Type xmlns="syncml:metinf">syncml:auth-basic</Type>'
+              + '    </Meta>'
+              + '    <Data>Z3Vlc3Q6Z3Vlc3Q=</Data>'
+              + '  </Cred>'
+              + '  <Meta>'
+              + '   <MaxMsgSize xmlns="syncml:metinf">' + getMaxMemorySize() + '</MaxMsgSize>'
+              + '   <MaxObjSize xmlns="syncml:metinf">' + getMaxMemorySize() + '</MaxObjSize>'
+              + '  </Meta>'
+              + ' </SyncHdr>'
+              + ' <SyncBody>'
+              + '  <Put>'
+              + '   <CmdID>1</CmdID>'
+              + '   <Meta><Type xmlns="syncml:metinf">application/vnd.syncml-devinf+xml</Type></Meta>'
+              + '   <Item>'
+              + '    <Source><LocURI>./devinf12</LocURI><LocName>./devinf12</LocName></Source>'
+              + '    <Data>'
+              + '     <DevInf xmlns="syncml:devinf">'
+              + '      <VerDTD>1.2</VerDTD>'
+              + '      <Man>jssyncml</Man>'
+              + '      <Mod>jssyncml.test.suite.client</Mod>'
+              + '      <OEM>-</OEM>'
+              + '      <FwV>-</FwV>'
+              + '      <SwV>-</SwV>'
+              + '      <HwV>-</HwV>'
+              + '      <DevID>test-jssyncml-devid</DevID>'
+              + '      <DevTyp>workstation</DevTyp>'
+              + '      <UTC/>'
+              + '      <SupportLargeObjs/>'
+              + '      <SupportNumberOfChanges/>'
+              + '      <DataStore>'
+              + '       <SourceRef>cli_memo</SourceRef>'
+              + '       <DisplayName>Memo Taker</DisplayName>'
+              + '       <MaxGUIDSize>' + getAddressSize() + '</MaxGUIDSize>'
+              + '       <MaxObjSize>' + getMaxMemorySize() + '</MaxObjSize>'
+              + '       <Rx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Rx-Pref>'
+              + '       <Rx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Rx>'
+              + '       <Rx><CTType>text/plain</CTType><VerCT>1.1</VerCT></Rx>'
+              + '       <Rx><CTType>text/plain</CTType><VerCT>1.0</VerCT></Rx>'
+              + '       <Tx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Tx-Pref>'
+              + '       <Tx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Tx>'
+              + '       <Tx><CTType>text/plain</CTType><VerCT>1.1</VerCT></Tx>'
+              + '       <Tx><CTType>text/plain</CTType><VerCT>1.0</VerCT></Tx>'
+              + '       <SyncCap>'
+              + '        <SyncType>1</SyncType>'
+              + '        <SyncType>2</SyncType>'
+              + '        <SyncType>3</SyncType>'
+              + '        <SyncType>4</SyncType>'
+              + '        <SyncType>5</SyncType>'
+              + '        <SyncType>6</SyncType>'
+              + '        <SyncType>7</SyncType>'
+              + '       </SyncCap>'
+              + '      </DataStore>'
+              + '     </DevInf>'
+              + '    </Data>'
+              + '   </Item>'
+              + '  </Put>'
+              + '  <Get>'
+              + '   <CmdID>2</CmdID>'
+              + '   <Meta><Type xmlns="syncml:metinf">application/vnd.syncml-devinf+xml</Type></Meta>'
+              + '   <Item>'
+              + '    <Target><LocURI>./devinf12</LocURI><LocName>./devinf12</LocName></Target>'
+              + '   </Item>'
+              + '  </Get>'
+              + '  <Final/>'
+              + ' </SyncBody>'
+              + '</SyncML>';
+            expect(contentType).toEqual('application/vnd.syncml+xml; charset=UTF-8');
+            // todo: make this display in "pretty" xml and "multi-line-diff" mode...
+            expect(requestBody).toEqualXml(chk);
+
+            var responseType = 'application/vnd.syncml+xml; charset=UTF-8';
+            var responseBody =
+              '<SyncML>'
+              + ' <SyncHdr>'
+              + '  <VerDTD>1.2</VerDTD>'
+              + '  <VerProto>SyncML/1.2</VerProto>'
+              + '  <SessionID>1</SessionID>'
+              + '  <MsgID>1</MsgID>'
+              + '  <Source>'
+              + '   <LocURI>https://www.example.com/sync</LocURI>'
+              + '   <LocName>Fake Server</LocName>'
+              + '  </Source>'
+              + '  <Target>'
+              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocName>In-Memory Test Client</LocName>'
+              + '  </Target>'
+              + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
+              + ' </SyncHdr>'
+              + ' <SyncBody>'
+              + '  <Status>'
+              + '   <CmdID>1</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>0</CmdRef>'
+              + '   <Cmd>SyncHdr</Cmd>'
+              + '   <SourceRef>test-jssyncml-devid</SourceRef>'
+              + '   <TargetRef>https://www.example.com/sync</TargetRef>'
+              + '   <Data>212</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>2</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>1</CmdRef>'
+              + '   <Cmd>Put</Cmd>'
+              + '   <SourceRef>./devinf12</SourceRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>3</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>2</CmdRef>'
+              + '   <Cmd>Get</Cmd>'
+              + '   <TargetRef>./devinf12</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Results>'
+              + '   <CmdID>4</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>2</CmdRef>'
+              + '   <Meta><Type xmlns="syncml:metinf">application/vnd.syncml-devinf+xml</Type></Meta>'
+              + '   <Item>'
+              + '    <Source><LocURI>./devinf12</LocURI></Source>'
+              + '    <Data>'
+              + '     <DevInf xmlns="syncml:devinf">'
+              + '      <VerDTD>1.2</VerDTD>'
+              + '      <Man>jssyncml</Man>'
+              + '      <Mod>jssyncml.test.suite.server</Mod>'
+              + '      <OEM>-</OEM>'
+              + '      <FwV>1.2.3</FwV>'
+              + '      <SwV>4.5.6</SwV>'
+              + '      <HwV>7.8.9</HwV>'
+              + '      <DevID>jssyncml.test.suite.server</DevID>'
+              + '      <DevTyp>server</DevTyp>'
+              + '      <UTC/>'
+              + '      <SupportLargeObjs/>'
+              + '      <SupportNumberOfChanges/>'
+              // + '      <SupportHierarchicalSync/>'
+              + '      <DataStore>'
+              + '       <SourceRef>srv_note</SourceRef>'
+              + '       <DisplayName>Note Storage</DisplayName>'
+              + '       <MaxGUIDSize>' + getAddressSize() + '</MaxGUIDSize>'
+              + '       <Rx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Rx-Pref>'
+              + '       <Rx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Rx>'
+              + '       <Rx><CTType>text/plain</CTType><VerCT>1.1</VerCT><VerCT>1.0</VerCT></Rx>'
+              + '       <Tx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Tx-Pref>'
+              + '       <Tx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Tx>'
+              + '       <Tx><CTType>text/plain</CTType><VerCT>1.1</VerCT><VerCT>1.0</VerCT></Tx>'
+              + '       <SyncCap>'
+              + '        <SyncType>1</SyncType>'
+              + '        <SyncType>2</SyncType>'
+              + '        <SyncType>3</SyncType>'
+              + '        <SyncType>4</SyncType>'
+              + '        <SyncType>5</SyncType>'
+              + '        <SyncType>6</SyncType>'
+              + '        <SyncType>7</SyncType>'
+              + '       </SyncCap>'
+              + '      </DataStore>'
+              + '     </DevInf>'
+              + '    </Data>'
+              + '   </Item>'
+              + '  </Results>'
+              + '  <Final/>'
+              + ' </SyncBody>'
+              + '</SyncML>';
+            var response = {
+              headers: { 'Content-Type': responseType },
+              body: responseBody
+            };
+            sync.peer._proxy = fake_request_2;
+            cb(null, response);
+          }
+        };
+
+        var fake_request_2 = {
+          sendRequest: function(txn, contentType, requestBody, cb) {
+            var chk =
+              '<SyncML>'
+              + '</SyncML>';
+            expect(contentType).toEqual('application/vnd.syncml+xml; charset=UTF-8');
+            expect(requestBody).toEqualXml(chk);
+
+            var responseType = 'application/vnd.syncml+xml; charset=UTF-8';
+            var responseBody =
+              '<SyncML>'
+              + '</SyncML>';
+            var response = {
+              headers: { 'Content-Type': responseType },
+              body: responseBody
+            };
+            cb(null, response);
+          }
+        };
+
+        // NOTE: using peer._proxy is only for testing purposes!...
+        sync.peer._proxy = fake_request_1;
+        sync.adapter.sync(sync.peer, jssyncml.SYNCTYPE_SLOW_SYNC, cb);
       };
 
       scanForChanges(function(err) {
         expect(err).toBeFalsy();
         synchronize(function(err, stats) {
           expect(err).toBeFalsy();
-          expect(_.keys(stats)).toEqual(['note']);
+          if ( ! err )
+            expect(_.keys(stats)).toEqual(['note']);
           callback(null, 'complete');
         });
       });
