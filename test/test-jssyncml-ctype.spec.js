@@ -23,33 +23,27 @@ define([
     it('generates single version XML', function() {
       var ct = new ctype.ContentTypeInfo('text/plain', '1.0', {preferred: true});
       var chk = '<?xml version=\'1.0\' encoding=\'utf-8\'?>\n<CT><CTType>text/plain</CTType><VerCT>1.0</VerCT></CT>'
-      ct.toSyncML('CT', null, function(err, out) {
-        expect(err).toBeFalsy();
-        out = ET.tostring(out);
-        expect(out).toEqual(chk);
-      });
+      out = ct.toSyncML('CT', null);
+      out = ET.tostring(out);
+      expect(out).toEqual(chk);
     });
 
     it('generates multi version XML with non-unique VerCT', function() {
       var ct = new ctype.ContentTypeInfo('text/plain', ['1.0', '1.1']);
       var chk = '<?xml version=\'1.0\' encoding=\'utf-8\'?>\n<CT><CTType>text/plain</CTType><VerCT>1.0</VerCT><VerCT>1.1</VerCT></CT>'
-      ct.toSyncML('CT', null, function(err, out) {
-        expect(err).toBeFalsy();
-        out = ET.tostring(out);
-        expect(out).toEqual(chk);
-      });
+      out = ct.toSyncML('CT', null);
+      out = ET.tostring(out);
+      expect(out).toEqual(chk);
     });
 
     it('generates multi version XML with unique VerCT', function() {
       var ct = new ctype.ContentTypeInfo('text/plain', ['1.0', '1.1']);
       var chk = '<?xml version=\'1.0\' encoding=\'utf-8\'?>\n<C><CT><CTType>text/plain</CTType><VerCT>1.0</VerCT></CT><CT><CTType>text/plain</CTType><VerCT>1.1</VerCT></CT></C>'
-      ct.toSyncML('CT', true, function(err, out) {
-        expect(err).toBeFalsy();
-        var tmp = ET.Element('C');
-        _.each(out, function(e) { tmp.append(e); });
-        out = ET.tostring(tmp);
-        expect(out).toEqual(chk);
-      });
+      out = ct.toSyncML('CT', true)
+      var tmp = ET.Element('C');
+      _.each(out, function(e) { tmp.append(e); });
+      out = ET.tostring(tmp);
+      expect(out).toEqual(chk);
     });
 
     it('parses XML tx-pref mono-version', function() {
@@ -110,13 +104,11 @@ define([
       expect(ct.transmit).toBeTruthy();
       expect(ct.receive).toBeTruthy();
       var chk = '<?xml version=\'1.0\' encoding=\'utf-8\'?>\n<C><CT><CTType>text/plain</CTType><VerCT>1.0</VerCT></CT><CT><CTType>text/plain</CTType><VerCT>1.1</VerCT></CT></C>'
-      ct.toSyncML('CT', true, function(err, out) {
-        expect(err).toBeFalsy();
-        var tmp = ET.Element('C');
-        _.each(out, function(e) { tmp.append(e); });
-        out = ET.tostring(tmp);
-        expect(out).toEqual(chk);
-      });
+      out = ct.toSyncML('CT', true);
+      var tmp = ET.Element('C');
+      _.each(out, function(e) { tmp.append(e); });
+      out = ET.tostring(tmp);
+      expect(out).toEqual(chk);
     });
 
     it('converts from object to db struct', function() {
