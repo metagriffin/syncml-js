@@ -1,8 +1,29 @@
 {
   "name":           "jssyncml",
-  "author":         "metagriffin <metagriffin@uberdev.org>",
   "description":    "A pure-javascript implementation of the SyncML adapter framework and protocol.",
+  "version":        "0.0.3",
+  "main":           "src/jssyncml.js",
+  "author":         "metagriffin <metagriffin@uberdev.org>",
   "homepage":       "http://jssyncml.org",
+  "repository": {
+    "type": "git",
+    "url":  "git://github.com/metagriffin/jssyncml.git"
+  },
+  "bugs": {
+    "url": "https://github.com/metagriffin/jssyncml/issues"
+  },
+  "dependencies": {
+    "amdefine":     ">=0.0.4",
+    "elementtree":  ">=0.1.3",
+    "underscore":   ">=1.4.2",
+    "sprintf":      ">=0.1.1"
+  },
+  "devDependencies": {
+    "jasmine-node": ">=1.0.26",
+    "jsindexeddb":  ">=0.0.5",
+    "sqlite3":      ">=2.1.1",
+    "diff":         ">=1.0.4"
+  },
   "keywords": [
     "syncml",
     "javascript",
@@ -12,21 +33,5 @@
     "framework",
     "adapter",
     "open mobile alliance"
-  ],
-  "repository": {
-    "type": "git",
-    "url":  "git://github.com/metagriffin/jssyncml.git"
-  },
-  "main":           "src/jssyncml.js",
-  "version":        "0.0.2",
-  "dependencies": {
-    "amdefine":     ">=0.0.4",
-    "elementtree":  ">=0.1.3",
-    "underscore":   ">=1.4.2",
-    "sqlite3":      ">=2.1.1"
-  },
-  "devDependencies": {
-    "jasmine-node": ">=1.0.26",
-    "jsindexeddb":  ">=0.0.5"
-  }
+  ]
 }
