@@ -13,14 +13,17 @@ if ( typeof(define) !== 'function')
 
 define([
   'underscore',
+  './logging',
   './common',
   './constant'
 ], function(
   _,
+  logging,
   common,
   constant
 ) {
 
+  var log = logging.getLogger('jssyncml.storage');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -31,20 +34,20 @@ define([
 
       var dbreq = context.storage.open(context.dbname, 1);
       dbreq.onblocked = function(event) {
-        // console.log('syncml.storage: db "' + context.dbname + '" blocked');
+        log.critical('syncml.storage: db "' + context.dbname + '" blocked');
         cb({code: 'jssyncml.storage.OD.10',
             message: 'database blocked by other process/tab/window'});
       };
       dbreq.onerror = function(event) {
-        // console.log('syncml.storage: db "' + context.dbname + '" error: '
-        //             + event.target.errorCode);
+        log.critical('syncml.storage: db "' + context.dbname + '" error: '
+                     + event.target.errorCode);
         cb({code: 'jssyncml.storage.OD.20',
             message: 'failed to open jssyncml database: '
             + event.target.errorCode});
       };
       dbreq.onupgradeneeded = function(event) {
 
-        // console.log('syncml.storage: db "' + context.dbname + '" upgrade needed');
+        log.debug('syncml.storage: db "' + context.dbname + '" upgrade needed');
 
         var db = event.target.result;
 
@@ -65,7 +68,7 @@ define([
         changeTable.createIndex('store_id', 'store_id', {unique: false});
         changeTable.createIndex('item_id', 'item_id', {unique: false});
 
-        // console.log('syncml.storage: db "' + context.dbname + '" upgrade complete');
+        log.debug('syncml.storage: db "' + context.dbname + '" upgrade complete');
 
         if ( context.storage.vendor != 'jsindexeddb' )
           return cb(null, db);
@@ -86,7 +89,7 @@ define([
 
       };
       dbreq.onsuccess = function(event) {
-        console.log('syncml.storage: db "' + context.dbname + '" opened');
+        log.debug('syncml.storage: db "' + context.dbname + '" opened');
         cb(null, event.target.result);
       };
     },
