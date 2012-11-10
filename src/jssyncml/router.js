@@ -14,21 +14,22 @@ if ( typeof(define) !== 'function')
 define([
   'underscore',
   'elementtree',
+  './logging',
   './common',
   './constant',
-  './codec',
   './ctype',
   './storage'
 ], function(
   _,
   ET,
+  logging,
   common,
   constant,
-  codec,
   ctype,
   storage
 ) {
 
+  var log = logging.getLogger('jssyncml.router');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -39,11 +40,31 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    getTargetUri: function(adapter, sourceUri) {
+    getTargetUri: function(adapter, peer, sourceUri) {
 
-      console.log('TODO ::: router.getTargetUri NOT IMPLEMENTED');
+      log.critical('TODO ::: Router.getTargetUri() NOT IMPLEMENTED');
 
       return null;
+    },
+
+    //-------------------------------------------------------------------------
+    recalculate: function(adapter, peer, cb) {
+      // the default recalculate does nothing - it requires that all routes
+      // be set up manually.
+      return cb();
+    },
+
+  });
+
+  //---------------------------------------------------------------------------
+  exports.SmartRouter = exports.Router.extend({
+
+    //-------------------------------------------------------------------------
+    recalculate: function(adapter, peer, cb) {
+
+      log.critical('TODO ::: SmartRouter.recalculate() NOT IMPLEMENTED');
+
+      return cb();
     },
 
   });
