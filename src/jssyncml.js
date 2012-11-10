@@ -14,6 +14,7 @@ if ( typeof(define) !== 'function')
 define([
   'underscore',
   './jssyncml/constant',
+  './jssyncml/common',
   './jssyncml/codec',
   './jssyncml/context',
   './jssyncml/ctype',
@@ -24,6 +25,7 @@ define([
 ], function(
   _,
   constant,
+  common,
   codec,
   context,
   ctype,
@@ -37,6 +39,10 @@ define([
     // TODO: figure out how to pull this dynamically from package.json...
     {version: '0.0.2'},
     constant,
+    {
+      platformBits: common.platformBits,
+      getMaxMemorySize: common.getMaxMemorySize
+    },
     codec,
     context,
     ctype,
