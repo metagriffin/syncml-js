@@ -25,6 +25,27 @@ define([
       expect(id1).toNotEqual(id2);
     });
 
+    //-------------------------------------------------------------------------
+    it('detects platform bit capacity', function() {
+      var bits = common.platformBits();
+      expect(_.indexOf([32, 64], bits)).not.toEqual(-1);
+      expect('' + (Math.pow(2, 31) - 1)).toEqual('2147483647');
+      if ( bits == 64 )
+        expect('' + (Math.pow(2, 63) - 1)).toEqual('9223372036854775807');
+      var max = common.getMaxMemorySize();
+      expect('' + max).toEqual('2147483647');
+    });
+
+    //-------------------------------------------------------------------------
+    it('normalizes paths', function() {
+      expect(common.normpath('/a/b')).toEqual('/a/b');
+      expect(common.normpath('a/b')).toEqual('a/b');
+      expect(common.normpath('a//b')).toEqual('a/b');
+      expect(common.normpath('a/./b')).toEqual('a/b');
+      expect(common.normpath('a/c/../b')).toEqual('a/b');
+      expect(common.normpath('..//../b')).toEqual('../../b');
+    });
+
   });
 });
 
