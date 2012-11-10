@@ -13,15 +13,18 @@ if ( typeof(define) !== 'function')
 define([
   'underscore',
   'elementtree',
+  './logging',
   './common',
   './constant'
 ], function(
   _,
   ET,
+  logging,
   common,
   constant
 ) {
 
+  var log = logging.getLogger('jssyncml.codec');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -46,12 +49,19 @@ define([
       throw new common.UnknownCodec('unknown or unimplemented codec "' + codec + '"')
     },
 
-    autoEncode: function(contentType, xtree, cb) {
-      // TODO: implement
+    autoEncode: function(xtree, codecName, cb) {
+      exports.Codec.factory(codecName).encode(xtree, cb);
     },
 
     autoDecode: function(contentType, data, cb) {
-      // TODO: implement
+      if ( contentType.indexOf(constant.TYPE_SYNCML + '+') != 0 )
+        return cb('unknown or unimplemented content type "' + contentType + '"');
+      var ct = contentType.slice((constant.TYPE_SYNCML + '+').length).split(';')[0];
+      exports.Codec.factory(ct).decode(contentType, data, function(err, tree) {
+        if ( err )
+          return cb(err);
+        return cb(null, tree, ct);
+      });
     },
   });
 
@@ -72,7 +82,7 @@ define([
         cb(new common.ProtocolError(
           'received unexpected content-type "' + contentType + '" (expected "'
             + expCT + '")'));
-      cb(null, ET.parse(data));
+      cb(null, ET.parse(data).getroot());
     }
 
   });
