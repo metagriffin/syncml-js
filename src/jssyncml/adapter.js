@@ -425,13 +425,13 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    handleRequest: function(request, cb) {
+    handleRequest: function(request, sessionInfo, cb) {
 
       var session = state.makeSession({
         context : self._c,
         adapter : self,
         peer    : null,
-        info    : request.session['jssyncml']
+        info    : sessionInfo
       });
 
       // TODO
