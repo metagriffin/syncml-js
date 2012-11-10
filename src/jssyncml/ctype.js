@@ -13,13 +13,16 @@ if ( typeof(define) !== 'function')
 define([
   'underscore',
   'elementtree',
+  './logging',
   './common'
 ], function(
   _,
   ET,
+  logging,
   common
 ) {
 
+  var log = logging.getLogger('jssyncml.ctype');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -59,7 +62,7 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    toSyncML: function(nodeName, uniqueVerCt, cb) {
+    toSyncML: function(nodeName, uniqueVerCt) {
       if ( _.isFunction(nodeName) )
       {
         cb = nodeName;
@@ -84,14 +87,14 @@ define([
           ET.SubElement(tmp, 'VerCT').text = v;
           return tmp;
         }, this);
-        return cb(null, ret);
+        return ret;
       }
       var ret = ET.Element(nodeName);
       ET.SubElement(ret, 'CTType').text = this.ctype;
       _.each(this.versions, function(v) {
         ET.SubElement(ret, 'VerCT').text = v;
       });
-      return cb(null, ret);
+      return ret;
     },
 
   }, {
@@ -102,8 +105,8 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    fromSyncML: function(xnode, cb) {
-      cb(null, new exports.ContentTypeInfo(
+    fromSyncML: function(xnode) {
+      return new exports.ContentTypeInfo(
         xnode.findtext('CTType'),
         _.map(xnode.findall('VerCT'), function(e) { return e.text; }),
         {
@@ -111,7 +114,7 @@ define([
           transmit:  xnode.tag.indexOf('Tx') >= 0,
           receive:   xnode.tag.indexOf('Rx') >= 0
         }
-      ));
+      );
     }
 
   });
