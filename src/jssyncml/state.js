@@ -12,15 +12,25 @@ if ( typeof(define) !== 'function')
 
 define([
   'underscore',
+  './logging',
   './constant',
   './common'
 ], function(
   _,
+  logging,
   constant,
   common
 ) {
 
+  var log = logging.getLogger('jssyncml.state');
   var exports = {};
+
+  //---------------------------------------------------------------------------
+  exports.makeCommand = function(options) {
+    return _.defaults(options || {}, {
+      // ?
+    });
+  };
 
   //---------------------------------------------------------------------------
   exports.makeStats = function(options) {
@@ -40,14 +50,15 @@ define([
   };
 
   //---------------------------------------------------------------------------
-  exports.makeSession = function(options) {
+  exports.makeSessionInfo = function(options) {
     return _.defaults(options || {}, {
-      id        : 1,
-      isServer  : true,
-      msgID     : 1,
-      cmdID     : 0,
-      dsstates  : {},
-      stats     : exports.makeStats()
+      id           : 1,
+      isServer     : true,
+      msgID        : 1,
+      cmdID        : 0,
+      dsstates     : {},
+      lastCommands : [],
+      stats        : exports.makeStats()
     });
   };
 
@@ -65,12 +76,24 @@ define([
   };
 
   //---------------------------------------------------------------------------
-  exports.makeTransaction = function(options) {
-    return _.defaults(options || {}, {
-      context : null,
-      adapter : null,
-      session : null
-    });
+  exports.makeSession = function(options) {
+    return new (function() {
+      this.context = options.context || null;
+      this.adapter = options.adapter || null;
+      this.peer    = options.peer    || null;
+      this.info    = options.info    || null;
+      this.nextCmdID = function() {
+        this.info.cmdID += 1;
+        return this.info.cmdID;
+      };
+    })();
+
+    // return _.defaults(options || {}, {
+    //   context : null,
+    //   adapter : null,
+    //   peer    : null,
+    //   info    : null
+    // });
   };
 
   return exports;
