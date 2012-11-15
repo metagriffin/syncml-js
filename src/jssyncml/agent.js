@@ -74,9 +74,41 @@ define([
           self.deleteItem(e, cb);
         }, cb);
       });
-    }
+    },
 
-    // todo: add documentation about all expected methods...
+    // TODO: add documentation about all expected methods...
+
+    getAllItems: function(cb) {
+      // cb(null, LIST)
+      return cb(new common.NotImplementedError()); },
+
+    dumpsItem: function(item, contentType, version, cb) {
+      // cb(null, DATA [, NEW-CONTENTTYPE [, NEW-VERSION]])
+      return cb(new common.NotImplementedError()); },
+
+    loadsItem: function(data, contentType, version, cb) {
+      // cb(null, ITEM)
+      return cb(new common.NotImplementedError()); },
+
+    addItem: function(item, cb) {
+      // cb(null, ITEM)
+      return cb(new common.NotImplementedError()); },
+
+    getItem: function(itemID, cb) {
+      // cb(null, ITEM)
+      return cb(new common.NotImplementedError()); },
+
+    replaceItem: function(item, reportChanges, cb) {
+      // cb(null [, CSPEC])
+      return cb(new common.NotImplementedError()); },
+
+    deleteItem: function(itemID, cb) {
+      // cb(null)
+      return cb(new common.NotImplementedError()); },
+
+    getContentTypes: function() {
+      return cb(new common.NotImplementedError()); }
+
     // TODO: provide matchItem()
 
   });
