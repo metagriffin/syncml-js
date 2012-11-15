@@ -139,6 +139,25 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    mode2string: function(code) {
+      switch ( code )
+      {
+        case constant.ALERT_TWO_WAY:                       return 'two-way';
+        case constant.ALERT_SLOW_SYNC:                     return 'slow-sync';
+        case constant.ALERT_ONE_WAY_FROM_CLIENT:           return 'one-way-from-client';
+        case constant.ALERT_REFRESH_FROM_CLIENT:           return 'refresh-from-client';
+        case constant.ALERT_ONE_WAY_FROM_SERVER:           return 'one-way-from-server';
+        case constant.ALERT_REFRESH_FROM_SERVER:           return 'refresh-from-server';
+        case constant.ALERT_TWO_WAY_BY_SERVER:             return 'two-way-by-server';
+        case constant.ALERT_ONE_WAY_FROM_CLIENT_BY_SERVER: return 'one-way-from-client-by-server';
+        case constant.ALERT_REFRESH_FROM_CLIENT_BY_SERVER: return 'refresh-from-client-by-server';
+        case constant.ALERT_ONE_WAY_FROM_SERVER_BY_SERVER: return 'one-way-from-server-by-server';
+        case constant.ALERT_REFRESH_FROM_SERVER_BY_SERVER: return 'refresh-from-server-by-server';
+        default: return 'UNKNOWN';
+      }
+    },
+
+    //-------------------------------------------------------------------------
     cascade: function(list, iterator, cb) {
       if ( ! list )
         return cb();
