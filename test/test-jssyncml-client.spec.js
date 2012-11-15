@@ -56,8 +56,11 @@ define([
 
   describe('jssyncml-client', function() {
 
+    var seenRequests = '';
+
     beforeEach(function () {
       this.addMatchers(xmlMatchers);
+      seenRequests = '';
     });
 
     //-------------------------------------------------------------------------
@@ -77,10 +80,7 @@ define([
       },
 
       getAllItems: function(cb) {
-        var ret = [];
-        for ( var obj in this._items )
-          ret.push(obj);
-        return cb(null, ret);
+        return cb(null, _.values(this._items));
       },
 
       addItem: function(item, cb) {
@@ -144,7 +144,7 @@ define([
 
       var context = new jssyncml.Context({
         storage: idb,
-        prefix:  'memoryBased'
+        prefix:  'memoryBased.'
       });
 
       // TODO: ensure that this manual way also works!...
@@ -199,7 +199,7 @@ define([
       //       if ( err )
       //         return cb(err);
       //       sync.peer = peer;
-      //       sync.peer.addRoute('note', 'note', cb);
+      //       sync.peer.setRoute('cli_memo', 'srv_note', cb);
       //     });
       //   }
       //   setupDevInfo(function(err) {
@@ -276,6 +276,7 @@ define([
 
         var fake_request_1 = {
           sendRequest: function(txn, contentType, requestBody, cb) {
+            seenRequests += '1';
             var chk =
               '<SyncML>'
               + ' <SyncHdr>'
@@ -467,8 +468,57 @@ define([
 
         var fake_request_2 = {
           sendRequest: function(txn, contentType, requestBody, cb) {
+            seenRequests += '2';
+            var nextAnchor = ET.parse(requestBody)
+              .getroot().findtext('SyncBody/Alert/Item/Meta/Anchor/Next');
+            expect(parseInt(nextAnchor, 10)).toBeCloseTo((new Date()).getTime()/1000, -2);
             var chk =
               '<SyncML>'
+              + ' <SyncHdr>'
+              + '  <VerDTD>1.2</VerDTD>'
+              + '  <VerProto>SyncML/1.2</VerProto>'
+              + '  <SessionID>1</SessionID>'
+              + '  <MsgID>2</MsgID>'
+              + '  <Source>'
+              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocName>In-Memory Test Client</LocName>'
+              + '  </Source>'
+              + '  <Target>'
+              + '   <LocURI>https://www.example.com/sync</LocURI>'
+              + '  </Target>'
+              + ' </SyncHdr>'
+              + ' <SyncBody>'
+              + '  <Status>'
+              + '   <CmdID>1</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>0</CmdRef>'
+              + '   <Cmd>SyncHdr</Cmd>'
+              + '   <SourceRef>https://www.example.com/sync</SourceRef>'
+              + '   <TargetRef>test-jssyncml-devid</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>2</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>4</CmdRef>'
+              + '   <Cmd>Results</Cmd>'
+              + '   <SourceRef>./devinf12</SourceRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Alert>'
+              + '   <CmdID>3</CmdID>'
+              + '   <Data>201</Data>'
+              + '   <Item>'
+              + '    <Source><LocURI>cli_memo</LocURI></Source>'
+              + '    <Target><LocURI>srv_note</LocURI></Target>'
+              + '    <Meta>'
+              + '     <Anchor xmlns="syncml:metinf"><Next>' + nextAnchor + '</Next></Anchor>'
+              + '     <MaxObjSize xmlns="syncml:metinf">' + getMaxMemorySize() + '</MaxObjSize>'
+              + '    </Meta>'
+              + '   </Item>'
+              + '  </Alert>'
+              + '  <Final/>'
+              + ' </SyncBody>'
               + '</SyncML>';
             expect(contentType).toEqual('application/vnd.syncml+xml; charset=UTF-8');
             expect(requestBody).toEqualXml(chk);
@@ -476,12 +526,337 @@ define([
             var responseType = 'application/vnd.syncml+xml; charset=UTF-8';
             var responseBody =
               '<SyncML>'
+              + ' <SyncHdr>'
+              + '  <VerDTD>1.2</VerDTD>'
+              + '  <VerProto>SyncML/1.2</VerProto>'
+              + '  <SessionID>1</SessionID>'
+              + '  <MsgID>2</MsgID>'
+              + '  <Source>'
+              + '   <LocURI>https://www.example.com/sync</LocURI>'
+              + '   <LocName>Fake Server</LocName>'
+              + '  </Source>'
+              + '  <Target>'
+              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocName>In-Memory Test Client</LocName>'
+              + '  </Target>'
+              + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
+              + ' </SyncHdr>'
+              + ' <SyncBody>'
+              + '  <Status>'
+              + '   <CmdID>1</CmdID>'
+              + '   <MsgRef>2</MsgRef>'
+              + '   <CmdRef>0</CmdRef>'
+              + '   <Cmd>SyncHdr</Cmd>'
+              + '   <SourceRef>test-jssyncml-devid</SourceRef>'
+              + '   <TargetRef>https://www.example.com/sync</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>2</CmdID>'
+              + '   <MsgRef>2</MsgRef>'
+              + '   <CmdRef>3</CmdRef>'
+              + '   <Cmd>Alert</Cmd>'
+              + '   <SourceRef>cli_memo</SourceRef>'
+              + '   <TargetRef>srv_note</TargetRef>'
+              + '   <Data>200</Data>'
+              + '   <Item>'
+              + '    <Data>'
+              + '     <Anchor xmlns="syncml:metinf"><Next>' + nextAnchor + '</Next></Anchor>'
+              + '    </Data>'
+              + '   </Item>'
+              + '  </Status>'
+              + '  <Alert>'
+              + '   <CmdID>3</CmdID>'
+              + '   <Data>201</Data>'
+              + '   <Item>'
+              + '    <Source><LocURI>srv_note</LocURI></Source>'
+              + '    <Target><LocURI>cli_memo</LocURI></Target>'
+              + '    <Meta>'
+              + '     <Anchor xmlns="syncml:metinf"><Next>' + nextAnchor + '</Next></Anchor>'
+              + '     <MaxObjSize xmlns="syncml:metinf">' + getMaxMemorySize() + '</MaxObjSize>'
+              + '    </Meta>'
+              + '   </Item>'
+              + '  </Alert>'
+              + '  <Final/>'
+              + ' </SyncBody>'
               + '</SyncML>';
             var response = {
               headers: { 'Content-Type': responseType },
               body: responseBody
             };
+            sync.peer._proxy = fake_request_3;
             cb(null, response);
+          }
+        };
+
+        var fake_request_3 = {
+          sendRequest: function(txn, contentType, requestBody, cb) {
+            seenRequests += '3';
+            var nextAnchor = ET.parse(requestBody)
+              .getroot().findtext('SyncBody/Status/Item/Data/Anchor/Next');
+            expect(parseInt(nextAnchor, 10)).toBeCloseTo((new Date()).getTime()/1000, -2);
+
+            var chk =
+              '<SyncML>'
+              + ' <SyncHdr>'
+              + '  <VerDTD>1.2</VerDTD>'
+              + '  <VerProto>SyncML/1.2</VerProto>'
+              + '  <SessionID>1</SessionID>'
+              + '  <MsgID>3</MsgID>'
+              + '  <Source>'
+              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocName>In-Memory Test Client</LocName>'
+              + '  </Source>'
+              + '  <Target>'
+              + '   <LocURI>https://www.example.com/sync</LocURI>'
+              + '  </Target>'
+              + ' </SyncHdr>'
+              + ' <SyncBody>'
+              + '  <Status>'
+              + '   <CmdID>1</CmdID>'
+              + '   <MsgRef>2</MsgRef>'
+              + '   <CmdRef>0</CmdRef>'
+              + '   <Cmd>SyncHdr</Cmd>'
+              + '   <SourceRef>https://www.example.com/sync</SourceRef>'
+              + '   <TargetRef>test-jssyncml-devid</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>2</CmdID>'
+              + '   <MsgRef>2</MsgRef>'
+              + '   <CmdRef>3</CmdRef>'
+              + '   <Cmd>Alert</Cmd>'
+              + '   <SourceRef>srv_note</SourceRef>'
+              + '   <TargetRef>cli_memo</TargetRef>'
+              + '   <Data>200</Data>'
+              + '   <Item>'
+              + '    <Data>'
+              + '     <Anchor xmlns="syncml:metinf">'
+              + '      <Next>' + nextAnchor + '</Next>'
+              + '     </Anchor>'
+              + '    </Data>'
+              + '   </Item>'
+              + '  </Status>'
+              + '  <Sync>'
+              + '   <CmdID>3</CmdID>'
+              + '   <Source><LocURI>cli_memo</LocURI></Source>'
+              + '   <Target><LocURI>srv_note</LocURI></Target>'
+              + '   <NumberOfChanges>1</NumberOfChanges>'
+              + '   <Add>'
+              + '    <CmdID>4</CmdID>'
+              + '    <Meta><Type xmlns="syncml:metinf">text/plain</Type></Meta>'
+              + '    <Item>'
+              + '     <Source><LocURI>1</LocURI></Source>'
+              + '     <Data>first</Data>'
+              + '    </Item>'
+              + '   </Add>'
+              + '  </Sync>'
+              + '  <Final/>'
+              + ' </SyncBody>'
+              + '</SyncML>';
+            expect(contentType).toEqual('application/vnd.syncml+xml; charset=UTF-8');
+            expect(requestBody).toEqualXml(chk);
+
+            var responseType = 'application/vnd.syncml+xml; charset=UTF-8';
+            var responseBody =
+              '<SyncML>'
+              + ' <SyncHdr>'
+              + '  <VerDTD>1.2</VerDTD>'
+              + '  <VerProto>SyncML/1.2</VerProto>'
+              + '  <SessionID>1</SessionID>'
+              + '  <MsgID>3</MsgID>'
+              + '  <Source>'
+              + '   <LocURI>https://www.example.com/sync</LocURI>'
+              + '   <LocName>Fake Server</LocName>'
+              + '  </Source>'
+              + '  <Target>'
+              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocName>In-Memory Test Client</LocName>'
+              + '  </Target>'
+              + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
+              + ' </SyncHdr>'
+              + ' <SyncBody>'
+              + '  <Status>'
+              + '   <CmdID>1</CmdID>'
+              + '   <MsgRef>3</MsgRef>'
+              + '   <CmdRef>0</CmdRef>'
+              + '   <Cmd>SyncHdr</Cmd>'
+              + '   <SourceRef>test-jssyncml-devid</SourceRef>'
+              + '   <TargetRef>https://www.example.com/sync</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>2</CmdID>'
+              + '   <MsgRef>3</MsgRef>'
+              + '   <CmdRef>3</CmdRef>'
+              + '   <Cmd>Sync</Cmd>'
+              + '   <SourceRef>cli_memo</SourceRef>'
+              + '   <TargetRef>srv_note</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>3</CmdID>'
+              + '   <MsgRef>3</MsgRef>'
+              + '   <CmdRef>4</CmdRef>'
+              + '   <Cmd>Add</Cmd>'
+              + '   <SourceRef>1</SourceRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Sync>'
+              + '   <CmdID>4</CmdID>'
+              + '   <Source><LocURI>srv_note</LocURI></Source>'
+              + '   <Target><LocURI>cli_memo</LocURI></Target>'
+              + '   <NumberOfChanges>1</NumberOfChanges>'
+              + '   <Add>'
+              + '    <CmdID>5</CmdID>'
+              + '    <Meta><Type xmlns="syncml:metinf">text/plain</Type></Meta>'
+              + '    <Item>'
+              + '     <Source><LocURI>50</LocURI></Source>'
+              + '     <Data>some text content</Data>'
+              + '    </Item>'
+              + '   </Add>'
+              + '  </Sync>'
+              + '  <Final/>'
+              + ' </SyncBody>'
+              + '</SyncML>';
+            var response = {
+              headers: { 'Content-Type': responseType },
+              body: responseBody
+            };
+            sync.peer._proxy = fake_request_4;
+            cb(null, response);
+          }
+        };
+
+        var fake_request_4 = {
+          sendRequest: function(txn, contentType, requestBody, cb) {
+
+            console.log('FFFAAANRTHANC');
+            return cb('no-eh?');
+
+            seenRequests += '4';
+
+        //     var nextAnchor = ET.parse(requestBody)
+        //       .getroot().findtext('SyncBody/Status/Item/Data/Anchor/Next');
+        //     expect(parseInt(nextAnchor, 10)).toBeCloseTo((new Date()).getTime()/1000, -2);
+
+            var chk =
+              '<SyncML>'
+              + ' <SyncHdr>'
+              + '  <VerDTD>1.2</VerDTD>'
+              + '  <VerProto>SyncML/1.2</VerProto>'
+              + '  <SessionID>1</SessionID>'
+              + '  <MsgID>4</MsgID>'
+              + '  <Source>'
+              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocName>In-Memory Test Client</LocName>'
+              + '  </Source>'
+              + '  <Target>'
+              + '   <LocURI>https://www.example.com/sync</LocURI>'
+              + '  </Target>'
+              + ' </SyncHdr>'
+              + ' <SyncBody>'
+              + '  <Status>'
+              + '   <CmdID>1</CmdID>'
+              + '   <MsgRef>3</MsgRef>'
+              + '   <CmdRef>0</CmdRef>'
+              + '   <Cmd>SyncHdr</Cmd>'
+              + '   <SourceRef>https://www.example.com/sync</SourceRef>'
+              + '   <TargetRef>test-jssyncml-devid</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>2</CmdID>'
+              + '   <MsgRef>3</MsgRef>'
+              + '   <CmdRef>4</CmdRef>'
+              + '   <Cmd>Sync</Cmd>'
+              + '   <SourceRef>srv_note</SourceRef>'
+              + '   <TargetRef>cli_memo</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>3</CmdID>'
+              + '   <MsgRef>3</MsgRef>'
+              + '   <CmdRef>5</CmdRef>'
+              + '   <Cmd>Add</Cmd>'
+              + '   <SourceRef>50</SourceRef>'
+              + '   <Data>201</Data>'
+              + '  </Status>'
+              + '  <Map>'
+              + '   <CmdID>4</CmdID>'
+              + '   <Source><LocURI>cli_memo</LocURI></Source>'
+              + '   <Target><LocURI>srv_note</LocURI></Target>'
+              + '   <MapItem>'
+              + '    <Source><LocURI>1000</LocURI></Source>'
+              + '    <Target><LocURI>50</LocURI></Target>'
+              + '   </MapItem>'
+              + '  </Map>'
+              + '  <Final/>'
+              + ' </SyncBody>'
+              + '</SyncML>';
+            expect(contentType).toEqual('application/vnd.syncml+xml; charset=UTF-8');
+            expect(requestBody).toEqualXml(chk);
+
+        //     var responseType = 'application/vnd.syncml+xml; charset=UTF-8';
+        //     var responseBody =
+        //       '<SyncML>'
+
+                  // + ' <SyncHdr>'
+                  // + '  <VerDTD>1.2</VerDTD>'
+                  // + '  <VerProto>SyncML/1.2</VerProto>'
+                  // + '  <SessionID>1</SessionID>'
+                  // + '  <MsgID>4</MsgID>'
+                  // + '  <Source>'
+                  // + '   <LocURI>https://www.example.com/sync</LocURI>'
+                  // + '   <LocName>Fake Server</LocName>'
+                  // + '  </Source>'
+                  // + '  <Target>'
+                  // + '   <LocURI>test-jssyncml-devid</LocURI>'
+                  // + '   <LocName>In-Memory Test Client</LocName>'
+                  // + '  </Target>'
+                  // + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
+                  // + ' </SyncHdr>'
+                  // + ' <SyncBody>'
+                  // + '  <Status>'
+                  // + '   <CmdID>1</CmdID>'
+                  // + '   <MsgRef>4</MsgRef>'
+                  // + '   <CmdRef>0</CmdRef>'
+                  // + '   <Cmd>SyncHdr</Cmd>'
+                  // + '   <SourceRef>test-jssyncml-devid</SourceRef>'
+                  // + '   <TargetRef>https://www.example.com/sync</TargetRef>'
+                  // + '   <Data>200</Data>'
+                  // + '  </Status>'
+                  // + '  <Status>'
+                  // + '   <CmdID>2</CmdID>'
+                  // + '   <MsgRef>4</MsgRef>'
+                  // + '   <CmdRef>4</CmdRef>'
+                  // + '   <Cmd>Map</Cmd>'
+                  // + '   <SourceRef>cli_memo</SourceRef>'
+                  // + '   <TargetRef>srv_note</TargetRef>'
+                  // + '   <Data>200</Data>'
+                  // + '  </Status>'
+                  // + '  <Final/>'
+                  // + ' </SyncBody>'
+
+        //       + '</SyncML>';
+
+            // var response = {
+            //   headers: { 'Content-Type': responseType },
+            //   body: responseBody
+            // };
+            // sync.peer._proxy = fake_request_5;
+
+            // cb(null, response);
+            cb('no,eh?');
+          }
+        };
+
+        var fake_request_5 = {
+          sendRequest: function(txn, contentType, requestBody, cb) {
+            seenRequests += '5';
+            // request #4 should have been the last...
+            expect('this').toBe('*not* called');
+            cb('error');
           }
         };
 
@@ -494,8 +869,15 @@ define([
         expect(err).toBeFalsy();
         synchronize(function(err, stats) {
           expect(err).toBeFalsy();
+          if ( err )
+            expect('' + err).toEqual('');
+
           if ( ! err )
             expect(_.keys(stats)).toEqual(['note']);
+          expect(seenRequests).toEqual('1234');
+
+          console.log('*********** TODO ::: inspect stats ************');
+
           callback(null, 'complete');
         });
       });
