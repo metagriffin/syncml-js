@@ -121,6 +121,33 @@ define([
       };
     },
 
+    //-------------------------------------------------------------------------
+    delete: function(store, objectID, cb) {
+      var req = store.delete(objectID);
+      req.onsuccess = function(event) { cb(); };
+      req.onerror = function(event) {
+        cb(event.target.error);
+      };
+    },
+
+    //-------------------------------------------------------------------------
+    iterateCursor: function(openCursor, iterator, cb) {
+      openCursor.onsuccess = function(event) {
+        var cursor = event.target.result;
+        if ( ! cursor )
+          return cb();
+        iterator(cursor.value.value, cursor.value.id, function(err) {
+          if ( err )
+            return cb(err);
+          return cursor.continue();
+        });
+      };
+      openCursor.onerror = function(event) {
+        cb(event.target.error);
+      };
+    },
+
+
   });
 
   return exports;
