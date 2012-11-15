@@ -103,9 +103,19 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    _getModel: function() {
+      var self = this;
+      var uri  = self._a.normUri(self.uri);
+      return _.find(this._a._getModel().stores,
+                    function(s) { return self._a.normUri(s.uri) == uri; });
+    },
+
+    //-------------------------------------------------------------------------
     _updateModel: function(cb) {
       if ( ! this._a._model || ! this._a._model.stores )
         return cb('store created on un-initialized adapter');
+      // TODO: this squashes any data that may already be there, such
+      //       as *BINDING* info!...
       this._a._model.stores = _.filter(this._a._model.stores, function(e) {
         return e.uri != this.uri;
       }, this);
@@ -132,13 +142,18 @@ define([
     //-------------------------------------------------------------------------
     getPeerStore: function(peer) {
 
-      log.warn('TODO ::: Store.getPeerStore should be aware of local/remote...');
+      if ( this._a.isLocal )
+      {
+        var peerUri = this._a._c.router.getTargetUri(this._a, peer, this.uri);
+        if ( ! peerUri )
+          return null;
 
-      var peerUri = this._a._c.router.getTargetUri(this._a, peer, this.uri);
-      if ( ! peerUri )
+        log.warn('TODO ::: Store.getPeerStore NOT IMPLEMENTED');
+
         return null;
+      }
 
-      log.warn('TODO ::: Store.getPeer NOT IMPLEMENTED');
+      log.warn('TODO ::: Store.getPeerStore NOT IMPLEMENTED');
 
       return null;
 
