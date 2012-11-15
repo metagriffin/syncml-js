@@ -41,17 +41,79 @@ define([
 
     //-------------------------------------------------------------------------
     getTargetUri: function(adapter, peer, sourceUri) {
-
-      log.critical('TODO ::: Router.getTargetUri() NOT IMPLEMENTED');
-
+      var pmodel = peer._getModel();
+      for ( var idx=0 ; idx<pmodel.routes.length ; idx++ )
+      {
+        var route = pmodel.routes[idx];
+        if ( route.localUri == sourceUri )
+          return route.remoteUri;
+      }
+      for ( var idx=0 ; idx<pmodel.stores.length ; idx++ )
+      {
+        var store = pmodel.stores[idx];
+        if ( store.binding && store.binding.uri == sourceUri )
+          return store.uri;
+      }
       return null;
     },
 
     //-------------------------------------------------------------------------
     recalculate: function(adapter, peer, cb) {
-      // the default recalculate does nothing - it requires that all routes
-      // be set up manually.
+      // the non-"SmartRouter" only connects manually-configured routes...
+
+      // available local URIs
+      var lset = _.map(adapter._model.stores,
+                       function(s) { return adapter.normUri(s.uri); });
+      // available remote URIs
+      var rset = _.map(peer._getModel().stores,
+                       function(s) { return peer.normUri(s.uri); });
+      // manual routes
+      var routes = _.filter(peer._getModel().routes,
+                            function(r) { return ! r.autoMapped; });
+
+      var err = null;
+      _.each(routes, function(route) {
+        if ( err )
+          return;
+
+        route.localUri  = adapter.normUri(route.localUri);
+        route.remoteUri = peer.normUri(route.remoteUri);
+
+        if ( _.indexOf(rset, route.remoteUri) < 0
+             || _.indexOf(lset, route.localUri) < 0 )
+        {
+          err = 'unable to route from "' + route.localUri
+            + '" to "' + route.remoteUri
+            + '": no such stores or already routed elsewhere';
+          return;
+        }
+
+        lset = _.filter(lset, function(uri) { return uri != route.localUri; });
+        rset = _.filter(rset, function(uri) { return uri != route.remoteUri; });
+
+        log.debug('setting up route from "' + route.localUri + '" to "'
+                  + route.remoteUri + '"');
+
+        var smodel = peer.getStore(route.remoteUri)._getModel();
+        if ( smodel.binding && smodel.binding.uri == route.localUri )
+          return;
+        smodel.binding = {
+          uri          : route.localUri,
+          autoMapped   : false,
+          localAnchor  : null,
+          remoteAnchor : null
+        };
+      });
+
+      if ( err )
+        return cb(err);
+
       return cb();
+    },
+
+    getBestTransmitContentType: function(session, uri) {
+      log.critical('TODO ::: Router.getBestTransmitContentType NOT IMPLEMENTED');
+      return ['text/plain', '1.1'];
     },
 
   });
@@ -63,8 +125,8 @@ define([
     recalculate: function(adapter, peer, cb) {
 
       log.critical('TODO ::: SmartRouter.recalculate() NOT IMPLEMENTED');
+      return exports.Router.prototype.recalculate.call(this, adapter, peer, cb);
 
-      return cb();
     },
 
   });
