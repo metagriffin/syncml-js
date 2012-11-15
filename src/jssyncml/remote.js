@@ -164,17 +164,20 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    addRoute: function(sourceUri, targetUri, autoMapped, cb) {
+    setRoute: function(localUri, remoteUri, autoMapped, cb) {
       if ( _.isFunction(autoMapped) )
         // defaulting 'autoMapped' to false
-        return this.addRoute(sourceUri, targetUri, false, autoMapped);
+        return this.setRoute(localUri, remoteUri, false, autoMapped);
       var pmodel = this._getModel();
       if ( ! pmodel )
         return cb('could not locate this peer in local adapter');
       pmodel.routes = _.filter(pmodel.routes, function(r) {
-        return r.sourceUri != sourceUri && r.targetUri != targetUri;
+        return r.localUri != localUri && r.remoteUri != remoteUri;
       });
-      pmodel.routes.push({sourceUri: sourceUri, targetUri: targetUri});
+      pmodel.routes.push({localUri   : localUri,
+                          remoteUri  : remoteUri,
+                          autoMapped : autoMapped
+                         });
       // now search through previous bindings, breaking incorrect ones...
       // NOTE: this requires that a router.recalculate() is called at
       //       some point later since other valid bindings may now be
@@ -182,16 +185,16 @@ define([
       _.each(pmodel.stores, function(store) {
         if ( ! store.binding )
         {
-          if ( store.uri == targetUri )
+          if ( store.uri == remoteUri )
             store.binding = {
-              uri          : sourceUri,
+              uri          : localUri,
               autoMapped   : autoMapped,
-              sourceAnchor : null,
-              targetAnchor : null
+              localAnchor  : null,
+              remoteAnchor : null
             };
           return;
         }
-        if ( store.uri == targetUri && store.binding.uri == sourceUri )
+        if ( store.uri == remoteUri && store.binding.uri == localUri )
         {
           store.binding.autoMapped = autoMapped;
           return;
@@ -200,8 +203,14 @@ define([
         return;
       });
 
-      log.warn('saving adapter from peer --- SHOULD IT BE DOING THIS?...');
+      // TODO: this additional route may impact "smart routing" - recalculate?...
+      // TODO: saving adapter from peer --- SHOULD IT BE DOING THIS?...
       this._a._save(cb);
+    },
+
+    //-------------------------------------------------------------------------
+    getStore: function(uri) {
+      return this._stores[this.normUri(uri)];
     },
 
     //-------------------------------------------------------------------------

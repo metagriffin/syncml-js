@@ -50,7 +50,7 @@ define([
     constructor: function(options) {
       options = options || {};
       this.storage      = options.storage || idxdb;
-      this.dbname       = ( options.prefix || '' ) + 'jssynmcl';
+      this.dbname       = ( options.prefix || '' ) + 'jssyncml';
       this.autoCommit   = options.autoCommit == undefined ? true : options.autoCommit;
       this.router       = options.router || new router.SmartRouter();
       this.synchronizer = options.synchronizer || new synchronizer.Synchronizer();
@@ -151,7 +151,7 @@ define([
             return cb(err);
           ret.peer = peer;
           common.cascade(options.routes, function(route, cb) {
-            ret.peer.addRoute(route[0], route[1], cb);
+            ret.peer.setRoute(route[0], route[1], cb);
           }, cb);
         });
       };
