@@ -66,7 +66,7 @@ define([
       this.name = options.name || null;
 
       // --- private attributes
-      this._id      = options.id || common.makeID();
+      this.id       = options.id || common.makeID();
       this._c       = context;
       // TODO: use _.pick() for these options...
       this._options = options;
@@ -77,10 +77,15 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    _getModel: function() {
+      return this._model;
+    },
+
+    //-------------------------------------------------------------------------
     setDevInfo: function(devInfo, cb) {
       if ( this._model == undefined )
         this._model = {
-          id          : this._id,
+          id          : this.id,
           name        : this.name,
           devInfo     : null,
           stores      : [],
@@ -117,8 +122,8 @@ define([
         _.each(peer.stores, function(store) {
           if ( ! store.binding )
             return;
-          store.binding.sourceAnchor = null;
-          store.binding.targetAnchor = null;
+          store.binding.localAnchor  = null;
+          store.binding.remoteAnchor = null;
         });
       });
     },
@@ -287,56 +292,6 @@ define([
         })
       });
 
-      var err = null;
-
-      _.each(self._stores, function(store) {
-        if ( err )
-          return;
-        if ( ! store.agent )
-          return;
-        var peerStore = store.getPeerStore(peer);
-        if ( ! peerStore )
-          return;
-
-        var ds = state.makeStoreSyncState({
-          uri        : store.uri,
-          peerUri    : peerStore.uri,
-          lastAnchor : peerStore.binding.sourceAnchor,
-          mode       : mode || constant.ALERT_TWO_WAY,
-          action     : 'alert'
-        });
-
-        if ( ! ds.lastAnchor )
-        {
-          if ( _.indexOf([
-            constant.ALERT_SLOW_SYNC,
-            constants.ALERT_REFRESH_FROM_CLIENT,
-            constants.ALERT_REFRESH_FROM_SERVER,
-          ], ds.mode) >= 0 )
-          {}
-          else if ( _.indexOf([
-            constant.ALERT_TWO_WAY,
-            constant.ALERT_ONE_WAY_FROM_CLIENT,
-            constant.ALERT_ONE_WAY_FROM_SERVER,
-          ], ds.mode) >= 0 )
-          {
-            log.debug('forcing slow-sync for store "'
-                      + ds.uri + '" (no previous successful synchronization)');
-            ds.mode = constant.ALERT_SLOW_SYNC;
-          }
-          else
-          {
-            err = 'unexpected sync mode "' + ds.mode + '" requested';
-            return;
-          }
-        }
-
-        session.info.dsstates[store.uri] = ds;
-      });
-
-      if ( err )
-        return cb(err);
-
       session.send = function(contentType, data, cb) {
         session.peer.sendRequest(session, contentType, data, function(err, response) {
           if ( err )
@@ -345,16 +300,30 @@ define([
         });
       };
 
-      session.context.protocol.initialize(session, null, function(err, commands) {
+      // TODO: should i do a router.calculate() at this point?
+      //       the reason is that if there was a sync, then a
+      //       .setRoute(), then things may have changed...
+      //       corner-case, yes... but still valid.
+
+      session.context.synchronizer.initStoreSync(session, function(err) {
         if ( err )
           return cb(err);
-        self._transmit(session, commands, function(err) {
+        session.context.protocol.initialize(session, null, function(err, commands) {
           if ( err )
             return cb(err);
-          self._save(function(err) {
+          self._transmit(session, commands, function(err) {
             if ( err )
               return cb(err);
-            return cb(null, self._session2stats(session));
+            self._save(function(err) {
+              if ( err )
+                return cb(err);
+
+              log.critical('SESSION.END');
+              log.critical('  STATS: ' + common.j(self._session2stats(session)));
+
+
+              return cb(null, self._session2stats(session));
+            });
           });
         });
       });
@@ -364,8 +333,9 @@ define([
     _session2stats: function(session) {
       var ret = {};
       _.each(_.values(session.info.dsstates), function(ds) {
-        ret[ds.uri] = _.clone(ds);
-        ret[ds.uri].mode = common.alert2synctype(ds.mode);
+        var stats = _.clone(ds.stats);
+        stats.mode = common.alert2synctype(ds.mode);
+        ret[ds.uri] = stats;
       });
       log.debug('session statistics: ' + common.j(ret));
       return ret;
@@ -389,8 +359,8 @@ define([
             var pstore = _.find(pmodel.stores, function(s) { return s.uri == ds.peerUri; });
             if ( ! pstore )
               return cb('unexpected error: could not locate bound peer store in local adapter');
-            pstore.binding.sourceAnchor = ds.nextAnchor;
-            pstore.binding.targetAnchor = ds.peerNextAnchor;
+            pstore.binding.localAnchor  = ds.nextAnchor;
+            pstore.binding.remoteAnchor = ds.peerNextAnchor;
           });
           session.peer.lastSessionID = session.info.id;
           pmodel.lastSessionID       = session.info.id;

@@ -93,8 +93,8 @@ define([
       });
 
       // --- private attributes
+      this.id       = options.id || common.makeID();
       this._a       = adapter;
-      this._id      = options.id || common.makeID();
     },
 
     //-------------------------------------------------------------------------
@@ -120,7 +120,7 @@ define([
         return e.uri != this.uri;
       }, this);
       this._a._model.stores.push({
-        id              : this._id,
+        id              : this.id,
         uri             : this.uri,
         displayName     : this.displayName,
         syncTypes       : this.syncTypes,
@@ -156,6 +156,29 @@ define([
       log.warn('TODO ::: Store.getPeerStore NOT IMPLEMENTED');
 
       return null;
+
+    },
+
+    //-------------------------------------------------------------------------
+    registerChange: function(itemID, state, options, cb) {
+      // options can include:
+      //   - changeSpec (bool)
+      //   - excludePeerID (string)
+
+      log.critical('TODO ::: Store.registerChange ::: NOT IMPLEMENTED');
+
+      return cb();
+
+    },
+
+    //-------------------------------------------------------------------------
+    _delChange: function(options, cb) {
+      // - if options is null/empty, delete all changes recorded
+      //   for this store
+
+      log.critical('TODO ::: Store._delChange ::: NOT IMPLEMENTED');
+
+      return cb();
 
     },
 

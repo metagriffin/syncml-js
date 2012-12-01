@@ -66,9 +66,9 @@ define([
       this.lastSessionID = options.lastSessionID || null;
 
       // --- private attributes
+      this.id       = options.id || common.makeID();
       this._a       = adapter;
       this._c       = adapter._c;
-      this._id      = options.id || common.makeID();
       this._stores  = {};
       this._proxy   = null;
 
@@ -96,7 +96,7 @@ define([
         return false;
       }, this);
       this._a._model.peers.push(_.defaults({
-        id              : this._id,
+        id              : this.id,
         isLocal         : false,
         isServer        : true,
         url             : this.url,
@@ -114,7 +114,7 @@ define([
     //-------------------------------------------------------------------------
     _getModel: function() {
       return _.find(this._a._model.peers,
-                    function(e) { return e.id == this._id; }, this);
+                    function(e) { return e.id == this.id; }, this);
     },
 
     //-------------------------------------------------------------------------
@@ -129,8 +129,8 @@ define([
 
         //---------------------------------------------------------------------
         // TODO: fix this...
-        log.warn('TODO ::: setRemoteInfo is currently nuking previous store info');
-        log.warn('TODO ::: this will cause slow-syncs everytime...');
+        log.critical('TODO ::: setRemoteInfo is currently nuking previous store info');
+        log.critical('TODO ::: this will cause slow-syncs everytime...');
         // TODO: right here...
         self._stores  = {};
 

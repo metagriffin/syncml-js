@@ -17,8 +17,10 @@ define([
   'sqlite3',
   'jsindexeddb',
   'diff',
-  '../src/jssyncml'
-], function(_, ET, sqlite3, jsindexeddb, diff, jssyncml) {
+  '../src/jssyncml',
+  '../src/jssyncml/common',
+  '../src/jssyncml/state'
+], function(_, ET, sqlite3, jsindexeddb, diff, jssyncml, common, state) {
 
   var xmlMatchers = {
     toEqualXml: function (expected) {
@@ -67,6 +69,7 @@ define([
     var TestAgent = jssyncml.Agent.extend({
 
       constructor: function(options) {
+        this._lastID = 1000;
         this._items = {};
       },
 
@@ -84,7 +87,8 @@ define([
       },
 
       addItem: function(item, cb) {
-        item.id = jssyncml.makeID();
+        item.id = '' + this._lastID;
+        this._lastID += 1;
         this._items[item.id] = item;
         cb(null, item);
       },
@@ -730,16 +734,7 @@ define([
 
         var fake_request_4 = {
           sendRequest: function(txn, contentType, requestBody, cb) {
-
-            console.log('FFFAAANRTHANC');
-            return cb('no-eh?');
-
             seenRequests += '4';
-
-        //     var nextAnchor = ET.parse(requestBody)
-        //       .getroot().findtext('SyncBody/Status/Item/Data/Anchor/Next');
-        //     expect(parseInt(nextAnchor, 10)).toBeCloseTo((new Date()).getTime()/1000, -2);
-
             var chk =
               '<SyncML>'
               + ' <SyncHdr>'
@@ -797,57 +792,54 @@ define([
             expect(contentType).toEqual('application/vnd.syncml+xml; charset=UTF-8');
             expect(requestBody).toEqualXml(chk);
 
-        //     var responseType = 'application/vnd.syncml+xml; charset=UTF-8';
-        //     var responseBody =
-        //       '<SyncML>'
+            var responseType = 'application/vnd.syncml+xml; charset=UTF-8';
+            var responseBody =
+              '<SyncML>'
+              + ' <SyncHdr>'
+              + '  <VerDTD>1.2</VerDTD>'
+              + '  <VerProto>SyncML/1.2</VerProto>'
+              + '  <SessionID>1</SessionID>'
+              + '  <MsgID>4</MsgID>'
+              + '  <Source>'
+              + '   <LocURI>https://www.example.com/sync</LocURI>'
+              + '   <LocName>Fake Server</LocName>'
+              + '  </Source>'
+              + '  <Target>'
+              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocName>In-Memory Test Client</LocName>'
+              + '  </Target>'
+              + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
+              + ' </SyncHdr>'
+              + ' <SyncBody>'
+              + '  <Status>'
+              + '   <CmdID>1</CmdID>'
+              + '   <MsgRef>4</MsgRef>'
+              + '   <CmdRef>0</CmdRef>'
+              + '   <Cmd>SyncHdr</Cmd>'
+              + '   <SourceRef>test-jssyncml-devid</SourceRef>'
+              + '   <TargetRef>https://www.example.com/sync</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>2</CmdID>'
+              + '   <MsgRef>4</MsgRef>'
+              + '   <CmdRef>4</CmdRef>'
+              + '   <Cmd>Map</Cmd>'
+              + '   <SourceRef>cli_memo</SourceRef>'
+              + '   <TargetRef>srv_note</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Final/>'
+              + ' </SyncBody>'
+              + '</SyncML>';
 
-                  // + ' <SyncHdr>'
-                  // + '  <VerDTD>1.2</VerDTD>'
-                  // + '  <VerProto>SyncML/1.2</VerProto>'
-                  // + '  <SessionID>1</SessionID>'
-                  // + '  <MsgID>4</MsgID>'
-                  // + '  <Source>'
-                  // + '   <LocURI>https://www.example.com/sync</LocURI>'
-                  // + '   <LocName>Fake Server</LocName>'
-                  // + '  </Source>'
-                  // + '  <Target>'
-                  // + '   <LocURI>test-jssyncml-devid</LocURI>'
-                  // + '   <LocName>In-Memory Test Client</LocName>'
-                  // + '  </Target>'
-                  // + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
-                  // + ' </SyncHdr>'
-                  // + ' <SyncBody>'
-                  // + '  <Status>'
-                  // + '   <CmdID>1</CmdID>'
-                  // + '   <MsgRef>4</MsgRef>'
-                  // + '   <CmdRef>0</CmdRef>'
-                  // + '   <Cmd>SyncHdr</Cmd>'
-                  // + '   <SourceRef>test-jssyncml-devid</SourceRef>'
-                  // + '   <TargetRef>https://www.example.com/sync</TargetRef>'
-                  // + '   <Data>200</Data>'
-                  // + '  </Status>'
-                  // + '  <Status>'
-                  // + '   <CmdID>2</CmdID>'
-                  // + '   <MsgRef>4</MsgRef>'
-                  // + '   <CmdRef>4</CmdRef>'
-                  // + '   <Cmd>Map</Cmd>'
-                  // + '   <SourceRef>cli_memo</SourceRef>'
-                  // + '   <TargetRef>srv_note</TargetRef>'
-                  // + '   <Data>200</Data>'
-                  // + '  </Status>'
-                  // + '  <Final/>'
-                  // + ' </SyncBody>'
+            var response = {
+              headers: { 'Content-Type': responseType },
+              body: responseBody
+            };
+            sync.peer._proxy = fake_request_5;
 
-        //       + '</SyncML>';
-
-            // var response = {
-            //   headers: { 'Content-Type': responseType },
-            //   body: responseBody
-            // };
-            // sync.peer._proxy = fake_request_5;
-
-            // cb(null, response);
-            cb('no,eh?');
+            cb(null, response);
           }
         };
 
@@ -869,15 +861,14 @@ define([
         expect(err).toBeFalsy();
         synchronize(function(err, stats) {
           expect(err).toBeFalsy();
-          if ( err )
-            expect('' + err).toEqual('');
-
-          if ( ! err )
-            expect(_.keys(stats)).toEqual(['note']);
+          expect('' + err).toEqual('null');
+          expect(_.keys(stats)).toEqual(['cli_memo']);
+          expect(stats['cli_memo']).toEqual(state.makeStats({
+            mode: jssyncml.SYNCTYPE_SLOW_SYNC,
+            peerAdd: 1,
+            hereAdd: 1
+          }));
           expect(seenRequests).toEqual('1234');
-
-          console.log('*********** TODO ::: inspect stats ************');
-
           callback(null, 'complete');
         });
       });

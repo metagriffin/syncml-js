@@ -105,7 +105,7 @@ define([
         //         - target peer extraction
         //         - session / message ID extraction
         //         - response URL extraction / generation
-        return cb('server-side protocol not implemented yet');
+        return cb(new common.NotImplementedError('server-side protocol'));
       }
 
       session.info.pendingMsgID = ( session.info.isServer
@@ -257,12 +257,13 @@ define([
         var xcmd = ET.SubElement(xbody, cmd.name);
         if ( cmd.cmdID != undefined )
           ET.SubElement(xcmd, 'CmdID').text = cmd.cmdID;
-        var callable = this['_produce_cmd_' + cmd.name.toLowerCase()];
-        if ( ! callable )
+        var func = this['_produce_cmd_' + cmd.name.toLowerCase()];
+        if ( ! func )
           return cb('unexpected command "' + cmd.name + '"');
         try{
-          callable.call(this, session, cmd, xcmd);
+          func.call(this, session, cmd, xcmd);
         }catch(e){
+          // todo: preserve exception location file/line number somehow?...
           return cb('failed invoking protocol sub-production: ' + e);
         }
         if ( cmd.name == constant.CMD_FINAL && idx + 1 != commands.length )
@@ -274,7 +275,7 @@ define([
 
     //-------------------------------------------------------------------------
     _produce_cmd_alert: function(session, cmd, xcmd) {
-      ET.SubElement(xcmd, 'Data').text = str(cmd.data);
+      ET.SubElement(xcmd, 'Data').text = cmd.data;
       var xitem = ET.SubElement(xcmd, 'Item');
       ET.SubElement(ET.SubElement(xitem, 'Source'), 'LocURI').text = cmd.source;
       ET.SubElement(ET.SubElement(xitem, 'Target'), 'LocURI').text = cmd.target;
@@ -294,8 +295,8 @@ define([
 
     //-------------------------------------------------------------------------
     _produce_cmd_status: function(session, cmd, xcmd) {
-      ET.SubElement(xcmd, 'MsgRef').text    = cmd.msgRef;
-      ET.SubElement(xcmd, 'CmdRef').text    = cmd.cmdRef;
+      ET.SubElement(xcmd, 'MsgRef').text    = '' + cmd.msgRef;
+      ET.SubElement(xcmd, 'CmdRef').text    = '' + cmd.cmdRef;
       ET.SubElement(xcmd, 'Cmd').text       = cmd.statusOf;
       if ( cmd.sourceRef )
         ET.SubElement(xcmd, 'SourceRef').text = cmd.sourceRef;
@@ -383,8 +384,8 @@ define([
     _produce_cmd_sync: function(session, cmd, xcmd) {
       ET.SubElement(ET.SubElement(xcmd, 'Source'), 'LocURI').text = cmd.source;
       ET.SubElement(ET.SubElement(xcmd, 'Target'), 'LocURI').text = cmd.target;
-      if ( cmd.noc )
-        ET.SubElement(xcmd, 'NumberOfChanges').text = cmd.noc;
+      if ( cmd.noc != undefined )
+        ET.SubElement(xcmd, 'NumberOfChanges').text = '' + cmd.noc;
       if ( ! cmd.data )
         return;
       for ( var idx=0 ; idx<cmd.data.length ; idx++ )
@@ -825,12 +826,14 @@ define([
                 data       : code
               });
 
-              adapter.synchronizer.settle(session, scmd, chkcmd, child, function(err, cmds) {
-                if ( err )
-                  return cb(err);
-                _.each(cmds, function(cmd) { commands.push(cmd); });
-                return cb();
-              });
+              session.context.synchronizer.settle(
+                session, scmd, chkcmd, child,
+                function(err, cmds) {
+                  if ( err )
+                    return cb(err);
+                  _.each(cmds, function(cmd) { commands.push(cmd); });
+                  return cb();
+                });
               return;
             }
 
@@ -881,14 +884,14 @@ define([
           //         CMD_ALERT, CMD_GET, CMD_PUT,
           //         CMD_SYNC, CMD_RESULTS, CMD_MAP
 
-          var callable = self['_consume_node_' + child.tag.toLowerCase()];
+          var func = self['_consume_node_' + child.tag.toLowerCase()];
 
-          if ( ! callable )
+          if ( ! func )
             return cb(new common.ProtocolError('unexpected command node "' + child.tag + '"'));
 
           try{
 
-            callable.call(self, session, lastcmds, xsync, child, function(err, cmds) {
+            func.call(self, session, lastcmds, xsync, child, function(err, cmds) {
               if ( err )
                 return cb(err);
               _.each(cmds, function(cmd) { commands.push(cmd); });
@@ -924,6 +927,7 @@ define([
       // do it!
 
       consumeStatus(function(err) {
+
         if ( err )
           return cb(err);
 
@@ -940,13 +944,55 @@ define([
         return consumeCommands(function(err) {
           if ( err )
             return cb(err);
-          console.log('commands: ' + commands);
           return cb(null, commands);
         });
 
       });
 
     },
+
+    // #----------------------------------------------------------------------------
+    // def t2c_get(self, adapter, session, lastcmds, xsync, xnode):
+    //   cttype = xnode.findtext('Meta/Type')
+    //   target = xnode.findtext('Item/Target/LocURI')
+    //   if cttype.startswith(constant.TYPE_SYNCML_DEVICE_INFO) \
+    //      and adapter.normUri(target) == constant.URI_DEVINFO_1_2:
+    //     return self.t2c_get_devinf12(adapter, session, lastcmds, xsync, xnode)
+    //   # todo: make error status node...
+    //   raise common.ProtocolError('unexpected "Get" command for target "%s"' % (target,))
+
+    // #----------------------------------------------------------------------------
+    // def t2c_get_devinf12(self, adapter, session, lastcmds, xsync, xnode):
+    //   ret = []
+    //   ret.append(state.Command(
+    //     name       = constant.CMD_STATUS,
+    //     cmdID      = session.nextCmdID(),
+    //     msgRef     = session.info.pendingMsgID,
+    //     cmdRef     = xnode.findtext('CmdID'),
+    //     statusOf   = xnode.tag,
+    //     statusCode = constant.STATUS_OK,
+    //     targetRef  = xnode.findtext('Item/Target/LocURI'),
+    //     ))
+    //   ret.append(state.Command(
+    //     name       = constant.CMD_RESULTS,
+    //     cmdID      = session.nextCmdID(),
+    //     msgRef     = session.info.pendingMsgID,
+    //     cmdRef     = xnode.findtext('CmdID'),
+    //     type       = constant.TYPE_SYNCML_DEVICE_INFO + '+' + adapter.codec.name,
+    //     source     = './' + constant.URI_DEVINFO_1_2,
+    //     data       = adapter.devInfo.toSyncML(constant.SYNCML_DTD_VERSION_1_2, adapter.stores.values()),
+    //     ))
+    //   return ret
+
+    // #----------------------------------------------------------------------------
+    // def t2c_put(self, adapter, session, lastcmds, xsync, xnode):
+    //   cttype = xnode.findtext('Meta/Type')
+    //   source = xnode.findtext('Item/Source/LocURI')
+    //   if cttype.startswith(constant.TYPE_SYNCML_DEVICE_INFO) \
+    //      and adapter.peer.normUri(source) == constant.URI_DEVINFO_1_2:
+    //     return self.t2c_put_devinf12(adapter, session, lastcmds, xsync, xnode)
+    //   # todo: make error status node...
+    //   raise common.ProtocolError('unexpected "%s" command for remote "%s"' % (constant.CMD_RESULTS, source))
 
     //-------------------------------------------------------------------------
     _consume_node_put_devinf12: function(session, lastcmds, xsync, xnode, cb) {
@@ -958,23 +1004,27 @@ define([
         session.context.router.recalculate(session.adapter, session.peer, function(err) {
           if ( err )
             return cb(err);
-
-          session.adapter._save(function(err) {
+          session.context.synchronizer.initStoreSync(session, function(err) {
             if ( err )
               return cb(err);
 
-          return cb(null, [state.makeCommand({
-            name       : constant.CMD_STATUS,
-            cmdID      : session.nextCmdID(),
-            msgRef     : xsync.findtext('SyncHdr/MsgID'),
-            cmdRef     : xnode.findtext('CmdID'),
-            sourceRef  : xnode.findtext('Item/Source/LocURI'),
-            statusOf   : xnode.tag,
-            statusCode : constant.STATUS_OK
-          })]);
+            // session.adapter._save(function(err) {
+            //   if ( err )
+            //     return cb(err);
+
+            return cb(null, [state.makeCommand({
+              name       : constant.CMD_STATUS,
+              cmdID      : session.nextCmdID(),
+              msgRef     : xsync.findtext('SyncHdr/MsgID'),
+              cmdRef     : xnode.findtext('CmdID'),
+              sourceRef  : xnode.findtext('Item/Source/LocURI'),
+              statusOf   : xnode.tag,
+              statusCode : constant.STATUS_OK
+            })]);
+
+            // });
 
           });
-
         });
       });
     },
@@ -990,6 +1040,329 @@ define([
       return cb(new common.ProtocolError('unexpected "' + constant.CMD_RESULTS
                                          + '" command for remote "' + source + '"'))
     },
+
+    //-------------------------------------------------------------------------
+    _consume_node_alert: function(session, lastcmds, xsync, xnode, cb) {
+      var code = parseInt(xnode.findtext('Data'), 10);
+      var statusCode = constant.STATUS_OK
+      switch ( code )
+      {
+        case constant.ALERT_TWO_WAY:
+        case constant.ALERT_SLOW_SYNC:
+        case constant.ALERT_ONE_WAY_FROM_CLIENT:
+        case constant.ALERT_REFRESH_FROM_CLIENT:
+        case constant.ALERT_ONE_WAY_FROM_SERVER:
+        case constant.ALERT_REFRESH_FROM_SERVER:
+        // todo: these should only be received out-of-band: right?...
+        // case constant.ALERT_TWO_WAY_BY_SERVER:
+        // case constant.ALERT_ONE_WAY_FROM_CLIENT_BY_SERVER:
+        // case constant.ALERT_REFRESH_FROM_CLIENT_BY_SERVER:
+        // case constant.ALERT_ONE_WAY_FROM_SERVER_BY_SERVER:
+        // case constant.ALERT_REFRESH_FROM_SERVER_BY_SERVER:
+        {
+          break;
+        }
+        default:
+        {
+          if ( session.info.isServer && code == constant.STATUS_RESUME )
+          {
+            log.warn('peer requested resume (not support that yet) - forcing slow-sync');
+            code = constant.ALERT_SLOW_SYNC;
+          }
+          else
+          {
+            return cb(new common.FeatureNotSupported(
+              'unimplemented sync mode '
+                + code + ' ("' + common.mode2string(code) + '")'));
+          }
+        }
+      }
+
+      if ( session.info.isServer )
+      {
+        // TODO: if this is the server, we need to validate that the requested
+        //       sync mode is actually feasible... i.e. check:
+        //         - do the anchors match?
+        //         - have we bound the datastores together?
+        //         - is there a pending sync?
+        return cb(new common.NotImplementedError('server-side protocol'));
+      }
+
+      var uri  = session.adapter.normUri(xnode.findtext('Item/Target/LocURI'));
+      var ruri = session.peer.normUri(xnode.findtext('Item/Source/LocURI'));
+      log.debug('peer requested %s synchronization of "%s" (here) to "%s" (peer)',
+                common.mode2string(code), uri, ruri);
+
+      // TODO: this should really be done by the synchronizer... as it can
+      //       then also do a lot of checks - potentially responding with
+      //       an error...
+
+      var ds = null;
+
+      if ( session.info.isServer )
+      {
+        // TODO: implement server-side
+        return cb(new common.NotImplementedError('server-side protocol'));
+
+        // if uri in session.info.dsstates:
+        //   ds = session.info.dsstates[uri]
+        // else:
+        //   adapter.router.setRoute(uri, ruri, autoMapped=True)
+        //   peerStore = adapter.peer.stores[ruri]
+        //   ds = common.adict(
+        //     # TODO: perhaps share this "constructor" with router/adapter?...
+        //     peerUri    = ruri,
+        //     lastAnchor = peerStore.binding.localAnchor,
+        //     nextAnchor = str(int(time.time())),
+        //     stats      = state.Stats(),
+        //     mode       = None, # setting to null so that the client tells us...
+        //     )
+        //   session.info.dsstates[uri] = ds
+        // ds.action = 'alert'
+      }
+      else
+      {
+        ds = session.info.dsstates[uri];
+        if ( ! ds )
+          return cb(new common.ProtocolError('request for unreflected local datastore "'
+                                             + uri + '"'));
+        ds.action = 'send'
+        if ( code != ds.mode )
+          log.info('server-side switched sync modes from %s to %s for datastore "%s"',
+                   common.mode2string(ds.mode), common.mode2string(code), uri);
+      }
+
+      ds.mode = code;
+      ds.peerLastAnchor = xnode.findtext('Item/Meta/Anchor/Last');
+      ds.peerNextAnchor = xnode.findtext('Item/Meta/Anchor/Next');
+
+      if ( ds.peerLastAnchor != session.peer.getStore(ruri)._getModel().binding.remoteAnchor )
+      {
+        log.warning(
+          'last-anchor mismatch (here: %r, peer: %r) for datastore "%s" - forcing slow-sync',
+          session.peer.getStore(ruri)._getModel().binding.remoteAnchor, ds.peerLastAnchor, uri);
+        ds.peerLastAnchor = null;
+        switch ( ds.mode )
+        {
+          case constant.ALERT_SLOW_SYNC:
+          case constant.ALERT_REFRESH_FROM_CLIENT:
+          case constant.ALERT_REFRESH_FROM_SERVER:
+          {
+            break;
+          }
+          default:
+          {
+            if ( session.info.isServer )
+            {
+              ds.mode = constant.ALERT_SLOW_SYNC;
+              statusCode = constant.STATUS_REFRESH_REQUIRED;
+            }
+            else
+            {
+              // todo: should i assume that the server knows something
+              //       that i don't and just go along with it?...
+              return cb(new common.ProtocolError(
+                'server-side requested inappropriate ' + common.mode2string(ds.mode)
+                  + ' sync mode on unbound datastore "' + uri + '"'));
+            }
+          }
+        }
+      }
+
+      return cb(null, [state.makeCommand({
+        name       : constant.CMD_STATUS,
+        cmdID      : session.nextCmdID(),
+        msgRef     : xsync.findtext('SyncHdr/MsgID'),
+        cmdRef     : xnode.findtext('CmdID'),
+        targetRef  : xnode.findtext('Item/Target/LocURI'),
+        sourceRef  : xnode.findtext('Item/Source/LocURI'),
+        statusOf   : xnode.tag,
+        statusCode : statusCode,
+        // todo: syncevolution does not echo the remote last anchor... why not?
+        lastAnchor : ds.peerLastAnchor,
+        nextAnchor : ds.peerNextAnchor
+      })]);
+
+    },
+
+    //-------------------------------------------------------------------------
+    _consume_node_sync: function(session, lastcmds, xsync, xnode, cb) {
+      var self   = this;
+      var uri    = xnode.findtext('Target/LocURI');
+      var store  = session.adapter.getStore(session.adapter.normUri(uri));
+      var ds     = session.info.dsstates[session.adapter.normUri(uri)];
+      var commands = [state.makeCommand({
+        name        : constant.CMD_SYNC,
+        msgID       : xsync.findtext('SyncHdr/MsgID'),
+        cmdID       : xnode.findtext('CmdID'),
+        source      : xnode.findtext('Source/LocURI'),
+        target      : uri,
+        data        : [],
+      })];
+      var noc = xnode.findtext('NumberOfChanges');
+      if ( noc != undefined )
+        noc = parseInt(noc, 10);
+      common.cascade(xnode.getchildren(), function(child, cb) {
+        switch ( child.tag )
+        {
+          case 'CmdID':
+          case 'Target':
+          case 'Source':
+          case 'NumberOfChanges':
+          {
+            return cb();
+          }
+          case constant.CMD_ADD:
+          case constant.CMD_REPLACE:
+          case constant.CMD_DELETE:
+          {
+            var func = self['_consume_sync_' + child.tag.toLowerCase()];
+            func.call(self, session, lastcmds, store, xsync, child, function(err, cmds) {
+              if ( err )
+                return cb(err);
+              _.each(cmds, function(cmd) { commands[0].data.push(cmd); });
+              return cb();
+            });
+            return;
+          }
+          default:
+          {
+            return cb(new common.ProtocolError('unexpected sync command "' + child.tag + '"'));
+          }
+        }
+      }, function(err) {
+        if ( err )
+          return cb(err);
+        // confirm that i received the right number of changes...
+        if ( noc != undefined && noc != commands[0].data.length )
+          return cb(new common.ProtocolError('number-of-changes mismatch (received '
+                                             + commands[0].data.length + ', expected '
+                                             + noc + ')'));
+        if ( ! session.info.isServer )
+        {
+          if ( ds.action != 'recv' )
+            return cb(new common.ProtocolError('unexpected sync state for URI "'
+                                               + uri + '": action=' + ds.action));
+          ds.action = 'done';
+        }
+        else
+        {
+          return cb(new common.NotImplementedError('server-side sync receive'));
+          // if ds.action != 'alert':
+          //   raise common.ProtocolError('unexpected sync state for URI "%s": action=%s'
+          //                              % (uri, ds.action))
+          // ds.action = 'send'
+        }
+        return session.context.synchronizer.reactions(session, commands, cb);
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    _consume_xnode2item: function(session, lastcmds, store, xsync, xnode, cb) {
+      var ctype  = xnode.findtext('Meta/Type');
+      // todo: can the version be specified in the Meta tag?... maybe create an
+      //       extension to SyncML to communicate this?...
+      var ctver  = null;
+      var format = xnode.findtext('Meta/Format');
+      var xitem  = xnode.findall('Item/Data');
+      if ( xitem.length > 1 )
+        return cb(new common.ProtocolError(
+          '"' + xnode.tag + '" command with non-singular item data nodes'));
+      if ( xitem.length < 1 )
+        return cb(new common.ProtocolError(
+          '"' + xnode.tag + '" command with missing data node'));
+      var xitem = xitem[0];
+      // todo: confirm that getchildren only returns element nodes...
+      if ( xitem.getchildren().length == 1 )
+        data = xitem.getchildren()[0];
+      else
+      {
+        data = xitem.text;
+        if ( format == constant.FORMAT_B64 )
+          data = base64.decode(data);
+      }
+      return store.agent.loadsItem(data, ctype, ctver, cb);
+    },
+
+    //-------------------------------------------------------------------------
+    _consume_sync_add: function(session, lastcmds, store, xsync, xnode, cb) {
+      this._consume_xnode2item(session, lastcmds, store, xsync, xnode, function(err, item) {
+        if ( err )
+          return cb(err);
+        return cb(null, [state.makeCommand({
+          name          : constant.CMD_ADD,
+          msgID         : xsync.findtext('SyncHdr/MsgID'),
+          cmdID         : xnode.findtext('CmdID'),
+          source        : xnode.findtext('Item/Source/LocURI'),
+          sourceParent  : xnode.findtext('Item/SourceParent/LocURI'),
+          targetParent  : xnode.findtext('Item/TargetParent/LocURI'),
+          data          : item
+        })]);
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    _consume_sync_replace: function(session, lastcmds, store, xsync, xnode, cb) {
+      this._consume_xnode2item(session, lastcmds, store, xsync, xnode, function(err, item) {
+        if ( err )
+          return cb(err);
+        return cb(null, [state.makeCommand({
+          name          : constant.CMD_REPLACE,
+          msgID         : xsync.findtext('SyncHdr/MsgID'),
+          cmdID         : xnode.findtext('CmdID'),
+          source        : xnode.findtext('Item/Source/LocURI'),
+          sourceParent  : xnode.findtext('Item/SourceParent/LocURI'),
+          target        : xnode.findtext('Item/Target/LocURI'),
+          targetParent  : xnode.findtext('Item/TargetParent/LocURI'),
+          data          : item
+        })]);
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    _consume_sync_delete: function(session, lastcmds, store, xsync, xnode, cb) {
+      return cb(null, [state.makeCommand({
+        name          : constant.CMD_DELETE,
+        msgID         : xsync.findtext('SyncHdr/MsgID'),
+        cmdID         : xnode.findtext('CmdID'),
+        source        : xnode.findtext('Item/Source/LocURI'),
+        sourceParent  : xnode.findtext('Item/SourceParent/LocURI'),
+        target        : xnode.findtext('Item/Target/LocURI'),
+        targetParent  : xnode.findtext('Item/TargetParent/LocURI')
+      })]);
+    },
+
+    // #----------------------------------------------------------------------------
+    // def makeStatus(self, session, xsync, xnode, status=constant.STATUS_OK, **kw):
+    //   return state.Command(
+    //     name       = constant.CMD_STATUS,
+    //     cmdID      = session.nextCmdID(),
+    //     msgRef     = xsync.findtext('SyncHdr/MsgID'),
+    //     cmdRef     = xnode.findtext('CmdID'),
+    //     statusOf   = xnode.tag,
+    //     statusCode = status,
+    //     **kw
+    //     )
+
+    // #----------------------------------------------------------------------------
+    // def t2c_map(self, adapter, session, lastcmds, xsync, xnode):
+    //   # TODO: should this be moved into the synchronizer?...
+    //   srcUri = xnode.findtext('Source/LocURI')
+    //   tgtUri = xnode.findtext('Target/LocURI')
+    //   peerStore = adapter.peer.stores[adapter.peer.normUri(srcUri)]
+    //   # todo: should i verify that the GUID is valid?...
+    //   for xitem in xnode.findall('MapItem'):
+    //     luid = xitem.findtext('Source/LocURI')
+    //     guid = xitem.findtext('Target/LocURI')
+    //     # TODO: is there a better way of doing this than DELETE + INSERT?...
+    //     #       ie. is there an SQL INSERT_OR_UPDATE?...
+    //     adapter._context._model.Mapping.q(store_id=peerStore.id, guid=guid).delete()
+    //     newmap = adapter._context._model.Mapping(store_id=peerStore.id, guid=guid, luid=luid)
+    //     adapter._context._model.session.add(newmap)
+    //   return [self.makeStatus(session, xsync, xnode,
+    //                           targetRef=tgtUri, sourceRef=srcUri)]
+
+
 
   });
 
