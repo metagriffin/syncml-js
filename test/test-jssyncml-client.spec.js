@@ -17,51 +17,20 @@ define([
   'sqlite3',
   'jsindexeddb',
   'diff',
+  './helpers.js',
   '../src/jssyncml',
+  '../src/jssyncml/logging',
   '../src/jssyncml/common',
   '../src/jssyncml/state'
-], function(_, ET, sqlite3, jsindexeddb, diff, jssyncml, common, state) {
-
-  var xmlMatchers = {
-    toEqualXml: function (expected) {
-
-      var notText  = this.isNot ? ' not' : '';
-      var isEqual  = true;
-      var difftext = '.';
-      var act      = ET.tostring(ET.parse(this.actual).getroot());
-      var exp      = ET.tostring(ET.parse(expected).getroot());
-
-      if ( act != exp )
-      {
-        isEqual = false;
-        // todo: improve this "pretty-fying"...
-        var srcxml = act.replace(/>\s*</g, '>\n<');
-        var dstxml = exp.replace(/>\s*</g, '>\n<');
-        difftext = diff.createPatch('xml', dstxml, srcxml, '(expected)', '(received)');
-        var idx = difftext.indexOf('---');
-        if ( idx >= 0 )
-          difftext = difftext.substr(idx);
-        difftext = difftext
-          .replace(/\-\-\- xml\s*\(expected\)/, '--- expected')
-          .replace(/\+\+\+ xml\s*\(received\)/, '+++ received');
-        difftext = ', differences:\n' + difftext;
-      }
-
-      this.message = function () {
-        return 'Expected "' + this.actual + notText + '" to be "' + expected + '"' + difftext;
-      };
-
-      return isEqual;
-
-    }
-  };
+], function(_, ET, sqlite3, jsindexeddb, diff, helpers, jssyncml, logging, common, state) {
 
   describe('jssyncml-client', function() {
 
     var seenRequests = '';
 
     beforeEach(function () {
-      this.addMatchers(xmlMatchers);
+      logging.level = logging.WARNING;
+      this.addMatchers(helpers.matchers);
       seenRequests = '';
     });
 
@@ -148,12 +117,12 @@ define([
 
       var context = new jssyncml.Context({
         storage: idb,
-        prefix:  'memoryBased.'
+        prefix:  'memoryBasedClient.'
       });
 
       // TODO: ensure that this manual way also works!...
 
-      // context.getAdapter(null, function(err, adapter) {
+      // context.getAdapter(null, null, function(err, adapter) {
       //   expect(err).toBeFalsy();
       //   sync.adapter = adapter;
       //   var setupDevInfo = function(cb) {
@@ -648,7 +617,7 @@ define([
               + '   <NumberOfChanges>1</NumberOfChanges>'
               + '   <Add>'
               + '    <CmdID>4</CmdID>'
-              + '    <Meta><Type xmlns="syncml:metinf">text/plain</Type></Meta>'
+              + '    <Meta><Type xmlns="syncml:metinf">text/x-s4j-sifn</Type></Meta>'
               + '    <Item>'
               + '     <Source><LocURI>1</LocURI></Source>'
               + '     <Data>first</Data>'
@@ -713,7 +682,7 @@ define([
               + '   <NumberOfChanges>1</NumberOfChanges>'
               + '   <Add>'
               + '    <CmdID>5</CmdID>'
-              + '    <Meta><Type xmlns="syncml:metinf">text/plain</Type></Meta>'
+              + '    <Meta><Type xmlns="syncml:metinf">text/x-s4j-sifn</Type></Meta>'
               + '    <Item>'
               + '     <Source><LocURI>50</LocURI></Source>'
               + '     <Data>some text content</Data>'
