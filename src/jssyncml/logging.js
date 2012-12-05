@@ -22,16 +22,19 @@ define([
 ) {
 
   var exports = {
-    CRITICAL: 'CRITICAL',
-    ERROR:    'ERROR',
-    WARNING:  'WARNING',
-    INFO:     'INFO',
-    DEBUG:    'DEBUG'
+    level:    0,
+    CRITICAL: 50,
+    ERROR:    40,
+    WARNING:  30,
+    INFO:     20,
+    DEBUG:    10,
+    NOTSET:   0
   };
 
   //---------------------------------------------------------------------------
   var Logger = common.Base.extend({
     constructor: function(options) {
+      this.level = exports.NOTSET;
       this._name = options.name || '';
     },
     exception: function() {
@@ -46,9 +49,6 @@ define([
       var args = _.initial(arguments, 0);
       args.unshift(exports.ERROR);
       this.log.apply(this, args);
-    },
-    warn: function() {
-      this.warning.apply(this, arguments);
     },
     warning: function() {
       var args = _.initial(arguments, 0);
@@ -71,7 +71,26 @@ define([
     _log: function(lvl) {
       var args = _.initial(arguments, 0);
       args.shift();
-      var msg = '[' + this._name + '] ' + lvl + ': ' + sprintf.sprintf.apply(null, args);
+      if ( this.level != exports.NOTSET && this.level > lvl )
+        return;
+      // todo: ugh. i really should implement a cascading of loggers...
+      if ( exports.level != exports.NOTSET && exports.level > lvl )
+        return;
+      var lvlstr = '';
+      if ( lvl >= exports.CRITICAL )
+        lvlstr = 'CRITICAL';
+      else if ( lvl >= exports.ERROR )
+        lvlstr = 'ERROR';
+      else if ( lvl >= exports.WARNING )
+        lvlstr = 'WARNING';
+      else if ( lvl >= exports.INFO )
+        lvlstr = 'INFO';
+      else
+        lvlstr = 'DEBUG';
+      var msg = '[' + this._name + '] ' + lvlstr + ': ' + sprintf.sprintf.apply(null, args);
+      this._logmsg(lvl, msg);
+    },
+    _logmsg: function(lvl, msg) {
       console.log(msg);
     }
   });
