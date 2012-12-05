@@ -18,6 +18,7 @@ define([
   './common',
   './constant',
   './ctype',
+  './matcher',
   './storage'
 ], function(
   _,
@@ -26,6 +27,7 @@ define([
   common,
   constant,
   ctype,
+  matcher,
   storage
 ) {
 
@@ -111,9 +113,11 @@ define([
       return cb();
     },
 
-    getBestTransmitContentType: function(session, uri) {
-      log.critical('TODO ::: Router.getBestTransmitContentType NOT IMPLEMENTED');
-      return ['text/plain', '1.1'];
+    //-------------------------------------------------------------------------
+    getBestTransmitContentType: function(adapter, peer, uri) {
+      var lstore = adapter.getStore(uri);
+      var rstore = peer.getStore(this.getTargetUri(adapter, peer, uri));
+      return matcher.pickTransmitContentType(lstore, rstore);
     },
 
   });
