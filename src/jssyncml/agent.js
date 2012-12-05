@@ -115,9 +115,18 @@ define([
 
     getContentTypes: function() {
       throw new common.NotImplementedError();
+    },
+
+    matchItem: function(item, cb) {
+      this.getAllItems(function(err, list) {
+        if ( err )
+          return cb(err);
+        var match = _.find(list, function(cur) {
+          return cur.compare(item) == 0;
+        });
+      });
     }
 
-    // TODO: provide matchItem()
     // TODO: mergeItems()
 
   });
