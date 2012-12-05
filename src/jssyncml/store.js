@@ -148,12 +148,12 @@ define([
         if ( ! peerUri )
           return null;
 
-        log.warn('TODO ::: Store.getPeerStore NOT IMPLEMENTED');
+        log.warning('TODO ::: Store.getPeerStore NOT IMPLEMENTED');
 
         return null;
       }
 
-      log.warn('TODO ::: Store.getPeerStore NOT IMPLEMENTED');
+      log.warning('TODO ::: Store.getPeerStore NOT IMPLEMENTED');
 
       return null;
 

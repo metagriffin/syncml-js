@@ -92,7 +92,7 @@ define([
         if ( e.url != this.url )
           return true;
         // TODO: handle this!...
-        log.warn('potential peer info leakage - cleanup RemoteAdapter._updateModel');
+        log.warning('potential peer info leakage - cleanup RemoteAdapter._updateModel');
         return false;
       }, this);
       this._a._model.peers.push(_.defaults({

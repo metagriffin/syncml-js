@@ -935,9 +935,9 @@ define([
         //       raising hell that all my commands were not addressed?...
 
         _.each(chkcmds, function(chkcmd) {
-          log.warn('re-issuing unrequited command node "s%s.m%s.c%s" (%s)',
-                   session.info.id, lastcmds[0].msgID,
-                   chkcmd.cmdID, chkcmd.name);
+          log.warning('re-issuing unrequited command node "s%s.m%s.c%s" (%s)',
+                      session.info.id, lastcmds[0].msgID,
+                      chkcmd.cmdID, chkcmd.name);
           commands.push(chkcmd);
         });
 
@@ -1066,7 +1066,7 @@ define([
         {
           if ( session.info.isServer && code == constant.STATUS_RESUME )
           {
-            log.warn('peer requested resume (not support that yet) - forcing slow-sync');
+            log.warning('peer requested resume (not support that yet) - forcing slow-sync');
             code = constant.ALERT_SLOW_SYNC;
           }
           else

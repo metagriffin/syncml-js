@@ -311,7 +311,8 @@ define([
   //         appenditem(item)
             }
 
-            var ctype = session.context.router.getBestTransmitContentType(session, dsstate.uri);
+            var ctype = session.context.router.getBestTransmitContentType(
+              session.adapter, session.peer, dsstate.uri);
 
             common.cascade(items, function(item, cb) {
 
@@ -660,10 +661,9 @@ define([
         // TODO: if the matched item is already mapped to another client-side
         //       object, then this should cancel the matching...
         matcher = function(cb) {
-
-          log.debug('in matcher');
-
-          store.agent.matchItem(cmd.data, function(match, cb) {
+          store.agent.matchItem(cmd.data, function(err, match) {
+            if ( err )
+              return cb(err);
             if ( ! match || ! match.compare )
               return cb();
             curitem = match;
@@ -683,15 +683,12 @@ define([
       }
 
       matcher(function(err) {
-        log.debug('post matcher');
         if ( err )
           return cb(err);
         var adder = common.noop;
         if ( ! curitem )
           adder = function(cb) {
-            log.debug('in adder');
             store.agent.addItem(cmd.data, function(err, newitem) {
-              log.debug('post addItem');
               if ( err )
                 return cb(err);
               item = newitem;
@@ -703,7 +700,6 @@ define([
         else
           item = curitem;
         return adder(function(err) {
-          log.debug('post adder');
           if ( err )
             return cb(err);
 
@@ -1020,9 +1016,9 @@ define([
   //     #       is "alright"...
   //     # todo: perhaps this should be raised as an error if the
   //     #       remote peer != funambol?...
-  //     log.warn('received ITEM_NOT_DELETED for DELETE command for URI "%s" item "%s"'
-  //              ' - assuming previous pending deletion executed',
-  //              chkcmd.uri, chkcmd.source)
+  //     log.warning('received ITEM_NOT_DELETED for DELETE command for URI "%s" item "%s"'
+  //                 ' - assuming previous pending deletion executed',
+  //                 chkcmd.uri, chkcmd.source)
   //   elif cmd.data == constant.STATUS_OK:
   //     session.dsstates[chkcmd.uri].stats.peerDel += 1
   //   else:
