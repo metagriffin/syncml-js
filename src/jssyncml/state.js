@@ -53,7 +53,6 @@ define([
   exports.makeSessionInfo = function(options) {
     return _.defaults(options || {}, {
       id           : 1,
-      isServer     : true,
       msgID        : 1,
       cmdID        : 0,
       dsstates     : {},
@@ -78,10 +77,11 @@ define([
   //---------------------------------------------------------------------------
   exports.makeSession = function(options) {
     return new (function() {
-      this.context = options.context || null;
-      this.adapter = options.adapter || null;
-      this.peer    = options.peer    || null;
-      this.info    = options.info    || null;
+      this.context   = options.context || null;
+      this.adapter   = options.adapter || null;
+      this.peer      = options.peer    || null;
+      this.info      = options.info    || null;
+      this.isServer  = options.isServer ? true : false;
       this.nextCmdID = function() {
         this.info.cmdID += 1;
         return this.info.cmdID;

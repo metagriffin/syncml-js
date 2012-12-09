@@ -281,13 +281,13 @@ define([
         return cb('cannot synchronize adapter as client: invalid devInfo');
 
       var session = state.makeSession({
-        context : self._c,
-        adapter : self,
-        peer    : peer,
-        info    : state.makeSessionInfo({
+        context  : self._c,
+        adapter  : self,
+        peer     : peer,
+        isServer : false,
+        info     : state.makeSessionInfo({
           id       : ( peer.lastSessionID || 0 ) + 1,
           codec    : self._c.codec,
-          isServer : false,
           mode     : mode
         })
       });
@@ -296,7 +296,8 @@ define([
         session.peer.sendRequest(session, contentType, data, function(err, response) {
           if ( err )
             return cb(err);
-          self._receive(session, response, cb);
+          // todo: allow the client to force the server to authorize itself as well...
+          self._receive(session, response, null, cb);
         });
       };
 
@@ -317,11 +318,6 @@ define([
             self._save(function(err) {
               if ( err )
                 return cb(err);
-
-              log.critical('SESSION.END');
-              log.critical('  STATS: ' + common.j(self._session2stats(session)));
-
-
               return cb(null, self._session2stats(session));
             });
           });
@@ -344,6 +340,9 @@ define([
     //-------------------------------------------------------------------------
     _transmit: function(session, commands, cb) {
       var self = this;
+
+      if ( session.info.msgID > 20 )
+        return cb('too many client/server messages');
 
       session.context.protocol.negotiate(session, commands, function(err, commands) {
         if ( err )
@@ -395,75 +394,94 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    handleRequest: function(request, sessionInfo, cb) {
-
-      var session = state.makeSession({
-        context : self._c,
-        adapter : self,
-        peer    : null,
-        info    : sessionInfo
-      });
-
-      // TODO
-      log.critical('TODO ::: populate session.peer');
-
-      if ( ! session.info )
-      {
-        // TODO
-        log.critical('TODO ::: get the session-id from the request?...');
-        log.critical('TODO ::: or will that get filled in during the initialize?...');
-
-        session.info = state.makeSessionInfo({
-          id       : ( session.peer.lastSessionID || 0 ) + 1,
-          codec    : self._c.codec,
-          isServer : true,
-          mode     : null
-        })
-      }
-
-      session.send = cb;
-
-      this._receive(session, request, function(err, stats) {
+    authorize: function(request, sessionInfo, authorize, cb) {
+      var self = this;
+      var ct   = request.headers['Content-Type'];
+      codec.Codec.autoDecode(ct, request.body, function(err, xtree, codecName) {
         if ( err )
           return cb(err);
-        log.info('syncml transaction stats: ' + common.j(stats));
-        return cb(null, null, null, stats);
+        self._c.protocol.authorize(xtree, null, authorize, cb);
       });
-
     },
 
     //-------------------------------------------------------------------------
-    _receive: function(session, request, cb) {
+    getTargetID: function(request, sessionInfo, cb) {
       var self = this;
-      if ( session.info.msgID > 20 )
-        return cb('too many client/server messages');
-      if ( ! session.info.isServer )
+      var ct   = request.headers['Content-Type'];
+      codec.Codec.autoDecode(ct, request.body, function(err, xtree, codecName) {
+        if ( err )
+          return cb(err);
+        return cb(null, self._c.protocol.getTargetID(xtree));
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    handleRequest: function(request, sessionInfo, authorize, response, cb) {
+      var self = this;
+      var session = state.makeSession({
+        context  : self._c,
+        adapter  : self,
+        peer     : null,
+        isServer : true,
+        info     : sessionInfo
+      });
+      session.send = response;
+      this._receive(session, request, authorize, function(err, stats) {
+        if ( err )
+          return cb(err);
+        log.info('syncml transaction stats: ' + common.j(stats));
+        return cb(null, stats);
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    _receive: function(session, request, authorize, cb) {
+      var self = this;
+      if ( ! session.isServer )
       {
         session.info.lastMsgID = session.info.msgID;
         session.info.msgID += 1;
       }
       var ct = request.headers['Content-Type'];
-      codec.Codec.autoDecode(ct, request.body, function(err, xtree, engine) {
+      codec.Codec.autoDecode(ct, request.body, function(err, xtree, codecName) {
         if ( err )
           return cb(err);
-        session.info.codec = engine;
-        session.context.protocol.consume(
-          session, session.info.lastCommands, xtree,
-          function(err, commands) {
-            if ( err )
-              return cb(err);
-            self._transmit(session, commands, function(err) {
+        session.info.codec = codecName;
+        var do_authorize = ( ! authorize ) ? common.noop : function(cb) {
+          session.context.protocol.authorize(xtree, null, authorize, function(err) {
+            return cb(err);
+          });
+        };
+        do_authorize(function(err) {
+          if ( err )
+            return cb(err);
+          log.error('HERE.1');
+          session.context.protocol.consume(
+            session, session.info.lastCommands, xtree,
+            function(err, commands) {
+
+              log.error('HERE.2' + err);
+              log.error('HERE.3' + common.j(commands));
+
+              if ( err )
+                log.error('ERROR: ' + err);
+
               if ( err )
                 return cb(err);
-              if ( ! session.info.isServer )
-                return cb();
-              self._save(function(err) {
+              self._transmit(session, commands, function(err) {
                 if ( err )
                   return cb(err);
-                return cb(null, self._session2stats(session));
+                if ( ! session.isServer )
+                  return cb();
+                self._save(function(err) {
+                  if ( err )
+                    return cb(err);
+                  return cb(null, self._session2stats(session));
+                });
               });
-            });
-          });
+            }
+          );
+        });
       })
     },
 

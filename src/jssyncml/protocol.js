@@ -73,13 +73,59 @@ define([
     constructor: function(options) {
     },
 
-    // TODO: FOR SERVER-SIDE:
-    //         - implement getAuthInfo()
-    //         - implement getTargetID()
+    //-------------------------------------------------------------------------
+    authorize: function(xtree, uri, authorize, cb) {
+      if ( ! authorize )
+        authorize = function(uri, data, cb) { return cb(null, data); };
+      if ( xtree.tag != 'SyncML' )
+        throw new common.ProtocolError('root element was not "SyncML"');
+      var xcred = xtree.find('SyncHdr/Cred');
+      if ( ! xcred )
+        return authorize(uri, null, cb);
+      var data = xcred.findtext('Data');
+      var authtype = xcred.findtext('Meta/Type');
+      var format = xcred.findtext('Meta/Format');
+      if ( format == constant.FORMAT_B64 )
+        data = base64.decode(data);
+      else if ( format )
+        throw new common.UnknownFormatType(format);
+      switch ( authtype )
+      {
+        case constant.NAMESPACE_AUTH_BASIC:
+        {
+          data = common.splitn(data, ':', 1);
+          return authorize(uri, {
+            auth:     constant.NAMESPACE_AUTH_BASIC,
+            username: data[0],
+            password: data[1]
+          }, cb);
+        }
+        case constant.NAMESPACE_AUTH_MD5:
+        {
+          return authorize(uri, {
+            auth:   constant.NAMESPACE_AUTH_BASIC,
+            digest: data
+          }, cb);
+        }
+        default:
+        {
+          return cb(new common.UnknownAuthType(
+            'unknown/unimplemented auth type "' + authtype + '"'));
+        }
+      }
+    },
+
+    //-------------------------------------------------------------------------
+    getTargetID: function(xtree) {
+      if ( xtree.tag != 'SyncML' )
+        throw new common.ProtocolError('root element was not "SyncML"');
+      // todo: do more validity checks?...
+      return xtree.findtext('SyncHdr/Target/LocURI');
+    },
 
     //-------------------------------------------------------------------------
     isComplete: function(session, commands) {
-      return (! session.info.isServer
+      return (! session.isServer
               && commands.length == 3
               && commands[0].name == constant.CMD_SYNCHDR
               && commands[1].name == constant.CMD_STATUS
@@ -96,41 +142,87 @@ define([
         cmdID       : 0,
         version     : constant.SYNCML_VERSION_1_2,
         source      : session.info.effectiveID || session.adapter.devID,
-        sourceName  : session.adapter.name
+        sourceName  : session.adapter.name,
+        respUri     : session.isServer ? session.info.returnUrl : null
       });
 
-      if ( session.info.isServer )
-      {
+      var checkPeer = ( ! session.isServer ) ? common.noop : function(cb) {
+
         // TODO: FOR SERVER-SIDE, implement:
         //         - target peer extraction
         //         - session / message ID extraction
         //         - response URL extraction / generation
-        return cb(new common.NotImplementedError('server-side protocol'));
-      }
+        //         - call session.context.synchronizer.initStoreSync ...
 
-      session.info.pendingMsgID = ( session.info.isServer
-                                    ? session.info.msgID
-                                    : session.info.lastMsgID );
-      session.info.cmdID        = 0;
-      cmd.sessionID   = session.info.id;
-      cmd.msgID       = session.info.msgID;
-      cmd.target      = session.peer.devID || null;
-      cmd.targetName  = session.peer.name || null;
-      cmd.auth        = session.peer.auth;
+        var xhdr = xtree.find('SyncHdr');
+        var peerID = xhdr.findtext('Source/LocURI');
 
-      if ( cmd.msgID == 1 )
-      {
-        // NOTE: normally, the "server" would not send this info. however, in
-        //       the jssyncml world where it is much more peer-oriented
-        //       instead of client/server, i send this as well... the
-        //       idea being, if two "client" peers are communicating in
-        //       the event of server unavailability, then they may need
-        //       to know each-others limitations...
-        cmd.maxMsgSize = common.getMaxMemorySize(session.context);
-        cmd.maxObjSize = common.getMaxMemorySize(session.context);
-      }
+        if ( session.info.peerID && session.info.peerID != peerID )
+        {
+          log.error('unexpected peer ID "%s" (expected "%s")', peerID, session.info.peerID);
+          return cb(new common.ProtocolError('unexpected peer ID "' + peerID + '"'));
+        }
+        if ( session.peer && session.peer.devID != peerID )
+        {
+          log.error('unacceptable peer ID "%s" (expected "%s")', peerID, adapter.peer.devID);
+          return cb(new common.ProtocolError('unacceptable peer ID "' + peerID + '"'));
+        }
+        session.info.peerID = peerID;
+        session.info.id     = parseInt(xhdr.findtext('SessionID'), 10);
+        session.info.msgID  = parseInt(xhdr.findtext('MsgID'), 10);
+        if ( session.peer && session.peer.devID == peerID )
+          return cb();
+        // TODO: i should delete unused peers here... ie. anything that
+        //       hasn't been used in some configurable number of seconds,
+        //       which should probably default to something like a month...
+        session.peer = _.find(session.adapter.getPeers(), function(peer) {
+          return ( peer.devID == peerID );
+        });
+        if ( session.peer )
+          return cb();
+        log.info('registering new peer "%s"', peerID);
+        var peerInfo = {
+          devID:      peerID,
+          name:       xhdr.findtext('Source/LocName'),
+          isLocal:    false,
+          maxMsgSize: common.parseInt(xhdr.findtext('Meta/MaxMsgSize')),
+          maxObjSize: common.parseInt(xhdr.findtext('Meta/MaxObjSize'))
+        };
+        session.adapter.addPeer(peerInfo, function(err, peer) {
+          if ( err )
+            return cb(err);
+          session.peer = peer;
+          return cb();
+        });
+      };
 
-      cb(null, [cmd]);
+      checkPeer(function(err) {
+        if ( err )
+          return cb(err);
+
+        session.info.pendingMsgID = ( session.isServer
+                                      ? session.info.msgID
+                                      : session.info.lastMsgID );
+        session.info.cmdID        = 0;
+        cmd.sessionID   = session.info.id;
+        cmd.msgID       = session.info.msgID;
+        cmd.target      = session.peer.devID || null;
+        cmd.targetName  = session.peer.name || null;
+        cmd.auth        = session.peer.auth;
+
+        if ( cmd.msgID == 1 )
+        {
+          // NOTE: normally, the "server" would not send this info. however, in
+          //       the jssyncml world where it is much more peer-oriented
+          //       instead of client/server, i send this as well... the
+          //       idea being, if two "client" peers are communicating in
+          //       the event of server unavailability, then they may need
+          //       to know each-others limitations...
+          cmd.maxMsgSize = common.getMaxMemorySize(session.context);
+          cmd.maxObjSize = common.getMaxMemorySize(session.context);
+        }
+        cb(null, [cmd]);
+      });
     },
 
     //-------------------------------------------------------------------------
@@ -483,39 +575,45 @@ define([
       var self = this;
 
       self.initialize(session, xsync, function(err, cmds) {
+        if ( err )
+          return cb(err);
 
         var hdrcmd = cmds[0];
         var makeErrorCommands = function(err, cb) {
-          if ( ! session.info.isServer )
+          if ( ! session.isServer )
             return cb(err);
 
-          // TODO: make sure this is executed as intended...
+          var errcmd = state.makeCommand({
+            name       : constant.CMD_STATUS,
+            cmdID      : '1',
+            msgRef     : session.info.pendingMsgID,
+            cmdRef     : 0,
+            sourceRef  : xsync.getchildren()[0].findtext('Source/LocURI'),
+            targetRef  : xsync.getchildren()[0].findtext('Target/LocURI'),
+            statusOf   : constant.CMD_SYNCHDR,
+            statusCode : constant.STATUS_COMMAND_FAILED,
+            errorMsg   : 'an error occurred during processing'
+          });
 
           // TODO: make this configurable as to whether or not any error
           //       is sent back to the peer as a SyncML "standardized" error
           //       status...
-          return cb(null, [
-            hdrcmd,
-            state.makeCommand({
-              name       : constant.CMD_STATUS,
-              cmdID      : '1',
-              msgRef     : session.info.pendingMsgID,
-              cmdRef     : 0,
-              sourceRef  : xsync.getchildren()[0].findtext('Source/LocURI'),
-              targetRef  : xsync.getchildren()[0].findtext('Target/LocURI'),
-              statusOf   : constant.CMD_SYNCHDR,
-              statusCode : constant.STATUS_COMMAND_FAILED,
-              errorMsg   : err
-              // errorCode  : code,
-              // errorMsg   : msg,
-              // errorTrace : make-stack-trace...
-            }),
-            state.makeCommand({name: constant.CMD_FINAL})]);
+
+          // TODO: make sure this is executed as intended...
+          errcmd.errorCode  = err.code || err.name || null;
+          errcmd.errorMsg   = err.message || common.j(err) || '' + err;
+          // errcmd.errorTrace = TODO: make-stack-trace...
+
+          errcmd.errorMsg = common.j(err);
+
+          return cb(null, [hdrcmd, errcmd,
+                           state.makeCommand({name: constant.CMD_FINAL})]);
         };
 
         try {
 
           self._consume(session, lastcmds, xsync, cmds, function(err, commands) {
+            log.error('failed with expected error: ' + common.j(err));
             if ( err )
               return makeErrorCommands(err, cb);
             return cb(null, commands);
@@ -523,6 +621,7 @@ define([
 
         } catch ( exc ) {
 
+          log.error('failed with unexpected exception: ' + exc);
           return makeErrorCommands(exc, cb);
 
         }
@@ -537,11 +636,15 @@ define([
       var hdrcmd     = commands[0];
       var statusCode = constant.STATUS_OK;
 
+      log.debug('consuming SyncHdr command: SyncHdr');
+
       // analyze the SyncHdr
       var children = xsync.getchildren()[0].getchildren();
       for ( var idx=0 ; idx<children.length ; idx++ )
       {
         var child = children[idx];
+
+        log.debug('consuming SyncHdr option: ' + child.tag);
 
         if ( child.tag == 'VerDTD' )
         {
@@ -570,7 +673,7 @@ define([
 
         if ( child.tag == 'MsgID' )
         {
-          var chkmsg = ( session.info.isServer ? hdrcmd.msgID : lastcmds[0].msgID );
+          var chkmsg = ( session.isServer ? hdrcmd.msgID : lastcmds[0].msgID );
           if ( child.text != chkmsg )
             return cb(new common.ProtocolError(
               'message ID mismatch: "' + child.text + '" != "' + chkmsg + '"'));
@@ -580,6 +683,9 @@ define([
         if ( child.tag == 'Target' )
         {
           var uri = child.findtext('LocURI');
+
+          // TODO... server-side...
+
           if ( uri != hdrcmd.source )
             return cb(new common.ProtocolError(
               'incoming target mismatch: "' + uri + '" != "' + hdrcmd.source + '"'));
@@ -599,7 +705,7 @@ define([
         {
           // hdrcmd.target = child.text
           // session.info.respUri = child.text
-          if ( ! session.info.isServer )
+          if ( ! session.isServer )
             session.info.respUri = child.text;
           continue;
         }
@@ -608,6 +714,7 @@ define([
         {
           // the responsibility is on the calling framework to ensure this is
           // checked long before we get here... ie. Adapter.authorize(...)
+          // or via the Adapter.handleRequest() `authorize` parameter...
           statusCode = constant.STATUS_AUTHENTICATION_ACCEPTED;
           continue;
         }
@@ -794,7 +901,7 @@ define([
               if ( code != constant.STATUS_OK )
                 return cb(badStatus(child));
               var ds = session.info.dsstates[session.adapter.normUri(chkcmd.source)]
-              if ( session.info.isServer )
+              if ( session.isServer )
               {
                 if ( ds.action == 'send' )
                 {
@@ -839,7 +946,7 @@ define([
 
             case constant.CMD_MAP:
             {
-              if ( session.info.isServer )
+              if ( session.isServer )
                 return cb(new common.ProtocolError(
                   'unexpected server-side status for command "' + cname + '"'));
               if ( code != constant.STATUS_OK )
@@ -926,6 +1033,8 @@ define([
 
       // do it!
 
+      log.debug('consuming status...');
+
       consumeStatus(function(err) {
 
         if ( err )
@@ -940,6 +1049,8 @@ define([
                       chkcmd.cmdID, chkcmd.name);
           commands.push(chkcmd);
         });
+
+        log.debug('consuming commands...');
 
         return consumeCommands(function(err) {
           if ( err )
@@ -1064,7 +1175,7 @@ define([
         }
         default:
         {
-          if ( session.info.isServer && code == constant.STATUS_RESUME )
+          if ( session.isServer && code == constant.STATUS_RESUME )
           {
             log.warning('peer requested resume (not support that yet) - forcing slow-sync');
             code = constant.ALERT_SLOW_SYNC;
@@ -1078,7 +1189,7 @@ define([
         }
       }
 
-      if ( session.info.isServer )
+      if ( session.isServer )
       {
         // TODO: if this is the server, we need to validate that the requested
         //       sync mode is actually feasible... i.e. check:
@@ -1099,7 +1210,7 @@ define([
 
       var ds = null;
 
-      if ( session.info.isServer )
+      if ( session.isServer )
       {
         // TODO: implement server-side
         return cb(new common.NotImplementedError('server-side protocol'));
@@ -1152,7 +1263,7 @@ define([
           }
           default:
           {
-            if ( session.info.isServer )
+            if ( session.isServer )
             {
               ds.mode = constant.ALERT_SLOW_SYNC;
               statusCode = constant.STATUS_REFRESH_REQUIRED;
@@ -1238,7 +1349,7 @@ define([
           return cb(new common.ProtocolError('number-of-changes mismatch (received '
                                              + commands[0].data.length + ', expected '
                                              + noc + ')'));
-        if ( ! session.info.isServer )
+        if ( ! session.isServer )
         {
           if ( ds.action != 'recv' )
             return cb(new common.ProtocolError('unexpected sync state for URI "'

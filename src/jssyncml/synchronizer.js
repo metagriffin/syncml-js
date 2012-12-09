@@ -194,14 +194,14 @@ define([
                 dsstate.uri, common.mode2string(dsstate.mode),
                 dsstate.lastAnchor || '-');
 
-      if ( session.info.isServer )
+      if ( session.isServer )
       {
         if ( dsstate.mode == constant.ALERT_REFRESH_FROM_CLIENT
              || dsstate.mode == constant.ALERT_ONE_WAY_FROM_CLIENT )
           return cb(null, [cmd]);
       }
 
-      if ( ! session.info.isServer )
+      if ( ! session.isServer )
       {
         if ( dsstate.mode == constant.ALERT_REFRESH_FROM_SERVER
              || dsstate.mode == constant.ALERT_ONE_WAY_FROM_SERVER )
@@ -212,8 +212,8 @@ define([
       {
 
         case constant.ALERT_TWO_WAY:
-        case constant.ALERT_ONE_WAY_FROM_CLIENT: // when ! session.info.isServer
-        case constant.ALERT_ONE_WAY_FROM_SERVER: // when session.info.isServer
+        case constant.ALERT_ONE_WAY_FROM_CLIENT: // when ! session.isServer
+        case constant.ALERT_ONE_WAY_FROM_SERVER: // when session.isServer
         {
 
           return cb(new common.NotImplementedError('two-way or one-way sync'));
@@ -262,7 +262,7 @@ define([
   //       if scmdtype == constant.CMD_ADD:
   //         scmd.source = change.itemID
   //       else:
-  //         if session.info.isServer:
+  //         if session.isServer:
   //           try:
   //             # todo: this is a bit of an abstraction violation...
   //             query = adapter._context._model.Mapping.q(store_id=peerStore.id, guid=change.itemID)
@@ -279,8 +279,8 @@ define([
           return cb(null, [cmd]);
         }
         case constant.ALERT_SLOW_SYNC:
-        case constant.ALERT_REFRESH_FROM_SERVER: // when session.info.isServer
-        case constant.ALERT_REFRESH_FROM_CLIENT: // when ! session.info.isServer
+        case constant.ALERT_REFRESH_FROM_SERVER: // when session.isServer
+        case constant.ALERT_REFRESH_FROM_CLIENT: // when ! session.isServer
         {
           // todo: this approach assumes that the entire object set can fit
           //       in memory... perhaps move to an iterator-based approach?...
@@ -321,7 +321,7 @@ define([
               if ( _.indexOf(dsstate.conflicts, '' + item.id) >= 0 )
                 return cb();
 
-              if ( session.info.isServer )
+              if ( session.isServer )
               {
                 return cb(new common.NotImplementedError('server-side sync'));
                 // TODO: implement server-side...
@@ -381,12 +381,12 @@ define([
       return cb(new common.InternalError(
         'unexpected sync situation (action=' + dsstate.action
           + ', mode=' + common.mode2string(dsstate.mode)
-          + ', isServer=' + ( session.info.isServer ? '1' : '0' ) + ')'));
+          + ', isServer=' + ( session.isServer ? '1' : '0' ) + ')'));
     },
 
   // #----------------------------------------------------------------------------
   // def action_save(self, adapter, session, uri, dsstate):
-  //   if not session.info.isServer:
+  //   if not session.isServer:
   //     # TODO: for now, only servers should take the "save" action - the client
   //     #       will explicitly do this at the end of the .sync() method.
   //     #       ... mostly because clients don't call synchronizer.actions()
@@ -395,7 +395,7 @@ define([
   //     #       could call synchronizer.actions() to cause action_save's to occur
   //     #       *AND* verify that synchronizer.actions() does not return anything...
   //     raise common.InternalError('unexpected sync situation (action=%s, isServer=%s)'
-  //                                % (dsstate.action, '1' if session.info.isServer else '0'))
+  //                                % (dsstate.action, '1' if session.isServer else '0'))
   //   log.debug('storing anchors: peer=%s; source=%s/%s; target=%s/%s',
   //             adapter.peer.devID, uri, dsstate.nextAnchor,
   //             dsstate.peerUri, dsstate.peerNextAnchor)
@@ -458,8 +458,8 @@ define([
 
       var preprocess = common.noop;
 
-      if ( ( ! session.info.isServer && dsstate.mode == constant.ALERT_REFRESH_FROM_SERVER )
-           || ( session.info.isServer && dsstate.mode == constant.ALERT_REFRESH_FROM_CLIENT ) )
+      if ( ( ! session.isServer && dsstate.mode == constant.ALERT_REFRESH_FROM_SERVER )
+           || ( session.isServer && dsstate.mode == constant.ALERT_REFRESH_FROM_CLIENT ) )
       {
         // delete all local items
         preprocess = function(cb) {
@@ -471,7 +471,7 @@ define([
                 if ( err )
                   return cb(err);
                 dsstate.stats.hereDel += 1;
-                if ( ! session.info.isServer )
+                if ( ! session.isServer )
                   return cb();
                 store.registerChange(item.id, constant.ITEM_DELETED,
                                      {excludePeerID: session.peer.id}, cb);
@@ -495,15 +495,15 @@ define([
         // paranoia: verify that i should be receiving data...
         if ( ! ( dsstate.mode == constant.ALERT_TWO_WAY
                  || dsstate.mode == constant.ALERT_SLOW_SYNC
-                 || ( ! session.info.isServer
+                 || ( ! session.isServer
                       && ( dsstate.mode == constant.ALERT_ONE_WAY_FROM_SERVER
                            || dsstate.mode == constant.ALERT_REFRESH_FROM_SERVER ) )
-                 || ( session.info.isServer
+                 || ( session.isServer
                       && ( dsstate.mode == constant.ALERT_ONE_WAY_FROM_CLIENT
                            || dsstate.mode == constant.ALERT_REFRESH_FROM_CLIENT ) ) ) )
           return cb(new common.ProtocolError(
             'unexpected sync data (role="'
-              + ( session.info.isServer ? 'server' : 'client' )
+              + ( session.isServer ? 'server' : 'client' )
               + '", mode="' + common.mode2string(dsstate.mode)
               + '")'));
 
@@ -515,7 +515,7 @@ define([
                              constant.ALERT_ONE_WAY_FROM_CLIENT], dsstate.mode) < 0 )
             return cb(new common.ProtocolError(
               'unexpected non-add sync command (role="'
-                + ( session.info.isServer ? 'server' : 'client' )
+                + ( session.isServer ? 'server' : 'client' )
                 + '", mode="' + common.mode2string(dsstate.mode)
                 + '", command="' + cmd.name
                 + '")'));
@@ -543,7 +543,7 @@ define([
       if ( ! func )
         return cb('unexpected reaction requested for sync command "' + cmd.name + '"');
 
-      if ( session.info.isServer
+      if ( session.isServer
            && cmd.name != constant.CMD_ADD
            && dsstate.mode != constant.ALERT_REFRESH_FROM_CLIENT )
       {
@@ -718,7 +718,7 @@ define([
                            : constant.STATUS_ITEM_ADDED )
           })];
 
-          if ( session.info.isServer )
+          if ( session.isServer )
           {
             return cb(new common.NotImplementedError('server-side sync'));
             // TODO: implement server-side...

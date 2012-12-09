@@ -54,6 +54,9 @@ define([
       //: peer to the remote peer.
       this.auth = options.auth || null;
 
+      //: [read-only] the human-friendly display name of the remote peer.
+      this.name = options.name || null;
+
       //: [read-only] the username to use during credential-based authentication.
       this.username = options.username || null;
 
@@ -101,6 +104,7 @@ define([
         isServer        : true,
         url             : this.url,
         devID           : this.devID,
+        name            : this.name,
         devInfo         : null,
         stores          : [],
         auth            : this.auth,

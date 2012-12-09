@@ -35,80 +35,13 @@ define([
     });
 
     //-------------------------------------------------------------------------
-    var TestAgent = jssyncml.Agent.extend({
-
-      constructor: function(options) {
-        this._lastID = 1000;
-        this._items = {};
-      },
-
-      dumpsItem: function(item, contentType, version, cb) {
-        cb(null, item.body);
-      },
-
-      loadsItem: function(data, contentType, version, cb) {
-        var item = {body: data};
-        cb(null, item);
-      },
-
-      getAllItems: function(cb) {
-        return cb(null, _.values(this._items));
-      },
-
-      addItem: function(item, cb) {
-        item.id = '' + this._lastID;
-        this._lastID += 1;
-        this._items[item.id] = item;
-        cb(null, item);
-      },
-
-      getItem: function(itemID, cb) {
-        if ( this._items[itemID] == undefined )
-          cb('no such item ID');
-        cb(null, this._items[itemID]);
-      },
-
-      replaceItem: function(item, reportChanges, cb) {
-        if ( reportChanges )
-          cb('changeSpec not expected on the client-side');
-        this._items[item.id] = item;
-        cb();
-      },
-
-      deleteItem: function(itemID, cb) {
-        delete this._items[itemID];
-        cb();
-      },
-
-      getContentTypes: function() {
-        return [
-          new jssyncml.ContentTypeInfo('text/x-s4j-sifn', '1.1', {preferred: true}),
-          new jssyncml.ContentTypeInfo('text/x-s4j-sifn', '1.0'),
-          new jssyncml.ContentTypeInfo('text/plain', ['1.1', '1.0'])
-        ];
-      },
-
-    });
-
-    //-------------------------------------------------------------------------
-    var getMaxMemorySize = function() {
-      // because of funambol, jssyncml always limits max-memory-size to 2GB...
-      return 2147483647;
-    };
-
-    //-------------------------------------------------------------------------
-    var getAddressSize = function() {
-      return jssyncml.platformBits();
-    };
-
-    //-------------------------------------------------------------------------
     var setupAdapter = function(callback) {
 
       var sync = {
         adapter: null,
         store:   null,
         peer:    null,
-        agent:   new TestAgent()
+        agent:   new helpers.TestAgent()
       };
 
       var sdb = new sqlite3.Database(':memory:');
@@ -200,8 +133,8 @@ define([
           {
             uri          : 'cli_memo',
             displayName  : 'Memo Taker',
-            maxGuidSize  : getAddressSize(),
-            maxObjSize   : getMaxMemorySize(),
+            maxGuidSize  : helpers.getAddressSize(),
+            maxObjSize   : helpers.getMaxMemorySize(),
             agent        : sync.agent
           }
         ],
@@ -272,8 +205,8 @@ define([
               + '    <Data>Z3Vlc3Q6Z3Vlc3Q=</Data>'
               + '  </Cred>'
               + '  <Meta>'
-              + '   <MaxMsgSize xmlns="syncml:metinf">' + getMaxMemorySize() + '</MaxMsgSize>'
-              + '   <MaxObjSize xmlns="syncml:metinf">' + getMaxMemorySize() + '</MaxObjSize>'
+              + '   <MaxMsgSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxMsgSize>'
+              + '   <MaxObjSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxObjSize>'
               + '  </Meta>'
               + ' </SyncHdr>'
               + ' <SyncBody>'
@@ -299,8 +232,8 @@ define([
               + '      <DataStore>'
               + '       <SourceRef>cli_memo</SourceRef>'
               + '       <DisplayName>Memo Taker</DisplayName>'
-              + '       <MaxGUIDSize>' + getAddressSize() + '</MaxGUIDSize>'
-              + '       <MaxObjSize>' + getMaxMemorySize() + '</MaxObjSize>'
+              + '       <MaxGUIDSize>' + helpers.getAddressSize() + '</MaxGUIDSize>'
+              + '       <MaxObjSize>' + helpers.getMaxMemorySize() + '</MaxObjSize>'
               + '       <Rx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Rx-Pref>'
               + '       <Rx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Rx>'
               + '       <Rx><CTType>text/plain</CTType><VerCT>1.1</VerCT></Rx>'
@@ -406,7 +339,7 @@ define([
               + '      <DataStore>'
               + '       <SourceRef>srv_note</SourceRef>'
               + '       <DisplayName>Note Storage</DisplayName>'
-              + '       <MaxGUIDSize>' + getAddressSize() + '</MaxGUIDSize>'
+              + '       <MaxGUIDSize>' + helpers.getAddressSize() + '</MaxGUIDSize>'
               + '       <Rx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Rx-Pref>'
               + '       <Rx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Rx>'
               + '       <Rx><CTType>text/plain</CTType><VerCT>1.1</VerCT><VerCT>1.0</VerCT></Rx>'
@@ -486,7 +419,7 @@ define([
               + '    <Target><LocURI>srv_note</LocURI></Target>'
               + '    <Meta>'
               + '     <Anchor xmlns="syncml:metinf"><Next>' + nextAnchor + '</Next></Anchor>'
-              + '     <MaxObjSize xmlns="syncml:metinf">' + getMaxMemorySize() + '</MaxObjSize>'
+              + '     <MaxObjSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxObjSize>'
               + '    </Meta>'
               + '   </Item>'
               + '  </Alert>'
@@ -546,7 +479,7 @@ define([
               + '    <Target><LocURI>cli_memo</LocURI></Target>'
               + '    <Meta>'
               + '     <Anchor xmlns="syncml:metinf"><Next>' + nextAnchor + '</Next></Anchor>'
-              + '     <MaxObjSize xmlns="syncml:metinf">' + getMaxMemorySize() + '</MaxObjSize>'
+              + '     <MaxObjSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxObjSize>'
               + '    </Meta>'
               + '   </Item>'
               + '  </Alert>'

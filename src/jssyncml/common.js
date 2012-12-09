@@ -244,6 +244,24 @@ define([
       return '/' + ret;
     },
 
+    //-------------------------------------------------------------------------
+    parseInt: function(str, defval) {
+      if ( ! str )
+        return defval;
+      return parseInt(str, 10);
+    },
+
+    //-------------------------------------------------------------------------
+    // partially emulates python's string.split() method
+    splitn: function(str, sep, limit) {
+      var ret = str.split(sep);
+      if ( ret.length <= ( limit + 1 ) )
+        return ret;
+      var tmp = ret.slice(0, limit);
+      tmp.push(ret.slice(limit).join(sep));
+      return tmp;
+    }
+
   });
 
   return exports;
