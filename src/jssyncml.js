@@ -16,6 +16,7 @@ define([
   './jssyncml/constant',
   './jssyncml/common',
   './jssyncml/codec',
+  './jssyncml/state',
   './jssyncml/context',
   './jssyncml/ctype',
   './jssyncml/agent',
@@ -27,6 +28,7 @@ define([
   constant,
   common,
   codec,
+  state,
   context,
   ctype,
   agent,
@@ -37,13 +39,14 @@ define([
 
   return _.extend(
     // TODO: figure out how to pull this dynamically from package.json...
-    {version: '0.0.2'},
+    {version: '0.0.4'},
     constant,
     {
       platformBits: common.platformBits,
       getMaxMemorySize: common.getMaxMemorySize
     },
     codec,
+    state,
     context,
     ctype,
     agent,

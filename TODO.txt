@@ -17,3 +17,6 @@
 - look into:
     - https://github.com/larrymyers/jasmine-reporters
     - http://rockycode.com/blog/phantomjs-meets-jasmine/
+
+- rename adapter.name and remote.name to *.displayName to be more
+  consistent with `store`...

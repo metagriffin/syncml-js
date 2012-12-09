@@ -78,10 +78,11 @@ define([
 
   //-----------------------------------------------------------------------------
   var SyncmlError = exports.Base.extend({
-    constructor: function(msg) {
+    constructor: function(msg, exception) {
       this.message = this.name;
       if ( msg != undefined )
         this.message += ': ' + msg;
+      this.exception = exception;
     }
   });
 

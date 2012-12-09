@@ -455,17 +455,9 @@ define([
         do_authorize(function(err) {
           if ( err )
             return cb(err);
-          log.error('HERE.1');
           session.context.protocol.consume(
             session, session.info.lastCommands, xtree,
             function(err, commands) {
-
-              log.error('HERE.2' + err);
-              log.error('HERE.3' + common.j(commands));
-
-              if ( err )
-                log.error('ERROR: ' + err);
-
               if ( err )
                 return cb(err);
               self._transmit(session, commands, function(err) {

@@ -29,7 +29,7 @@ define([
     var seenRequests = '';
 
     beforeEach(function () {
-      logging.level = logging.NOTSET;
+      logging.level = logging.WARNING;
       this.addMatchers(helpers.matchers);
       seenRequests = '';
     });
@@ -52,7 +52,7 @@ define([
         prefix:  'memoryBasedServer.'
       });
 
-      context.getAdapter(null, null, function(err, adapter) {
+      context.getAdapter({name: 'In-Memory Test Server'}, null, function(err, adapter) {
         expect(err).toBeFalsy();
         sync.adapter = adapter;
         var setupDevInfo = function(cb) {
@@ -75,7 +75,9 @@ define([
           }
           adapter.addStore({
             uri          : 'srv_note',
-            displayName  : 'Note Storage',
+            displayName  : 'Server Note Store',
+            maxGuidSize  : 32,
+            maxObjSize   : 2147483647,
             agent        : sync.agent
           }, function(err, store) {
             if ( err )
@@ -158,7 +160,7 @@ define([
           + '    <Data>'
           + '     <DevInf xmlns="syncml:devinf">'
           + '      <VerDTD>1.2</VerDTD>'
-          + '      <Man>pysyncml</Man>'
+          + '      <Man>jssyncml</Man>'
           + '      <Mod>' + options.modelName + '</Mod>'
           + '      <OEM>-</OEM>'
           + '      <FwV>-</FwV>'
@@ -233,8 +235,8 @@ define([
           + '    <Target><LocURI>srv_note</LocURI></Target>'
           + '    <Meta>'
           + '     <Anchor xmlns="syncml:metinf">'
-          + '      ' + options.lastAnchor + ''
-          + '      ' + options.nextAnchor + ''
+          +        lastAnchor
+          +        nextAnchor
           + '     </Anchor>'
           + '     <MaxObjSize xmlns="syncml:metinf">4000000</MaxObjSize>'
           + '    </Meta>'
@@ -252,6 +254,192 @@ define([
       return makeRequest(ret);
     }
 
+    //-------------------------------------------------------------------------
+    var makeRequest_alert = function(targetID, sourceID, options) {
+      options = _.defaults({}, options, {
+        sessionID      : '1',
+        peerNextAnchor : null,
+        peerLastAnchor : null,
+        resultsStatus  : true
+      });
+
+      var ret = ''
+        + '<?xml version="1.0" encoding="utf-8"?>'
+        + '<SyncML>'
+        + '  <SyncHdr>'
+        + '   <VerDTD>1.2</VerDTD>'
+        + '   <VerProto>SyncML/1.2</VerProto>'
+        + '   <SessionID>' + options.sessionID + '</SessionID>'
+        + '   <MsgID>2</MsgID>'
+        + '   <Source>'
+        + '    <LocURI>' + sourceID + '</LocURI>'
+        + '    <LocName>test</LocName>'
+        + '   </Source>'
+        + '   <Target><LocURI>' + targetID + '</LocURI></Target>'
+        + '   <Meta>'
+        + '    <MaxMsgSize xmlns="syncml:metinf">150000</MaxMsgSize>'
+        + '    <MaxObjSize xmlns="syncml:metinf">4000000</MaxObjSize>'
+        + '   </Meta>'
+        + '  </SyncHdr>'
+        + '  <SyncBody>'
+        + '   <Status>'
+        + '     <CmdID>1</CmdID>'
+        + '     <MsgRef>1</MsgRef>'
+        + '     <CmdRef>0</CmdRef>'
+        + '     <Cmd>SyncHdr</Cmd>'
+        + '     <SourceRef>' + targetID + '</SourceRef>'
+        + '     <TargetRef>' + sourceID + '</TargetRef>'
+        + '     <Data>200</Data>'
+        + '   </Status>'
+      ;
+
+      var alertStatusCmdRef = '3';
+
+      if ( options.resultsStatus )
+      {
+        alertStatusCmdRef = '6';
+        ret += ''
+          + '   <Status>'
+          + '     <CmdID>2</CmdID>'
+          + '     <MsgRef>1</MsgRef>'
+          + '     <CmdRef>4</CmdRef>'
+          + '     <Cmd>Results</Cmd>'
+          + '     <SourceRef>./devinf12</SourceRef>'
+          + '     <Data>200</Data>'
+          + '   </Status>'
+        ;
+      }
+
+      var peerLastAnchor = options.peerLastAnchor
+        ? '<Last>' + options.peerLastAnchor + '</Last>'
+        : '';
+      var peerNextAnchor = options.peerNextAnchor
+        ? '<Next>' + options.peerNextAnchor + '</Next>'
+        : '';
+
+      ret += ''
+        + '  <Status>'
+        + '    <CmdID>3</CmdID>'
+        + '    <MsgRef>1</MsgRef>'
+        + '    <CmdRef>' + options.alertStatusCmdRef + '</CmdRef>'
+        + '    <Cmd>Alert</Cmd>'
+        + '    <SourceRef>srv_note</SourceRef>'
+        + '    <TargetRef>./cli_memo</TargetRef>'
+        + '    <Data>200</Data>'
+        + '    <Item>'
+        + '      <Data>'
+        + '        <Anchor xmlns="syncml:metinf">'
+        +            peerLastAnchor
+        +            peerNextAnchor
+        + '        </Anchor>'
+        + '      </Data>'
+        + '    </Item>'
+        + '  </Status>'
+        + '  <Sync>'
+        + '    <CmdID>4</CmdID>'
+        + '    <Source><LocURI>./cli_memo</LocURI></Source>'
+        + '    <Target><LocURI>srv_note</LocURI></Target>'
+        + '  </Sync>'
+        + '  <Final/>'
+        + ' </SyncBody>'
+        + '</SyncML>'
+      ;
+
+      return ret;
+    };
+
+    //-------------------------------------------------------------------------
+    var makeRequest_map = function(targetID, sourceID, options) {
+      options = _.defaults({}, options, {
+        sessionID : '1',
+        isAdd     : true
+      });
+
+      var ret = ''
+        + '<?xml version="1.0" encoding="utf-8"?>'
+        + '<SyncML>'
+        + ' <SyncHdr>'
+        + '  <VerDTD>1.2</VerDTD>'
+        + '  <VerProto>SyncML/1.2</VerProto>'
+        + '  <SessionID>' + options.sessionID + '</SessionID>'
+        + '  <MsgID>3</MsgID>'
+        + '  <Source>'
+        + '   <LocURI>' + options.sourceID + '</LocURI>'
+        + '   <LocName>test</LocName>'
+        + '  </Source>'
+        + '  <Target><LocURI>' + options.targetID + '</LocURI></Target>'
+        + '  <Meta>'
+        + '   <MaxMsgSize xmlns="syncml:metinf">150000</MaxMsgSize>'
+        + '   <MaxObjSize xmlns="syncml:metinf">4000000</MaxObjSize>'
+        + '  </Meta>'
+        + ' </SyncHdr>'
+        + ' <SyncBody>'
+        + '  <Status>'
+        + '   <CmdID>1</CmdID>'
+        + '   <MsgRef>2</MsgRef>'
+        + '   <CmdRef>0</CmdRef>'
+        + '   <Cmd>SyncHdr</Cmd>'
+        + '   <SourceRef>' + options.targetID + '</SourceRef>'
+        + '   <TargetRef>' + options.sourceID + '</TargetRef>'
+        + '   <Data>200</Data>'
+        + '  </Status>'
+        + '  <Status>'
+        + '   <CmdID>2</CmdID>'
+        + '   <MsgRef>2</MsgRef>'
+        + '   <CmdRef>3</CmdRef>'
+        + '   <Cmd>Sync</Cmd>'
+        + '   <SourceRef>srv_note</SourceRef>'
+        + '   <TargetRef>cli_memo</TargetRef>'
+        + '   <Data>200</Data>'
+        + '  </Status>'
+      ;
+
+      if ( options.isAdd )
+      {
+        ret += ''
+          + '  <Status>'
+          + '   <CmdID>3</CmdID>'
+          + '   <MsgRef>2</MsgRef>'
+          + '   <CmdRef>4</CmdRef>'
+          + '   <Cmd>Add</Cmd>'
+          + '   <SourceRef>1000</SourceRef>'
+          + '   <Data>201</Data>'
+          + '  </Status>'
+          + '  <Map>'
+          + '   <CmdID>4</CmdID>'
+          + '   <Source><LocURI>cli_memo</LocURI></Source>'
+          + '   <Target><LocURI>srv_note</LocURI></Target>'
+          + '   <MapItem>'
+          + '    <Source><LocURI>1</LocURI></Source>'
+          + '    <Target><LocURI>1000</LocURI></Target>'
+          + '   </MapItem>'
+          + '  </Map>'
+        ;
+      }
+      else
+      {
+        ret += ''
+          + '  <Status>'
+          + '   <CmdID>3</CmdID>'
+          + '   <MsgRef>2</MsgRef>'
+          + '   <CmdRef>4</CmdRef>'
+          + '   <Cmd>Replace</Cmd>'
+          + '   <TargetRef>1</TargetRef>'
+          + '   <Data>200</Data>'
+          + '  </Status>'
+        ;
+      }
+
+      ret += ''
+        + '  <Final/>'
+        + ' </SyncBody>'
+        + '</SyncML>'
+      ;
+
+      return ret;
+    };
+
+    //-------------------------------------------------------------------------
     var sync = {};
 
     //-------------------------------------------------------------------------
@@ -272,8 +460,8 @@ define([
     //-------------------------------------------------------------------------
     it('detects a client without authorization', function(done) {
       var targetID = 'http://example.com/sync';
-      var session = {};
-      var request = makeRequest(
+      var session  = jssyncml.makeSessionInfo();
+      var request  = makeRequest(
         '<?xml version="1.0" encoding="utf-8"?>'
           + '<SyncML>'
           + ' <SyncHdr>'
@@ -310,8 +498,8 @@ define([
     //-------------------------------------------------------------------------
     it('handles basic authorization', function(done) {
       var targetID = 'http://example.com/sync';
-      var session = {};
-      var request = makeRequest(
+      var session  = jssyncml.makeSessionInfo();
+      var request  = makeRequest(
           '<?xml version="1.0" encoding="utf-8"?>'
           + '<SyncML>'
           + ' <SyncHdr>'
@@ -365,7 +553,7 @@ define([
         getDevInfo    : false,
         sendAlert     : false
       });
-      var session   = {returnUrl: returnUrl};
+      var session   = jssyncml.makeSessionInfo({returnUrl: returnUrl});
       var collector = new helpers.ResponseCollector();
       var authorize = function(uri, data, cb) {
         return cb('bad-credentials');
@@ -382,8 +570,8 @@ define([
     //-------------------------------------------------------------------------
     it('handles SyncML document with official URN-based namespace', function(done) {
       var targetID = 'http://example.com/sync';
-      var session = {};
-      var request = makeRequest(
+      var session  = jssyncml.makeSessionInfo();
+      var request  = makeRequest(
           '<?xml version="1.0" encoding="utf-8"?>'
           + '<SyncML xmlns="SYNCML:SYNCML1.2">'
           + ' <SyncHdr>'
@@ -431,13 +619,14 @@ define([
     //-------------------------------------------------------------------------
     it('handles a new peer with no device info', function(done) {
       var clientID  = 'test-jssyncml-server.client.' + (new Date()).getTime();
-      var returnUrl = 'https://example.com/sync;s=a139bb50047b45ca9820fe53f5161e55';
-      var request   = makeRequest_init('https://example.com/sync', clientID, {
+      var serverID  = 'https://example.com/sync';
+      var returnUrl = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
+      var request   = makeRequest_init(serverID, clientID, {
         putDevInfo    : false,
         getDevInfo    : false,
         sendAlert     : false
       });
-      var session   = {returnUrl: returnUrl};
+      var session   = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
       var collector = new helpers.ResponseCollector();
       var authorize = function(uri, data, cb) {
         expect(uri).toBeNull();
@@ -461,7 +650,7 @@ define([
           + '  <SessionID>1</SessionID>'
           + '  <MsgID>1</MsgID>'
           + '  <Source>'
-          + '   <LocURI>test-jssyncml-server-devid</LocURI>'
+          + '   <LocURI>' + serverID + '</LocURI>'
           + '   <LocName>In-Memory Test Server</LocName>'
           + '  </Source>'
           + '  <Target>'
@@ -481,7 +670,7 @@ define([
           + '   <CmdRef>0</CmdRef>'
           + '   <Cmd>SyncHdr</Cmd>'
           + '   <SourceRef>' + clientID + '</SourceRef>'
-          + '   <TargetRef>test-jssyncml-server-devid</TargetRef>'
+          + '   <TargetRef>' + serverID + '</TargetRef>'
           + '   <Data>212</Data>'
           + '  </Status>'
           + '  <Put>'
@@ -492,7 +681,7 @@ define([
           + '    <Data>'
           + '     <DevInf xmlns="syncml:devinf">'
           + '      <VerDTD>1.2</VerDTD>'
-          + '      <Man>pysyncml</Man>'
+          + '      <Man>jssyncml</Man>'
           + '      <Mod>testserver</Mod>'
           + '      <OEM>-</OEM>'
           + '      <FwV>-</FwV>'
@@ -502,7 +691,6 @@ define([
           + '      <DevTyp>server</DevTyp>'
           + '      <UTC/>'
           + '      <SupportLargeObjs/>'
-          + '      <SupportHierarchicalSync/>'
           + '      <SupportNumberOfChanges/>'
           + '      <DataStore>'
           + '       <SourceRef>srv_note</SourceRef>'
@@ -547,6 +735,184 @@ define([
         expect(collector.content).toEqualXml(chk);
         done();
       });
+    });
+
+    //-------------------------------------------------------------------------
+    it('creates a new peer store binding on-demand', function(done) {
+
+      var clientID   = 'test-jssyncml-server.client.' + (new Date()).getTime();
+      var serverID   = 'https://example.com/sync';
+      var peerAnchor = '' + helpers.now();
+      var returnUrl  = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
+      var request    = makeRequest_init(serverID, clientID, {nextAnchor: peerAnchor});
+      var session    = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+      var collector  = new helpers.ResponseCollector();
+      sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
+        expect(err).toBeFalsy();
+        expect('' + err).toEqual('null');
+        expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+
+        var anchor = helpers.findXml(collector.content, './SyncBody/Alert/Item/Meta/Anchor/Next');
+
+        var chk = ''
+          + '<SyncML>'
+          + ' <SyncHdr>'
+          + '  <VerDTD>1.2</VerDTD>'
+          + '  <VerProto>SyncML/1.2</VerProto>'
+          + '  <SessionID>1</SessionID>'
+          + '  <MsgID>1</MsgID>'
+          + '  <Source>'
+          + '   <LocURI>' + serverID + '</LocURI>'
+          + '   <LocName>In-Memory Test Server</LocName>'
+          + '  </Source>'
+          + '  <Target>'
+          + '   <LocURI>' + clientID + '</LocURI>'
+          + '   <LocName>test-client</LocName>'
+          + '  </Target>'
+          + '  <RespURI>' + returnUrl + '</RespURI>'
+          + '  <Meta>'
+          + '   <MaxMsgSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxMsgSize>'
+          + '   <MaxObjSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxObjSize>'
+          + '  </Meta>'
+          + ' </SyncHdr>'
+          + ' <SyncBody>'
+          + '  <Status>'
+          + '   <CmdID>1</CmdID>'
+          + '   <MsgRef>1</MsgRef>'
+          + '   <CmdRef>0</CmdRef>'
+          + '   <Cmd>SyncHdr</Cmd>'
+          + '   <SourceRef>' + clientID + '</SourceRef>'
+          + '   <TargetRef>' + serverID + '</TargetRef>'
+          + '   <Data>212</Data>'
+          + '  </Status>'
+          + '  <Status>'
+          + '   <CmdID>2</CmdID>'
+          + '   <MsgRef>1</MsgRef>'
+          + '   <CmdRef>1</CmdRef>'
+          + '   <Cmd>Put</Cmd>'
+          + '   <SourceRef>./devinf12</SourceRef>'
+          + '   <Data>200</Data>'
+          + '  </Status>'
+          + '  <Status>'
+          + '   <CmdID>3</CmdID>'
+          + '   <MsgRef>1</MsgRef>'
+          + '   <CmdRef>2</CmdRef>'
+          + '   <Cmd>Get</Cmd>'
+          + '   <TargetRef>./devinf12</TargetRef>'
+          + '   <Data>200</Data>'
+          + '  </Status>'
+          + '  <Results>'
+          + '   <CmdID>4</CmdID>'
+          + '   <MsgRef>1</MsgRef>'
+          + '   <CmdRef>2</CmdRef>'
+          + '   <Meta><Type xmlns="syncml:metinf">application/vnd.syncml-devinf+xml</Type></Meta>'
+          + '   <Item>'
+          + '    <Source><LocURI>./devinf12</LocURI><LocName>./devinf12</LocName></Source>'
+          + '    <Data>'
+          + '     <DevInf xmlns="syncml:devinf">'
+          + '      <VerDTD>1.2</VerDTD>'
+          + '      <Man>jssyncml</Man>'
+          + '      <Mod>testserver</Mod>'
+          + '      <OEM>-</OEM>'
+          + '      <FwV>-</FwV>'
+          + '      <SwV>-</SwV>'
+          + '      <HwV>-</HwV>'
+          + '      <DevID>test-jssyncml-server-devid</DevID>'
+          + '      <DevTyp>server</DevTyp>'
+          + '      <UTC/>'
+          + '      <SupportLargeObjs/>'
+          + '      <SupportNumberOfChanges/>'
+          + '      <DataStore>'
+          + '       <SourceRef>srv_note</SourceRef>'
+          + '       <DisplayName>Server Note Store</DisplayName>'
+          + '       <MaxGUIDSize>' + helpers.getAddressSize() + '</MaxGUIDSize>'
+          + '       <MaxObjSize>' + helpers.getMaxMemorySize() + '</MaxObjSize>'
+          + '       <Rx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Rx-Pref>'
+          + '       <Rx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Rx>'
+          + '       <Rx><CTType>text/plain</CTType><VerCT>1.1</VerCT></Rx>'
+          + '       <Rx><CTType>text/plain</CTType><VerCT>1.0</VerCT></Rx>'
+          + '       <Tx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Tx-Pref>'
+          + '       <Tx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Tx>'
+          + '       <Tx><CTType>text/plain</CTType><VerCT>1.1</VerCT></Tx>'
+          + '       <Tx><CTType>text/plain</CTType><VerCT>1.0</VerCT></Tx>'
+          + '       <SyncCap>'
+          + '        <SyncType>1</SyncType>'
+          + '        <SyncType>2</SyncType>'
+          + '        <SyncType>3</SyncType>'
+          + '        <SyncType>4</SyncType>'
+          + '        <SyncType>5</SyncType>'
+          + '        <SyncType>6</SyncType>'
+          + '        <SyncType>7</SyncType>'
+          + '       </SyncCap>'
+          + '      </DataStore>'
+          + '     </DevInf>'
+          + '    </Data>'
+          + '   </Item>'
+          + '  </Results>'
+          + '  <Status>'
+          + '   <CmdID>5</CmdID>'
+          + '   <MsgRef>1</MsgRef>'
+          + '   <CmdRef>3</CmdRef>'
+          + '   <Cmd>Alert</Cmd>'
+          + '   <SourceRef>./cli_memo</SourceRef>'
+          + '   <TargetRef>srv_note</TargetRef>'
+          + '   <Data>200</Data>'
+          + '   <Item>'
+          + '    <Data>'
+          + '     <Anchor xmlns="syncml:metinf"><Next>' + peerAnchor + '</Next></Anchor>'
+          + '    </Data>'
+          + '   </Item>'
+          + '  </Status>'
+          + '  <Alert>'
+          + '    <CmdID>6</CmdID>'
+          + '    <Data>201</Data>'
+          + '    <Item>'
+          + '      <Source><LocURI>srv_note</LocURI></Source>'
+          + '      <Target><LocURI>cli_memo</LocURI></Target>'
+          + '      <Meta>'
+          + '        <Anchor xmlns="syncml:metinf">'
+          + '          <Next>' + anchor + '</Next>'
+          + '        </Anchor>'
+          + '        <MaxObjSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxObjSize>'
+          + '      </Meta>'
+          + '    </Item>'
+          + '  </Alert>'
+          + '  <Final/>'
+          + ' </SyncBody>'
+          + '</SyncML>'
+        ;
+
+        expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
+        expect(collector.content).toEqualXml(chk);
+
+        // todo: confirm that the sessionInfo object looks good...
+
+  //   server2 = jssyncml.Context(engine=self.db, owner=None, autoCommit=True).Adapter()
+  //   peers = server2.getKnownPeers()
+  //   self.assertEqual(1, len(peers))
+  //   peer = peers[0]
+  //   self.assertEqual('test', peer.name)
+  //   self.assertEqual(newPeerID, peer.devID)
+  //   self.assertEqual(150000, peer.maxMsgSize)
+  //   self.assertEqual(4000000, peer.maxObjSize)
+  //   self.assertTrue(peer.devinfo is not None)
+  //   self.assertEqual(newPeerID, peer.devinfo.devID)
+  //   self.assertEqual('jssyncml', peer.devinfo.manufacturerName)
+  //   self.assertEqual(__name__ + '.client', peer.devinfo.modelName)
+  //   self.assertEqual('-', peer.devinfo.oem)
+  //   self.assertEqual('-', peer.devinfo.firmwareVersion)
+  //   self.assertEqual('-', peer.devinfo.softwareVersion)
+  //   self.assertEqual('-', peer.devinfo.hardwareVersion)
+  //   self.assertEqual('workstation', peer.devinfo.devType)
+  //   self.assertEqual(True, peer.devinfo.utc)
+  //   self.assertEqual(True, peer.devinfo.largeObjects)
+  //   self.assertEqual(False, peer.devinfo.hierarchicalSync)
+  //   self.assertEqual(True, peer.devinfo.numberOfChanges)
+
+        done();
+
+      });
+
     });
 
   });

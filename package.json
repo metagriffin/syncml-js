@@ -1,7 +1,7 @@
 {
   "name":           "jssyncml",
   "description":    "A pure-javascript implementation of the SyncML adapter framework and protocol.",
-  "version":        "0.0.3",
+  "version":        "0.0.4",
   "main":           "src/jssyncml.js",
   "author":         "metagriffin <metagriffin@uberdev.org>",
   "homepage":       "http://jssyncml.org",
@@ -13,10 +13,11 @@
     "url": "https://github.com/metagriffin/jssyncml/issues"
   },
   "dependencies": {
-    "amdefine":     ">=0.0.4",
-    "elementtree":  ">=0.1.5",
-    "underscore":   ">=1.4.2",
-    "sprintf":      ">=0.1.1"
+    "amdefine":      ">=0.0.4",
+    "elementtree":   ">=0.1.5",
+    "underscore":    ">=1.4.2",
+    "sprintf":       ">=0.1.1",
+    "stacktrace-js": ">=0.5.0"
   },
   "devDependencies": {
     "jasmine-node": ">=1.0.26",

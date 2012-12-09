@@ -20,8 +20,9 @@ define([
   './helpers.js',
   '../src/jssyncml',
   '../src/jssyncml/common',
+  '../src/jssyncml/codec',
   '../src/jssyncml/state'
-], function(_, ET, sqlite3, jsindexeddb, diff, helpers, jssyncml, common, state) {
+], function(_, ET, sqlite3, jsindexeddb, diff, helpers, jssyncml, common, codec, state) {
 
   var exports = {};
 
@@ -143,6 +144,12 @@ define([
   //---------------------------------------------------------------------------
   exports.now = function() {
     return Math.round((new Date()).getTime() / 1000);
+  };
+
+  //---------------------------------------------------------------------------
+  exports.findXml = function(xml, xpath) {
+    var xtree = ET.parse(xml).getroot();
+    return xtree.findtext(xpath);
   };
 
   //---------------------------------------------------------------------------

@@ -27,14 +27,14 @@ define([
 
   //---------------------------------------------------------------------------
   exports.makeCommand = function(options) {
-    return _.defaults(options || {}, {
+    return _.defaults({}, options, {
       // ?
     });
   };
 
   //---------------------------------------------------------------------------
   exports.makeStats = function(options) {
-    return _.defaults(options || {}, {
+    return _.defaults({}, options, {
       mode      : null,
       hereAdd   : 0,
       hereMod   : 0,
@@ -51,7 +51,7 @@ define([
 
   //---------------------------------------------------------------------------
   exports.makeSessionInfo = function(options) {
-    return _.defaults(options || {}, {
+    return _.defaults({}, options, {
       id           : 1,
       msgID        : 1,
       cmdID        : 0,
@@ -63,7 +63,7 @@ define([
 
   //---------------------------------------------------------------------------
   exports.makeStoreSyncState = function(options) {
-    return _.defaults(options || {}, {
+    return _.defaults({}, options, {
       uri        : null,
       peerUri    : null,
       lastAnchor : null,
@@ -88,7 +88,7 @@ define([
       };
     })();
 
-    // return _.defaults(options || {}, {
+    // return _.defaults({}, options, {
     //   context : null,
     //   adapter : null,
     //   peer    : null,

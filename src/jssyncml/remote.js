@@ -200,7 +200,7 @@ define([
         }
         if ( store.uri == remoteUri && store.binding.uri == localUri )
         {
-          store.binding.autoMapped = autoMapped;
+          store.binding.autoMapped = store.binding.autoMapped && autoMapped;
           return;
         }
         store.binding = null;
@@ -225,6 +225,7 @@ define([
     //-------------------------------------------------------------------------
     sendRequest: function(txn, contentType, data, cb) {
 
+      // TODO: shouldn't proxies just overwrite .sendRequest() ?...
       if ( this._proxy )
         return this._proxy.sendRequest(txn, contentType, data, cb);
 

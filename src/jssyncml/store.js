@@ -133,6 +133,11 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    getBinding: function() {
+      return this._getModel().binding;
+    },
+
+    //-------------------------------------------------------------------------
     getContentTypes: function() {
       if ( this.agent != undefined )
         return this.agent.getContentTypes();
