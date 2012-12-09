@@ -19,7 +19,6 @@ define([
   './constant',
   './codec',
   './storage',
-  './remote',
   './store',
   './state'
 ], function(
@@ -30,7 +29,6 @@ define([
   constant,
   codec,
   storage,
-  remote,
   storemod,
   state
 ) {

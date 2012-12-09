@@ -26,33 +26,31 @@ define([
 
   describe('jssyncml-server', function() {
 
-    var seenRequests = '';
-
     beforeEach(function () {
       logging.level = logging.WARNING;
       this.addMatchers(helpers.matchers);
-      seenRequests = '';
     });
 
     //-------------------------------------------------------------------------
     var setupAdapter = function(callback) {
 
       var sync = {
+        context: null,
         adapter: null,
         store:   null,
-        agent:   new helpers.TestAgent()
+        agent:   new helpers.TestAgent(),
+        sdb:     new sqlite3.Database(':memory:')
+        // sdb:     new sqlite3.Database('./test.db')
       };
 
-      var sdb = new sqlite3.Database(':memory:');
-      // var sdb = new sqlite3.Database('./test.db');
-      var idb = new jsindexeddb.indexedDB('sqlite3', sdb);
+      var idb = new jsindexeddb.indexedDB('sqlite3', sync.sdb);
 
-      var context = new jssyncml.Context({
+      sync.context = new jssyncml.Context({
         storage: idb,
         prefix:  'memoryBasedServer.'
       });
 
-      context.getAdapter({name: 'In-Memory Test Server'}, null, function(err, adapter) {
+      sync.context.getAdapter({name: 'In-Memory Test Server'}, null, function(err, adapter) {
         expect(err).toBeFalsy();
         sync.adapter = adapter;
         var setupDevInfo = function(cb) {
@@ -742,11 +740,12 @@ define([
 
       var clientID   = 'test-jssyncml-server.client.' + (new Date()).getTime();
       var serverID   = 'https://example.com/sync';
-      var peerAnchor = '' + helpers.now();
+      var nextAnchor = '' + helpers.now();
       var returnUrl  = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
-      var request    = makeRequest_init(serverID, clientID, {nextAnchor: peerAnchor});
+      var request    = makeRequest_init(serverID, clientID, {nextAnchor: nextAnchor});
       var session    = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
       var collector  = new helpers.ResponseCollector();
+
       sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
         expect(err).toBeFalsy();
         expect('' + err).toEqual('null');
@@ -859,7 +858,7 @@ define([
           + '   <Data>200</Data>'
           + '   <Item>'
           + '    <Data>'
-          + '     <Anchor xmlns="syncml:metinf"><Next>' + peerAnchor + '</Next></Anchor>'
+          + '     <Anchor xmlns="syncml:metinf"><Next>' + nextAnchor + '</Next></Anchor>'
           + '    </Data>'
           + '   </Item>'
           + '  </Status>'
@@ -885,31 +884,99 @@ define([
         expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
         expect(collector.content).toEqualXml(chk);
 
-        // todo: confirm that the sessionInfo object looks good...
+        expect(_.omit(session, 'lastCommands')).toEqual({
+          returnUrl     : "https://example.com/sync;s=a139bb50047b45ca9820fe53f5161e55",
+          effectiveID   : "https://example.com/sync",
+          id            : 1,
+          msgID         : 1,
+          cmdID         : 6,
+          dsstates:
+          {
+            srv_note:
+            {
+              uri              : "srv_note",
+              peerUri          : "cli_memo",
+              mode             : 201,
+              action           : "alert",
+              lastAnchor       : null,
+              nextAnchor       : anchor,
+              peerLastAnchor   : null,
+              peerNextAnchor   : nextAnchor,
+              stats:
+              {
+                mode        : null,
+                hereAdd     : 0,
+                hereMod     : 0,
+                hereDel     : 0,
+                hereErr     : 0,
+                peerAdd     : 0,
+                peerMod     : 0,
+                peerDel     : 0,
+                peerErr     : 0,
+                conflicts   : 0,
+                merged      : 0
+              }
+            }
+          },
+          stats:
+          {
+            mode        : null,
+            hereAdd     : 0,
+            hereMod     : 0,
+            hereDel     : 0,
+            hereErr     : 0,
+            peerAdd     : 0,
+            peerMod     : 0,
+            peerDel     : 0,
+            peerErr     : 0,
+            conflicts   : 0,
+            merged      : 0
+          },
+          codec          : "xml",
+          peerID         : clientID,
+          pendingMsgID   : 1
+        });
 
-  //   server2 = jssyncml.Context(engine=self.db, owner=None, autoCommit=True).Adapter()
-  //   peers = server2.getKnownPeers()
-  //   self.assertEqual(1, len(peers))
-  //   peer = peers[0]
-  //   self.assertEqual('test', peer.name)
-  //   self.assertEqual(newPeerID, peer.devID)
-  //   self.assertEqual(150000, peer.maxMsgSize)
-  //   self.assertEqual(4000000, peer.maxObjSize)
-  //   self.assertTrue(peer.devinfo is not None)
-  //   self.assertEqual(newPeerID, peer.devinfo.devID)
-  //   self.assertEqual('jssyncml', peer.devinfo.manufacturerName)
-  //   self.assertEqual(__name__ + '.client', peer.devinfo.modelName)
-  //   self.assertEqual('-', peer.devinfo.oem)
-  //   self.assertEqual('-', peer.devinfo.firmwareVersion)
-  //   self.assertEqual('-', peer.devinfo.softwareVersion)
-  //   self.assertEqual('-', peer.devinfo.hardwareVersion)
-  //   self.assertEqual('workstation', peer.devinfo.devType)
-  //   self.assertEqual(True, peer.devinfo.utc)
-  //   self.assertEqual(True, peer.devinfo.largeObjects)
-  //   self.assertEqual(False, peer.devinfo.hierarchicalSync)
-  //   self.assertEqual(True, peer.devinfo.numberOfChanges)
+        var idb2 = new jsindexeddb.indexedDB('sqlite3', sync.sdb);
 
-        done();
+        var ctxt2 = new jssyncml.Context({
+          storage: idb2,
+          prefix:  'memoryBasedServer.'
+        });
+
+        // validate that the adapter was stored correctly
+        sync.context.getAdapter(null, null, function(err, adapter) {
+          expect(adapter.name).toEqual('In-Memory Test Server');
+          expect(adapter.getPeers().length).toEqual(1);
+          var peer = adapter.getPeers()[0];
+          expect(peer.name).toEqual('test-client');
+          expect(peer.devID).toEqual(clientID);
+          expect(peer.maxMsgSize).toEqual(150000);
+          expect(peer.maxObjSize).toEqual(4000000);
+          expect(peer.devInfo).toBeTruthy();
+          expect(peer.devInfo.devID).toEqual(clientID);
+          expect(peer.devInfo.manufacturerName).toEqual('jssyncml');
+          expect(peer.devInfo.modelName).toEqual('test-jssyncml-server.client');
+          expect(peer.devInfo.oem).toEqual('-');
+          expect(peer.devInfo.firmwareVersion).toEqual('-');
+          expect(peer.devInfo.softwareVersion).toEqual('-');
+          expect(peer.devInfo.hardwareVersion).toEqual('-');
+          expect(peer.devInfo.devType).toEqual('workstation');
+          expect(peer.devInfo.utc).toEqual(true);
+          expect(peer.devInfo.largeObjects).toEqual(true);
+          expect(peer.devInfo.hierarchicalSync).toEqual(false);
+          expect(peer.devInfo.numberOfChanges).toEqual(true);
+          expect(_.keys(peer._stores).length).toEqual(1);
+          var store = peer.getStore('cli_memo');
+          expect(store).toBeTruthy();
+          expect(store.displayName).toEqual('MemoTaker');
+          expect(store.maxGuidSize).toEqual(64);
+          expect(store.getContentTypes()).toEqual([
+            new jssyncml.ContentTypeInfo('text/plain', '1.1', {preferred: true}),
+            new jssyncml.ContentTypeInfo('text/plain', '1.0')
+          ]);
+          done();
+        });
 
       });
 

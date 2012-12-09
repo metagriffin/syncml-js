@@ -59,11 +59,16 @@ define([
       //: or remote peer.
       this.isLocal = true;
 
-      // todo: by setting the name here, it interrupts the normal _load
-      // process...
-
       //: [read-only] human-facing name of this adapter
       this.name = options.name || null;
+
+      //: [read-only] the adapter-wide default value of the maximum
+      //: message size.
+      this.maxMsgSize = options.maxMsgSize || null;
+
+      //: [read-only] the adapter-wide default value of the maximum
+      //: object size.
+      this.maxObjSize = options.maxObjSize || null;
 
       // --- private attributes
       this.id       = options.id || common.makeID();
@@ -87,6 +92,8 @@ define([
         this._model = {
           id          : this.id,
           name        : this.name,
+          maxMsgSize  : this.maxMsgSize,
+          maxObjSize  : this.maxObjSize,
           devInfo     : null,
           stores      : [],
           peers       : [],
@@ -214,13 +221,18 @@ define([
 
     //-------------------------------------------------------------------------
     _loadModel: function(model, cb) {
+
+      log.critical('TODO ::: new adapter settings are being overwritten (because they were not saved)');
+
       var self = this;
-      self._model  = model;
-      self.name    = model.name;
-      self.devID   = model.devID;
+      self._model      = model;
+      self.name        = model.name;
+      self.devID       = model.devID;
+      self.maxMsgSize  = model.maxMsgSize;
+      self.maxObjSize  = model.maxObjSize;
 
       var loadDevInfo = function(cb) {
-        var di = new devinfomod.DevInfo(this, this._model.devInfo);
+        var di = new devinfomod.DevInfo(self, self._model.devInfo);
         di._load(function(err) {
           if ( err )
             return cb(err);
@@ -249,6 +261,8 @@ define([
         common.cascade(remotes, function(e, cb) {
           var peer = new remote.RemoteAdapter(self, e);
           peer._load(function(err) {
+            if ( err )
+              return cb(err);
             self._peers.push(peer);
             return cb();
           });

@@ -1257,8 +1257,8 @@ define([
           return cb(err);
 
         ds.mode = code;
-        ds.peerLastAnchor = xnode.findtext('Item/Meta/Anchor/Last');
-        ds.peerNextAnchor = xnode.findtext('Item/Meta/Anchor/Next');
+        ds.peerLastAnchor = xnode.findtext('Item/Meta/Anchor/Last', null);
+        ds.peerNextAnchor = xnode.findtext('Item/Meta/Anchor/Next', null);
 
         if ( ds.peerLastAnchor != session.peer.getStore(ruri).getBinding().remoteAnchor )
         {

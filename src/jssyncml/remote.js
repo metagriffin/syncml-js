@@ -18,7 +18,9 @@ define([
   './common',
   './constant',
   './ctype',
-  './storage'
+  './storage',
+  './devinfo',
+  './store'
 ], function(
   _,
   ET,
@@ -26,7 +28,9 @@ define([
   common,
   constant,
   ctype,
-  storage
+  storage,
+  devinfomod,
+  storemod
 ) {
 
   var log = logging.getLogger('jssyncml.remote');
@@ -63,6 +67,14 @@ define([
       //: [read-only] the password to use during credential-based authentication.
       this.password = options.password || null;
 
+      //: [read-only] the peer-wide default value of the maximum
+      //: message size.
+      this.maxMsgSize = options.maxMsgSize || null;
+
+      //: [read-only] the peer-wide default value of the maximum
+      //: object size.
+      this.maxObjSize = options.maxObjSize || null;
+
       //: [read-only] the DevInfo object for this remote peer.
       this.devInfo = null;
 
@@ -81,7 +93,41 @@ define([
 
     //-------------------------------------------------------------------------
     _load: function(cb) {
-      cb();
+
+      var self  = this;
+      var model = this._getModel();
+
+      // todo: should this be loading these?...
+      // self.name    = model.name;
+      // self.devID   = model.devID;
+
+      var loadDevInfo = function(cb) {
+        var di = new devinfomod.DevInfo(self, model.devInfo);
+        di._load(function(err) {
+          if ( err )
+            return cb(err);
+          self.devInfo = di;
+          cb();
+        });
+      };
+
+      var loadStores = function(cb) {
+        common.cascade(model.stores, function(e, cb) {
+          var store = new storemod.Store(self, e);
+          store._load(function(err) {
+            if ( err )
+              return cb(err);
+            self._stores[store.uri] = store;
+            return cb();
+          });
+        }, cb);
+      };
+
+      loadDevInfo(function(err) {
+        if ( err )
+          return cb(err);
+        loadStores(cb);
+      });
     },
 
     //-------------------------------------------------------------------------
