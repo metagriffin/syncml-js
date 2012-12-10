@@ -134,7 +134,7 @@ define([
       for ( var key in constant.SyncTypeToAlert )
       {
         if ( constant.SyncTypeToAlert[key] == alert )
-          return parseInt(key, 10);
+          return exports.parseInt(key);
       }
       return null;
     },
