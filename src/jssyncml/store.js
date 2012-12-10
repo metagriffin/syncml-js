@@ -268,17 +268,13 @@ define([
       var options = {
         uri          : xnode.findtext('SourceRef'),
         displayName  : xnode.findtext('DisplayName'),
-        maxGuidSize  : xnode.findtext('MaxGUIDSize'),
-        maxObjSize   : xnode.findtext('MaxObjSize'),
+        maxGuidSize  : common.parseInt(xnode.findtext('MaxGUIDSize')),
+        maxObjSize   : common.parseInt(xnode.findtext('MaxObjSize')),
         contentTypes : [],
         syncTypes    : _.map(xnode.findall('SyncCap/SyncType'), function(e) {
-          return parseInt(e.text, 10);
+          return common.parseInt(e.text);
         })
       };
-      if ( options.maxGuidSize )
-        options.maxGuidSize = parseInt(options.maxGuidSize, 10);
-      if ( options.maxObjSize )
-        options.maxObjSize = parseInt(options.maxObjSize, 10);
       _.each(xnode.getchildren(), function(child) {
         if ( _.indexOf(['Rx-Pref', 'Rx', 'Tx-Pref', 'Tx'], child.tag) < 0 )
           return;
