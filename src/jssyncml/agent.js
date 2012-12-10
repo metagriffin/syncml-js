@@ -122,8 +122,9 @@ define([
         if ( err )
           return cb(err);
         var match = _.find(list, function(cur) {
-          return cur.compare(item) == 0;
+          return cur.compare && cur.compare(item) == 0;
         });
+        return cb(null, match);
       });
     }
 
