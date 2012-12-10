@@ -156,10 +156,10 @@ define([
   exports.ResponseCollector = function() {
     var self = this;
     this.contentTypes = [];
-    this.content = '';
+    this.contents = [];
     this.write = function(contentType, content, cb) {
       self.contentTypes.push(contentType);
-      self.content += content;
+      self.contents.push(content);
       cb();
     };
     return this;

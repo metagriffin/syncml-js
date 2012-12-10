@@ -253,12 +253,14 @@ define([
     }
 
     //-------------------------------------------------------------------------
-    var makeRequest_alert = function(targetID, sourceID, options) {
+    var makeRequest_sync = function(targetID, sourceID, options) {
       options = _.defaults({}, options, {
         sessionID      : '1',
+        messageID      : '2',
         peerNextAnchor : null,
         peerLastAnchor : null,
-        resultsStatus  : true
+        resultsStatus  : true,
+        items          : []
       });
 
       var ret = ''
@@ -268,7 +270,7 @@ define([
         + '   <VerDTD>1.2</VerDTD>'
         + '   <VerProto>SyncML/1.2</VerProto>'
         + '   <SessionID>' + options.sessionID + '</SessionID>'
-        + '   <MsgID>2</MsgID>'
+        + '   <MsgID>' + options.messageID + '</MsgID>'
         + '   <Source>'
         + '    <LocURI>' + sourceID + '</LocURI>'
         + '    <LocName>test</LocName>'
@@ -319,7 +321,7 @@ define([
         + '  <Status>'
         + '    <CmdID>3</CmdID>'
         + '    <MsgRef>1</MsgRef>'
-        + '    <CmdRef>' + options.alertStatusCmdRef + '</CmdRef>'
+        + '    <CmdRef>' + alertStatusCmdRef + '</CmdRef>'
         + '    <Cmd>Alert</Cmd>'
         + '    <SourceRef>srv_note</SourceRef>'
         + '    <TargetRef>./cli_memo</TargetRef>'
@@ -337,13 +339,32 @@ define([
         + '    <CmdID>4</CmdID>'
         + '    <Source><LocURI>./cli_memo</LocURI></Source>'
         + '    <Target><LocURI>srv_note</LocURI></Target>'
+        + '    <NumberOfChanges>' + options.items.length + '</NumberOfChanges>'
+      ;
+
+      for ( var idx=0 ; idx<options.items.length ; idx++ )
+      {
+        var item = options.items[idx];
+        ret += ''
+          + '    <Add>'
+          + '      <CmdID>' + ( 5 + idx ) + '</CmdID>'
+          + '      <Meta><Type xmlns="syncml:metinf">text/plain</Type></Meta>'
+          + '      <Item>'
+          + '        <Source><LocURI>' + item.id + '</LocURI></Source>'
+          + '        <Data>' + item.body + '</Data>'
+          + '      </Item>'
+          + '    </Add>'
+        ;
+      }
+
+      ret += ''
         + '  </Sync>'
         + '  <Final/>'
         + ' </SyncBody>'
         + '</SyncML>'
       ;
 
-      return ret;
+      return makeRequest(ret);
     };
 
     //-------------------------------------------------------------------------
@@ -434,7 +455,7 @@ define([
         + '</SyncML>'
       ;
 
-      return ret;
+      return makeRequest(ret);
     };
 
     //-------------------------------------------------------------------------
@@ -560,7 +581,7 @@ define([
         expect(err).toBeTruthy();
         expect(err).toEqual('bad-credentials');
         expect(collector.contentTypes).toEqual([]);
-        expect(collector.content).toEqual('');
+        expect(collector.contents).toEqual([]);
         done();
       });
     });
@@ -730,7 +751,8 @@ define([
         ;
 
         expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
-        expect(collector.content).toEqualXml(chk);
+        expect(collector.contents.length).toEqual(1);
+        expect(collector.contents[0]).toEqualXml(chk);
         done();
       });
     });
@@ -750,8 +772,9 @@ define([
         expect(err).toBeFalsy();
         expect('' + err).toEqual('null');
         expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+        expect(collector.contents.length).toEqual(1);
 
-        var anchor = helpers.findXml(collector.content, './SyncBody/Alert/Item/Meta/Anchor/Next');
+        var anchor = helpers.findXml(collector.contents[0], './SyncBody/Alert/Item/Meta/Anchor/Next');
 
         var chk = ''
           + '<SyncML>'
@@ -882,7 +905,8 @@ define([
         ;
 
         expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
-        expect(collector.content).toEqualXml(chk);
+        expect(collector.contents.length).toEqual(1);
+        expect(collector.contents[0]).toEqualXml(chk);
 
         expect(_.omit(session, 'lastCommands')).toEqual({
           returnUrl     : "https://example.com/sync;s=a139bb50047b45ca9820fe53f5161e55",
@@ -978,6 +1002,340 @@ define([
           done();
         });
 
+      });
+
+    });
+
+    //-------------------------------------------------------------------------
+    it('with no data, pushes an empty slow-sync', function(done) {
+
+      var clientID   = 'test-jssyncml-server.client.' + (new Date()).getTime();
+      var serverID   = 'https://example.com/sync';
+      var nextAnchor = '' + helpers.now();
+      var peerAnchor = null;
+      var returnUrl  = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
+      var session    = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+
+      // step 1: register the peer (and transfer devInfo)
+      var register_new_peer = function(cb) {
+        var request    = makeRequest_init(serverID, clientID, {nextAnchor: nextAnchor});
+        var collector  = new helpers.ResponseCollector();
+        sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
+          expect(err).toBeFalsy();
+          expect('' + err).toEqual('null');
+          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+          return cb(err);
+        });
+      };
+
+      // step 2: start a new session and initiate an alert
+      var start_new_session = function(cb) {
+        session = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+        var request    = makeRequest_init(serverID, clientID, {
+          nextAnchor  : nextAnchor,
+          sessionID   : '2',
+          putDevInfo  : false,
+          getDevInfo  : false
+        });
+        var collector  = new helpers.ResponseCollector();
+        sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
+          expect(err).toBeFalsy();
+          expect('' + err).toEqual('null');
+          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+          peerAnchor = helpers.findXml(collector.contents[0], './SyncBody/Alert/Item/Meta/Anchor/Next');
+          var chk = ''
+            + '<SyncML>'
+            + ' <SyncHdr>'
+            + '  <VerDTD>1.2</VerDTD>'
+            + '  <VerProto>SyncML/1.2</VerProto>'
+            + '  <SessionID>2</SessionID>'
+            + '  <MsgID>1</MsgID>'
+            + '  <Source>'
+            + '   <LocURI>https://example.com/sync</LocURI>'
+            + '   <LocName>In-Memory Test Server</LocName>'
+            + '  </Source>'
+            + '  <Target>'
+            + '   <LocURI>' + clientID + '</LocURI>'
+            + '   <LocName>test-client</LocName>'
+            + '  </Target>'
+            + '  <RespURI>' + returnUrl + '</RespURI>'
+            + '  <Meta>'
+            + '   <MaxMsgSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxMsgSize>'
+            + '   <MaxObjSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxObjSize>'
+            + '  </Meta>'
+            + ' </SyncHdr>'
+            + ' <SyncBody>'
+            + '  <Status>'
+            + '   <CmdID>1</CmdID>'
+            + '   <MsgRef>1</MsgRef>'
+            + '   <CmdRef>0</CmdRef>'
+            + '   <Cmd>SyncHdr</Cmd>'
+            + '   <SourceRef>' + clientID + '</SourceRef>'
+            + '   <TargetRef>https://example.com/sync</TargetRef>'
+            + '   <Data>212</Data>'
+            + '  </Status>'
+            + '  <Status>'
+            + '   <CmdID>2</CmdID>'
+            + '   <MsgRef>1</MsgRef>'
+            + '   <CmdRef>3</CmdRef>'
+            + '   <Cmd>Alert</Cmd>'
+            + '   <SourceRef>./cli_memo</SourceRef>'
+            + '   <TargetRef>srv_note</TargetRef>'
+            + '   <Data>200</Data>'
+            + '   <Item>'
+            + '    <Data>'
+            + '     <Anchor xmlns="syncml:metinf"><Next>' + nextAnchor + '</Next></Anchor>'
+            + '    </Data>'
+            + '   </Item>'
+            + '  </Status>'
+            + '  <Alert>'
+            + '    <CmdID>3</CmdID>'
+            + '    <Data>201</Data>'
+            + '    <Item>'
+            + '      <Source><LocURI>srv_note</LocURI></Source>'
+            + '      <Target><LocURI>cli_memo</LocURI></Target>'
+            + '      <Meta>'
+            + '        <Anchor xmlns="syncml:metinf">'
+            + '          <Next>' + peerAnchor + '</Next>'
+            + '        </Anchor>'
+            + '        <MaxObjSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxObjSize>'
+            + '      </Meta>'
+            + '    </Item>'
+            + '  </Alert>'
+            + '  <Final/>'
+            + ' </SyncBody>'
+            + '</SyncML>'
+          ;
+          expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
+          expect(collector.contents.length).toEqual(1);
+          expect(collector.contents[0]).toEqualXml(chk);
+          return cb(err);
+        });
+      };
+
+      // step 3: respond to the alert (send a sync) and receive a sync
+      var send_alert = function(cb) {
+        var request    = makeRequest_sync(serverID, clientID, {
+          sessionID      :  '2',
+          peerNextAnchor : peerAnchor,
+          resultsStatus  : false
+        });
+        var collector  = new helpers.ResponseCollector();
+        sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
+          expect(err).toBeFalsy();
+          expect('' + err).toEqual('null');
+          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+          var chk = ''
+            + '<SyncML>'
+            + ' <SyncHdr>'
+            + '  <VerDTD>1.2</VerDTD>'
+            + '  <VerProto>SyncML/1.2</VerProto>'
+            + '  <SessionID>2</SessionID>'
+            + '  <MsgID>2</MsgID>'
+            + '  <Source>'
+            + '   <LocURI>https://example.com/sync</LocURI>'
+            + '   <LocName>In-Memory Test Server</LocName>'
+            + '  </Source>'
+            + '  <Target>'
+            + '   <LocURI>' + clientID + '</LocURI>'
+            + '   <LocName>test-client</LocName>'
+            + '  </Target>'
+            + '  <RespURI>' + returnUrl + '</RespURI>'
+            + ' </SyncHdr>'
+            + ' <SyncBody>'
+            + '  <Status>'
+            + '   <CmdID>1</CmdID>'
+            + '   <MsgRef>2</MsgRef>'
+            + '   <CmdRef>0</CmdRef>'
+            + '   <Cmd>SyncHdr</Cmd>'
+            + '   <SourceRef>' + clientID + '</SourceRef>'
+            + '   <TargetRef>https://example.com/sync</TargetRef>'
+            + '   <Data>200</Data>'
+            + '  </Status>'
+            + '  <Status>'
+            + '   <CmdID>2</CmdID>'
+            + '   <MsgRef>2</MsgRef>'
+            + '   <CmdRef>4</CmdRef>'
+            + '   <Cmd>Sync</Cmd>'
+            + '   <SourceRef>./cli_memo</SourceRef>'
+            + '   <TargetRef>srv_note</TargetRef>'
+            + '   <Data>200</Data>'
+            + '  </Status>'
+            + '  <Sync>'
+            + '    <CmdID>3</CmdID>'
+            + '    <Source><LocURI>srv_note</LocURI></Source>'
+            + '    <Target><LocURI>cli_memo</LocURI></Target>'
+            + '    <NumberOfChanges>0</NumberOfChanges>'
+            + '  </Sync>'
+            + '  <Final/>'
+            + ' </SyncBody>'
+            + '</SyncML>'
+          ;
+          expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
+          expect(collector.contents.length).toEqual(1);
+          expect(collector.contents[0]).toEqualXml(chk);
+          return cb(err);
+        });
+      };
+
+      register_new_peer(function(err) {
+        expect(err).toBeFalsy();
+        expect('' + err).toEqual('null');
+        start_new_session(function(err) {
+          expect(err).toBeFalsy();
+          expect('' + err).toEqual('null');
+          send_alert(function(err) {
+            expect(err).toBeFalsy();
+            expect('' + err).toEqual('null');
+            done();
+          });
+        });
+      });
+
+    });
+
+    //-------------------------------------------------------------------------
+    it('performs an initial slow-sync and exchanges data', function(done) {
+
+      var clientID   = 'test-jssyncml-server.client.' + (new Date()).getTime();
+      var serverID   = 'https://example.com/sync';
+      var nextAnchor = '' + helpers.now();
+      var peerAnchor = null;
+      var returnUrl  = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
+      var session    = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+
+      // step 0: initialize server storage with some data
+      var initialize_storage = function(cb) {
+        sync.agent.addItem({body: 'some server data'}, cb);
+      };
+
+      // step 1: register the peer (transfer devInfo) and send alert
+      var register_new_peer = function(cb) {
+        var request    = makeRequest_init(serverID, clientID, {nextAnchor: nextAnchor});
+        var collector  = new helpers.ResponseCollector();
+        sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
+          expect(err).toBeFalsy();
+          expect('' + err).toEqual('null');
+          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+          peerAnchor = helpers.findXml(collector.contents[0], './SyncBody/Alert/Item/Meta/Anchor/Next');
+          return cb(err);
+        });
+      };
+
+      // step 2: send the client data and receive server data
+      var exchange_data = function(cb) {
+        var request = makeRequest_sync(serverID, clientID, {
+          peerNextAnchor: peerAnchor,
+          items: [
+            {id: '1000', body: 'first client item'},
+            {id: '1001', body: 'second client item'}
+          ]
+        });
+        var collector  = new helpers.ResponseCollector();
+        sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
+          expect(err).toBeFalsy();
+          expect('' + err).toEqual('null');
+          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+
+          var chk = ''
+            + '<SyncML>'
+            + ' <SyncHdr>'
+            + '  <VerDTD>1.2</VerDTD>'
+            + '  <VerProto>SyncML/1.2</VerProto>'
+            + '  <SessionID>1</SessionID>'
+            + '  <MsgID>2</MsgID>'
+            + '  <Source>'
+            + '   <LocURI>https://example.com/sync</LocURI>'
+            + '   <LocName>In-Memory Test Server</LocName>'
+            + '  </Source>'
+            + '  <Target>'
+            + '   <LocURI>' + clientID + '</LocURI>'
+            + '   <LocName>test-client</LocName>'
+            + '  </Target>'
+            + '  <RespURI>' + returnUrl + '</RespURI>'
+            + ' </SyncHdr>'
+            + ' <SyncBody>'
+            + '  <Status>'
+            + '   <CmdID>1</CmdID>'
+            + '   <MsgRef>2</MsgRef>'
+            + '   <CmdRef>0</CmdRef>'
+            + '   <Cmd>SyncHdr</Cmd>'
+            + '   <SourceRef>' + clientID + '</SourceRef>'
+            + '   <TargetRef>https://example.com/sync</TargetRef>'
+            + '   <Data>200</Data>'
+            + '  </Status>'
+            + '  <Status>'
+            + '   <CmdID>2</CmdID>'
+            + '   <MsgRef>2</MsgRef>'
+            + '   <CmdRef>4</CmdRef>'
+            + '   <Cmd>Sync</Cmd>'
+            + '   <SourceRef>./cli_memo</SourceRef>'
+            + '   <TargetRef>srv_note</TargetRef>'
+            + '   <Data>200</Data>'
+            + '  </Status>'
+            + '  <Status>'
+            + '   <CmdID>3</CmdID>'
+            + '   <MsgRef>2</MsgRef>'
+            + '   <CmdRef>5</CmdRef>'
+            + '   <Cmd>Add</Cmd>'
+            + '   <SourceRef>1000</SourceRef>'
+            + '   <Data>200</Data>'
+            + '  </Status>'
+            + '  <Status>'
+            + '   <CmdID>4</CmdID>'
+            + '   <MsgRef>2</MsgRef>'
+            + '   <CmdRef>6</CmdRef>'
+            + '   <Cmd>Add</Cmd>'
+            + '   <SourceRef>1001</SourceRef>'
+            + '   <Data>200</Data>'
+            + '  </Status>'
+            + '  <Sync>'
+            + '    <CmdID>5</CmdID>'
+            + '    <Source><LocURI>srv_note</LocURI></Source>'
+            + '    <Target><LocURI>cli_memo</LocURI></Target>'
+            + '    <NumberOfChanges>1</NumberOfChanges>'
+            + '    <Add>'
+            + '      <CmdID>6</CmdID>'
+            + '      <Meta><Type xmlns="syncml:metinf">text/plain</Type></Meta>'
+            + '      <Item>'
+            + '        <Source><LocURI>1000</LocURI></Source>'
+            + '        <Data>some server data</Data>'
+            + '      </Item>'
+            + '    </Add>'
+            + '  </Sync>'
+            + '  <Final/>'
+            + ' </SyncBody>'
+            + '</SyncML>'
+          ;
+          expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
+          expect(collector.contents.length).toEqual(1);
+          expect(collector.contents[0]).toEqualXml(chk);
+
+          return cb(err);
+        });
+      };
+
+      // step 4: send mapping of server-sent data and terminate
+      var map_data = function(cb) {
+        cb();
+      };
+
+      initialize_storage(function(err) {
+        expect(err).toBeFalsy();
+        expect('' + err).toEqual('null');
+        register_new_peer(function(err) {
+          expect(err).toBeFalsy();
+          expect('' + err).toEqual('null');
+          exchange_data(function(err) {
+            expect(err).toBeFalsy();
+            expect('' + err).toEqual('null');
+            map_data(function(err) {
+              expect(err).toBeFalsy();
+              expect('' + err).toEqual('null');
+              done();
+            });
+          });
+        });
       });
 
     });
