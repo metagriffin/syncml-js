@@ -20,3 +20,6 @@
 
 - rename adapter.name and remote.name to *.displayName to be more
   consistent with `store`...
+
+- both client & server modes should ensure that incoming sessionID, messageID
+  and commandIDs are correct.
