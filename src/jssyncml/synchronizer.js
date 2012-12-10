@@ -109,7 +109,8 @@ define([
           return cb();
         var func = self['_action_' + ds.action.toLowerCase()];
         if ( ! func )
-          return cb('unexpected store action "' + ds.action + '"');
+          return cb(new common.InternalError(
+            'unexpected store action "' + ds.action + '"'));
         try{
           func.call(self, session, ds, function(err, cmds) {
             if ( err )
@@ -118,8 +119,8 @@ define([
             return cb(null, commands);
           });
         }catch(e){
-          // todo: preserve exception location file/line number somehow?...
-          return cb('failed invoking synchronizer action: ' + e);
+          return cb(new common.InternalError(
+            'failed invoking synchronizer action: ' + e, e));
         }
       }, function(err) {
         if ( err )
@@ -323,7 +324,7 @@ define([
 
               if ( session.isServer )
               {
-                return cb(new common.NotImplementedError('server-side sync'));
+                return cb(new common.NotImplementedError('server-side sync: send'));
                 // TODO: implement server-side...
                 // check to see if this item has already been mapped. if so,
                 // then don't send it.
@@ -416,7 +417,8 @@ define([
         log.debug('generating synchronizer "%s" reactions', cmd.name);
         var func = self['_reaction_' + cmd.name.toLowerCase()];
         if ( ! func )
-          return cb('unexpected store reaction "' + cmd.name + '"');
+          return cb(new common.InternalError(
+            'unexpected store reaction "' + cmd.name + '"'));
         try{
           func.call(self, session, cmd, function(err, cmds) {
             if ( err )
@@ -425,8 +427,8 @@ define([
             return cb();
           });
         }catch(e){
-          // todo: preserve exception location file/line number somehow?...
-          return cb('failed invoking synchronizer reaction: ' + e);
+          return cb(new common.InternalError(
+            'failed invoking synchronizer reaction: ' + e, e));
         }
       }, function(err) {
         session.hierlut = null;
@@ -541,7 +543,8 @@ define([
       var self = this;
       var func = self['_reaction_sync_' + cmd.name.toLowerCase()];
       if ( ! func )
-        return cb('unexpected reaction requested for sync command "' + cmd.name + '"');
+        return cb(new common.ProtocolError(
+          'unexpected reaction requested for sync command "' + cmd.name + '"'));
 
       if ( session.isServer
            && cmd.name != constant.CMD_ADD
@@ -552,7 +555,7 @@ define([
         // "Add" command; for example, two files with the same name cannot be added
         // from separate clients.
 
-        return cb(new common.NotImplementedError('server-side sync'));
+        return cb(new common.NotImplementedError('server-side sync: reaction'));
         // TODO: implement server-side...
 
   //   # todo: allow agents to raise a ConflictError...
@@ -636,14 +639,16 @@ define([
       try{
         func.call(self, session, cmd, store, dsstate, cb);
       }catch(e){
-        // todo: preserve exception location file/line number somehow?...
-        return cb('failed invoking synchronizer reaction: ' + e);
+        return cb(new common.InternalError(
+          'failed invoking synchronizer sync reaction: ' + e, e));
       }
 
     },
 
     //-------------------------------------------------------------------------
     _reaction_sync_add: function(session, cmd, store, dsstate, cb) {
+
+      console.log('REACTION.ADD');
 
       var curitem = null;
       var item    = null;
@@ -720,7 +725,7 @@ define([
 
           if ( session.isServer )
           {
-            return cb(new common.NotImplementedError('server-side sync'));
+            return cb(new common.NotImplementedError('server-side sync: add reaction'));
             // TODO: implement server-side...
             //     peerStore = adapter.peer.stores[session.dsstates[store.uri].peerUri]
             //     # todo: this is a bit of an abstraction violation...

@@ -162,8 +162,8 @@ define([
           return cb(new common.ProtocolError('unacceptable peer ID "' + peerID + '"'));
         }
         session.info.peerID = peerID;
-        session.info.id     = parseInt(xhdr.findtext('SessionID'), 10);
-        session.info.msgID  = parseInt(xhdr.findtext('MsgID'), 10);
+        session.info.id     = common.parseInt(xhdr.findtext('SessionID'));
+        session.info.msgID  = common.parseInt(xhdr.findtext('MsgID'));
         if ( session.peer && session.peer.devID == peerID )
           return cb();
         // TODO: i should delete unused peers here... ie. anything that
@@ -799,7 +799,7 @@ define([
 
           // TODO: check for unknown elements...
 
-          var code = parseInt(child.findtext('Data'), 10);
+          var code = common.parseInt(child.findtext('Data'));
 
           if ( code == constant.STATUS_MISSING_CREDENTIALS )
             return cb(badStatus(child, common.CredentialsRequired));
@@ -1158,7 +1158,7 @@ define([
 
     //-------------------------------------------------------------------------
     _consume_node_alert: function(session, lastcmds, xsync, xnode, cb) {
-      var code = parseInt(xnode.findtext('Data'), 10);
+      var code = common.parseInt(xnode.findtext('Data'));
       var statusCode = constant.STATUS_OK
       switch ( code )
       {
@@ -1325,9 +1325,7 @@ define([
         target      : uri,
         data        : [],
       })];
-      var noc = xnode.findtext('NumberOfChanges');
-      if ( noc != undefined )
-        noc = parseInt(noc, 10);
+      var noc = common.parseInt(xnode.findtext('NumberOfChanges'));
       common.cascade(xnode.getchildren(), function(child, cb) {
         switch ( child.tag )
         {
@@ -1373,11 +1371,10 @@ define([
         }
         else
         {
-          return cb(new common.NotImplementedError('server-side sync receive'));
-          // if ds.action != 'alert':
-          //   raise common.ProtocolError('unexpected sync state for URI "%s": action=%s'
-          //                              % (uri, ds.action))
-          // ds.action = 'send'
+          if ( ds.action != 'alert' )
+            return cb(new common.ProtocolError(
+              'unexpected sync state for URI "' + uri + '": action=' + ds.action));
+          ds.action = 'send';
         }
         return session.context.synchronizer.reactions(session, commands, cb);
       });

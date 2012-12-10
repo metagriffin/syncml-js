@@ -222,7 +222,8 @@ define([
     //-------------------------------------------------------------------------
     _loadModel: function(model, cb) {
 
-      log.critical('TODO ::: new adapter settings are being overwritten (because they were not saved)');
+      log.critical('TODO ::: new adapter settings are being overwritten');
+      log.critical('TODO :::   (because they were not saved)');
 
       var self = this;
       self._model      = model;
