@@ -131,6 +131,30 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    deleteAll: function(source, matches, cb) {
+      var req = source.openCursor();
+      req.onsuccess = function(event) { 
+        var cursor = event.target.result;
+        if ( cursor )
+        {
+          for (key in matches)
+            if ( matches[key] != cursor.value[key] )
+              return cursor.continue();
+          exports.delete(source, cursor.key, function(err) {
+            if ( err )
+              return cb(err);
+            return cursor.continue();
+          });
+          return;
+        }
+        cb(null);
+      };
+      req.onerror = function(event) {
+        cb(event.target.error);
+      };
+    },
+
+    //-------------------------------------------------------------------------
     iterateCursor: function(openCursor, iterator, cb) {
       openCursor.onsuccess = function(event) {
         var cursor = event.target.result;
