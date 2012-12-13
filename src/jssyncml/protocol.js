@@ -1123,7 +1123,13 @@ define([
             if ( err )
               return cb(err);
 
-            // session.adapter._save(function(err) {
+            // TODO: the call to _setRemoteInfo makes the peer
+            //       "dirty" without saving changes to the model...
+            //       make sure the `save` executed in Adapter.sync()
+            //       or Adapter.handleRequest() appropriately causes
+            //       objects to save themselves to the model...
+
+            // session.adapter._save(session.txn, function(err) {
             //   if ( err )
             //     return cb(err);
 
@@ -1467,24 +1473,32 @@ define([
     //     **kw
     //     )
 
-    // #----------------------------------------------------------------------------
-    // def t2c_map(self, adapter, session, lastcmds, xsync, xnode):
-    //   # TODO: should this be moved into the synchronizer?...
-    //   srcUri = xnode.findtext('Source/LocURI')
-    //   tgtUri = xnode.findtext('Target/LocURI')
-    //   peerStore = adapter.peer.stores[adapter.peer.normUri(srcUri)]
-    //   # todo: should i verify that the GUID is valid?...
-    //   for xitem in xnode.findall('MapItem'):
-    //     luid = xitem.findtext('Source/LocURI')
-    //     guid = xitem.findtext('Target/LocURI')
-    //     # TODO: is there a better way of doing this than DELETE + INSERT?...
-    //     #       ie. is there an SQL INSERT_OR_UPDATE?...
-    //     adapter._context._model.Mapping.q(store_id=peerStore.id, guid=guid).delete()
-    //     newmap = adapter._context._model.Mapping(store_id=peerStore.id, guid=guid, luid=luid)
-    //     adapter._context._model.session.add(newmap)
-    //   return [self.makeStatus(session, xsync, xnode,
-    //                           targetRef=tgtUri, sourceRef=srcUri)]
-
+    //-------------------------------------------------------------------------
+    _consume_node_map: function(session, lastcmds, xsync, xnode, cb) {
+      if ( ! session.isServer )
+        return cb(new common.ProtocolError(
+          'unexpected "Map" command received by client-side SyncML peer'));
+      // TODO: convert the sender-side to support command.items like
+      //       this as well...
+      var cmd = state.makeCommand({
+        name    : constant.CMD_MAP,
+        msgID   : xsync.findtext('SyncHdr/MsgID'),
+        cmdID   : xnode.findtext('CmdID'),
+        source  : xnode.findtext('Source/LocURI'),
+        target  : xnode.findtext('Target/LocURI'),
+        items   : []
+      });
+      _.each(xnode.findall('MapItem'), function(xnode) {
+        // todo: support hierarchical sync...
+        cmd.items.push({
+          source        : xnode.findtext('Source/LocURI'),
+          // sourceParent  : xnode.findtext('SourceParent/LocURI'),
+          target        : xnode.findtext('Target/LocURI'),
+          // targetParent  : xnode.findtext('TargetParent/LocURI')
+        });
+      });
+      return session.context.synchronizer.reactions(session, [cmd], cb);
+    }
 
 
   });
