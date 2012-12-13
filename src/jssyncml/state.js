@@ -78,6 +78,7 @@ define([
   exports.makeSession = function(options) {
     return new (function() {
       this.context   = options.context || null;
+      this.txn       = options.txn     || null;
       this.adapter   = options.adapter || null;
       this.peer      = options.peer    || null;
       this.info      = options.info    || null;
