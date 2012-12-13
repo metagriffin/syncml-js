@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.agent
+// lib:  syncml-js.agent
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/10/22
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -25,7 +25,7 @@ define([
   constant
 ) {
 
-  var log = logging.getLogger('jssyncml.agent');
+  var log = logging.getLogger('syncml-js.agent');
   var exports = {};
 
   //---------------------------------------------------------------------------

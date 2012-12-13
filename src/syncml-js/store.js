@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.store
+// lib:  syncml-js.store
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/11/04
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -31,7 +31,7 @@ define([
   storage
 ) {
 
-  var log = logging.getLogger('jssyncml.store');
+  var log = logging.getLogger('syncml-js.store');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ define([
 
       //: for local stores, specifies the agent that will implement
       //: the actual item operations -- it must implement the
-      //: jssyncml.Agent API.
+      //: syncml-js.Agent API.
       this.agent = options.agent || null;
 
       //: [read-only] specifies the SyncML URI that this store is bound to.

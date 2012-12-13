@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.router
+// lib:  syncml-js.router
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/11/04
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -31,7 +31,7 @@ define([
   storage
 ) {
 
-  var log = logging.getLogger('jssyncml.router');
+  var log = logging.getLogger('syncml-js.router');
   var exports = {};
 
   //---------------------------------------------------------------------------

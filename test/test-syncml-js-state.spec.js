@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml/state module
+// desc: unit test for the syncml-js/state module
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -14,11 +14,11 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  '../src/jssyncml/constant',
-  '../src/jssyncml/common',
-  '../src/jssyncml/state'
+  '../src/syncml-js/constant',
+  '../src/syncml-js/common',
+  '../src/syncml-js/state'
 ], function(_, ET, constant, common, state) {
-  describe('jssyncml/state', function() {
+  describe('syncml-js/state', function() {
 
     it('isolates Stats member variables', function() {
       var s1 = state.makeStats();

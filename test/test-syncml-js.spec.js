@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml module
+// desc: unit test for the syncml-js module
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -15,17 +15,17 @@ define([
   'underscore',
   'elementtree',
   'sqlite3',
-  'jsindexeddb',
-  '../src/jssyncml'
-], function(_, ET, sqlite3, jsindexeddb, jssyncml) {
+  'indexeddb-js',
+  '../src/syncml-js'
+], function(_, ET, sqlite3, indexeddbjs, syncmljs) {
 
-  describe('jssyncml', function() {
+  describe('syncml-js', function() {
 
     //-------------------------------------------------------------------------
     it('declares a version', function() {
-      expect(jssyncml.version).not.toBeUndefined();
-      expect(jssyncml.version).not.toBeNull();
-      expect(jssyncml.version).toMatch(/^\d+\.\d+\.\d$/);
+      expect(syncmljs.version).not.toBeUndefined();
+      expect(syncmljs.version).not.toBeNull();
+      expect(syncmljs.version).toMatch(/^\d+\.\d+\.\d$/);
     });
 
   });

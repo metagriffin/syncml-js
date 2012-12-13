@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.logging
+// lib:  syncml-js.logging
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/11/10
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.

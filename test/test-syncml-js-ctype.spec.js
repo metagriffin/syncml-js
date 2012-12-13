@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml/ctype module
+// desc: unit test for the syncml-js/ctype module
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -14,11 +14,11 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  '../src/jssyncml/constant',
-  '../src/jssyncml/common',
-  '../src/jssyncml/ctype'
+  '../src/syncml-js/constant',
+  '../src/syncml-js/common',
+  '../src/syncml-js/ctype'
 ], function(_, ET, constant, common, ctype) {
-  describe('jssyncml/ctype', function() {
+  describe('syncml-js/ctype', function() {
 
     it('generates single version XML', function() {
       var ct = new ctype.ContentTypeInfo('text/plain', '1.0', {preferred: true});

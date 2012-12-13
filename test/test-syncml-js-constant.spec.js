@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml/constant module
+// desc: unit test for the syncml-js/constant module
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -14,9 +14,9 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  '../src/jssyncml/constant'
+  '../src/syncml-js/constant'
 ], function(_, ET, constant) {
-  describe('jssyncml/constant', function() {
+  describe('syncml-js/constant', function() {
 
     it('creates the correct SyncTypeToAlert lookup table', function() {
       expect(constant.SyncTypeToAlert[1]).toEqual(200);

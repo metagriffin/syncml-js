@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.context
+// lib:  syncml-js.context
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/10/22
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -40,7 +40,7 @@ define([
   adapter
 ) {
 
-  var log = logging.getLogger('jssyncml.context');
+  var log = logging.getLogger('syncml-js.context');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ define([
     constructor: function(options) {
       options = options || {};
       this.storage      = options.storage || idxdb;
-      this.dbname       = ( options.prefix || '' ) + 'jssyncml';
+      this.dbname       = ( options.prefix || '' ) + 'syncml-js';
       this.autoCommit   = options.autoCommit == undefined ? true : options.autoCommit;
       this.router       = options.router || new router.SmartRouter();
       this.synchronizer = options.synchronizer || new synchronizer.Synchronizer();
@@ -72,7 +72,7 @@ define([
           self._db = db;
           self._db.onerror = function(event) {
             // todo: remove this?...
-            log.error('jssyncml.context.db request failed with: '
+            log.error('syncml-js.context.db request failed with: '
                       + event.target.error);
           };
           self._txn = self._db.transaction(null, 'readwrite');

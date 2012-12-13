@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml/ctype module
+// desc: unit test for the syncml-js/ctype module
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -15,15 +15,15 @@ define([
   'underscore',
   'elementtree',
   'sqlite3',
-  'jsindexeddb',
+  'indexeddb-js',
   './helpers.js',
-  '../src/jssyncml/logging',
-  '../src/jssyncml/constant',
-  '../src/jssyncml/common',
-  '../src/jssyncml/storage',
-  '../src/jssyncml'
-], function(_, ET, sqlite3, jsindexeddb, helpers, logging, constant, common, storage, jssyncml) {
-  describe('jssyncml/storage', function() {
+  '../src/syncml-js/logging',
+  '../src/syncml-js/constant',
+  '../src/syncml-js/common',
+  '../src/syncml-js/storage',
+  '../src/syncml-js'
+], function(_, ET, sqlite3, indexeddbjs, helpers, logging, constant, common, storage, syncmljs) {
+  describe('syncml-js/storage', function() {
 
     var sdb     = null;
     var idb     = null;
@@ -40,8 +40,8 @@ define([
     beforeEach(function(callback) {
       sdb = new sqlite3.Database(':memory:');
       // sdb = new sqlite3.Database('./test.db');
-      idb = new jsindexeddb.indexedDB('sqlite3', sdb);
-      var context = new jssyncml.Context({
+      idb = new indexeddbjs.indexedDB('sqlite3', sdb);
+      var context = new syncmljs.Context({
         storage: idb,
         prefix:  'memoryBasedClient.'
       });

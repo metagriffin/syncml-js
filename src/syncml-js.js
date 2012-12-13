@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: the base jssyncml include
+// desc: the base syncml-js include
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -13,16 +13,16 @@ if ( typeof(define) !== 'function')
 
 define([
   'underscore',
-  './jssyncml/constant',
-  './jssyncml/common',
-  './jssyncml/codec',
-  './jssyncml/state',
-  './jssyncml/context',
-  './jssyncml/ctype',
-  './jssyncml/agent',
-  './jssyncml/router',
-  './jssyncml/synchronizer',
-  './jssyncml/protocol'
+  './syncml-js/constant',
+  './syncml-js/common',
+  './syncml-js/codec',
+  './syncml-js/state',
+  './syncml-js/context',
+  './syncml-js/ctype',
+  './syncml-js/agent',
+  './syncml-js/router',
+  './syncml-js/synchronizer',
+  './syncml-js/protocol'
 ], function(
   _,
   constant,
@@ -39,7 +39,7 @@ define([
 
   return _.extend(
     // TODO: figure out how to pull this dynamically from package.json...
-    {version: '0.0.4'},
+    {version: '0.0.5'},
     constant,
     {
       platformBits: common.platformBits,

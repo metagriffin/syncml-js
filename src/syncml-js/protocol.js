@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.protocol
+// lib:  syncml-js.protocol
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/11/04
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -41,7 +41,7 @@ define([
   base64
 ) {
 
-  var log = logging.getLogger('jssyncml.protocol');
+  var log = logging.getLogger('syncml-js.protocol');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -207,7 +207,7 @@ define([
         if ( cmd.msgID == 1 )
         {
           // NOTE: normally, the "server" would not send this info. however, in
-          //       the jssyncml world where it is much more peer-oriented
+          //       the syncml-js world where it is much more peer-oriented
           //       instead of client/server, i send this as well... the
           //       idea being, if two "client" peers are communicating in
           //       the event of server unavailability, then they may need
@@ -595,7 +595,7 @@ define([
 
           // TODO: make sure this is doing what is expected/intended...
           if ( err.code || err.name )
-            errcmd.errorCode  = 'jssyncml.' + ( err.code || err.name );
+            errcmd.errorCode  = 'syncml-js.' + ( err.code || err.name );
           errcmd.errorMsg   = err.message || common.j(err) || '' + err;
           if ( err.exception )
             errcmd.errorTrace = stacktrace({e: err.exception}).join('\n');

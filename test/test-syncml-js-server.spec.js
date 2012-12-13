@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml module in server-mode
+// desc: unit test for the syncml-js module in server-mode
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/12/08
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -15,17 +15,17 @@ define([
   'underscore',
   'elementtree',
   'sqlite3',
-  'jsindexeddb',
+  'indexeddb-js',
   'diff',
   './helpers.js',
-  '../src/jssyncml',
-  '../src/jssyncml/logging',
-  '../src/jssyncml/common',
-  '../src/jssyncml/state',
-  '../src/jssyncml/storage'
-], function(_, ET, sqlite3, jsindexeddb, diff, helpers, jssyncml, logging, common, state, storage) {
+  '../src/syncml-js',
+  '../src/syncml-js/logging',
+  '../src/syncml-js/common',
+  '../src/syncml-js/state',
+  '../src/syncml-js/storage'
+], function(_, ET, sqlite3, indexeddbjs, diff, helpers, syncmljs, logging, common, state, storage) {
 
-  describe('jssyncml-server', function() {
+  describe('syncml-js/server', function() {
 
     beforeEach(function () {
       logging.level = logging.WARNING;
@@ -44,9 +44,9 @@ define([
         // sdb:     new sqlite3.Database('./test.db')
       };
 
-      var idb = new jsindexeddb.indexedDB('sqlite3', sync.sdb);
+      var idb = new indexeddbjs.indexedDB('sqlite3', sync.sdb);
 
-      sync.context = new jssyncml.Context({
+      sync.context = new syncmljs.Context({
         storage: idb,
         prefix:  'memoryBasedServer.'
       });
@@ -58,9 +58,9 @@ define([
           if ( adapter.devInfo != undefined )
             return cb();
           adapter.setDevInfo({
-            devID               : 'test-jssyncml-server-devid',
-            devType             : jssyncml.DEVTYPE_SERVER,
-            manufacturerName    : 'jssyncml',
+            devID               : 'test-syncml-js-server-devid',
+            devType             : syncmljs.DEVTYPE_SERVER,
+            manufacturerName    : 'syncml-js',
             modelName           : 'testserver',
             hierarchicalSync    : false
           }, cb);
@@ -108,7 +108,7 @@ define([
     var makeRequest_init = function(targetID, sourceID, options) {
       options = _.defaults({}, options, {
         sourceName    : 'test-client',
-        modelName     : 'test-jssyncml-server.client',
+        modelName     : 'test-syncml-js-server.client',
         storeName     : 'MemoTaker',
         sessionID     : '1',
         putDevInfo    : true,
@@ -159,7 +159,7 @@ define([
           + '    <Data>'
           + '     <DevInf xmlns="syncml:devinf">'
           + '      <VerDTD>1.2</VerDTD>'
-          + '      <Man>jssyncml</Man>'
+          + '      <Man>syncml-js</Man>'
           + '      <Mod>' + options.modelName + '</Mod>'
           + '      <OEM>-</OEM>'
           + '      <FwV>-</FwV>'
@@ -488,7 +488,7 @@ define([
     //-------------------------------------------------------------------------
     it('detects a client without authorization', function(done) {
       var targetID = 'http://example.com/sync';
-      var session  = jssyncml.makeSessionInfo();
+      var session  = syncmljs.makeSessionInfo();
       var request  = makeRequest(
         '<?xml version="1.0" encoding="utf-8"?>'
           + '<SyncML>'
@@ -498,7 +498,7 @@ define([
           + '  <SessionID>1</SessionID>'
           + '  <MsgID>1</MsgID>'
           + '  <Source>'
-          + '   <LocURI>test-jssyncml-server.client.1234</LocURI>'
+          + '   <LocURI>test-syncml-js-server.client.1234</LocURI>'
           + '   <LocName>test-client</LocName>'
           + '  </Source>'
           + '  <Target><LocURI>' + targetID + '</LocURI></Target>'
@@ -524,7 +524,7 @@ define([
     //-------------------------------------------------------------------------
     it('handles basic authorization', function(done) {
       var targetID = 'http://example.com/sync';
-      var session  = jssyncml.makeSessionInfo();
+      var session  = syncmljs.makeSessionInfo();
       var request  = makeRequest(
           '<?xml version="1.0" encoding="utf-8"?>'
           + '<SyncML>'
@@ -534,7 +534,7 @@ define([
           + '  <SessionID>1</SessionID>'
           + '  <MsgID>1</MsgID>'
           + '  <Source>'
-          + '   <LocURI>test-jssyncml-server.client.1234</LocURI>'
+          + '   <LocURI>test-syncml-js-server.client.1234</LocURI>'
           + '   <LocName>test-client</LocName>'
           + '  </Source>'
           + '  <Target><LocURI>' + targetID + '</LocURI></Target>'
@@ -570,14 +570,14 @@ define([
 
     //-------------------------------------------------------------------------
     it('handles invalid authentication credentials', function(done) {
-      var clientID  = 'test-jssyncml-server.client.' + (new Date()).getTime();
+      var clientID  = 'test-syncml-js-server.client.' + (new Date()).getTime();
       var returnUrl = 'https://example.com/sync;s=a139bb50047b45ca9820fe53f5161e55';
       var request   = makeRequest_init('https://example.com/sync', clientID, {
         putDevInfo    : false,
         getDevInfo    : false,
         sendAlert     : false
       });
-      var session   = jssyncml.makeSessionInfo({returnUrl: returnUrl});
+      var session   = syncmljs.makeSessionInfo({returnUrl: returnUrl});
       var collector = new helpers.ResponseCollector();
       var authorize = function(uri, data, cb) {
         return cb('bad-credentials');
@@ -594,7 +594,7 @@ define([
     //-------------------------------------------------------------------------
     it('handles SyncML document with official URN-based namespace', function(done) {
       var targetID = 'http://example.com/sync';
-      var session  = jssyncml.makeSessionInfo();
+      var session  = syncmljs.makeSessionInfo();
       var request  = makeRequest(
           '<?xml version="1.0" encoding="utf-8"?>'
           + '<SyncML xmlns="SYNCML:SYNCML1.2">'
@@ -604,7 +604,7 @@ define([
           + '  <SessionID>1</SessionID>'
           + '  <MsgID>1</MsgID>'
           + '  <Source>'
-          + '   <LocURI>test-jssyncml-server.client.1234</LocURI>'
+          + '   <LocURI>test-syncml-js-server.client.1234</LocURI>'
           + '   <LocName>test-client</LocName>'
           + '  </Source>'
           + '  <Target><LocURI>' + targetID + '</LocURI></Target>'
@@ -640,7 +640,7 @@ define([
 
     //-------------------------------------------------------------------------
     it('handles a new peer with no device info', function(done) {
-      var clientID  = 'test-jssyncml-server.client.' + (new Date()).getTime();
+      var clientID  = 'test-syncml-js-server.client.' + (new Date()).getTime();
       var serverID  = 'https://example.com/sync';
       var returnUrl = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
       var request   = makeRequest_init(serverID, clientID, {
@@ -648,7 +648,7 @@ define([
         getDevInfo    : false,
         sendAlert     : false
       });
-      var session   = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+      var session   = syncmljs.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
       var collector = new helpers.ResponseCollector();
       var authorize = function(uri, data, cb) {
         expect(uri).toBeNull();
@@ -702,13 +702,13 @@ define([
           + '    <Data>'
           + '     <DevInf xmlns="syncml:devinf">'
           + '      <VerDTD>1.2</VerDTD>'
-          + '      <Man>jssyncml</Man>'
+          + '      <Man>syncml-js</Man>'
           + '      <Mod>testserver</Mod>'
           + '      <OEM>-</OEM>'
           + '      <FwV>-</FwV>'
           + '      <SwV>-</SwV>'
           + '      <HwV>-</HwV>'
-          + '      <DevID>test-jssyncml-server-devid</DevID>'
+          + '      <DevID>test-syncml-js-server-devid</DevID>'
           + '      <DevTyp>server</DevTyp>'
           + '      <UTC/>'
           + '      <SupportLargeObjs/>'
@@ -762,17 +762,17 @@ define([
     //-------------------------------------------------------------------------
     it('creates a new peer store binding on-demand', function(done) {
 
-      var clientID   = 'test-jssyncml-server.client.' + (new Date()).getTime();
+      var clientID   = 'test-syncml-js-server.client.' + (new Date()).getTime();
       var serverID   = 'https://example.com/sync';
       var nextAnchor = '' + helpers.now();
       var returnUrl  = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
       var request    = makeRequest_init(serverID, clientID, {nextAnchor: nextAnchor});
-      var session    = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+      var session    = syncmljs.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
       var collector  = new helpers.ResponseCollector();
 
       sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
         expect(err).ok();
-        expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+        expect(stats).toEqual({srv_note: syncmljs.makeStats({mode: syncmljs.SYNCTYPE_SLOW_SYNC})});
         expect(collector.contents.length).toEqual(1);
 
         var anchor = helpers.findXml(collector.contents[0], './SyncBody/Alert/Item/Meta/Anchor/Next');
@@ -834,13 +834,13 @@ define([
           + '    <Data>'
           + '     <DevInf xmlns="syncml:devinf">'
           + '      <VerDTD>1.2</VerDTD>'
-          + '      <Man>jssyncml</Man>'
+          + '      <Man>syncml-js</Man>'
           + '      <Mod>testserver</Mod>'
           + '      <OEM>-</OEM>'
           + '      <FwV>-</FwV>'
           + '      <SwV>-</SwV>'
           + '      <HwV>-</HwV>'
-          + '      <DevID>test-jssyncml-server-devid</DevID>'
+          + '      <DevID>test-syncml-js-server-devid</DevID>'
           + '      <DevTyp>server</DevTyp>'
           + '      <UTC/>'
           + '      <SupportLargeObjs/>'
@@ -962,9 +962,9 @@ define([
           pendingMsgID   : 1
         });
 
-        var idb2 = new jsindexeddb.indexedDB('sqlite3', sync.sdb);
+        var idb2 = new indexeddbjs.indexedDB('sqlite3', sync.sdb);
 
-        var ctxt2 = new jssyncml.Context({
+        var ctxt2 = new syncmljs.Context({
           storage: idb2,
           prefix:  'memoryBasedServer.'
         });
@@ -980,8 +980,8 @@ define([
           expect(peer.maxObjSize).toEqual(4000000);
           expect(peer.devInfo).toBeTruthy();
           expect(peer.devInfo.devID).toEqual(clientID);
-          expect(peer.devInfo.manufacturerName).toEqual('jssyncml');
-          expect(peer.devInfo.modelName).toEqual('test-jssyncml-server.client');
+          expect(peer.devInfo.manufacturerName).toEqual('syncml-js');
+          expect(peer.devInfo.modelName).toEqual('test-syncml-js-server.client');
           expect(peer.devInfo.oem).toEqual('-');
           expect(peer.devInfo.firmwareVersion).toEqual('-');
           expect(peer.devInfo.softwareVersion).toEqual('-');
@@ -997,8 +997,8 @@ define([
           expect(store.displayName).toEqual('MemoTaker');
           expect(store.maxGuidSize).toEqual(64);
           expect(store.getContentTypes()).toEqual([
-            new jssyncml.ContentTypeInfo('text/plain', '1.1', {preferred: true}),
-            new jssyncml.ContentTypeInfo('text/plain', '1.0')
+            new syncmljs.ContentTypeInfo('text/plain', '1.1', {preferred: true}),
+            new syncmljs.ContentTypeInfo('text/plain', '1.0')
           ]);
           done();
         });
@@ -1010,12 +1010,12 @@ define([
     //-------------------------------------------------------------------------
     it('with no data, pushes an empty slow-sync', function(done) {
 
-      var clientID   = 'test-jssyncml-server.client.' + (new Date()).getTime();
+      var clientID   = 'test-syncml-js-server.client.' + (new Date()).getTime();
       var serverID   = 'https://example.com/sync';
       var nextAnchor = '' + helpers.now();
       var peerAnchor = null;
       var returnUrl  = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
-      var session    = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+      var session    = syncmljs.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
 
       // step 1: register the peer (and transfer devInfo)
       var register_new_peer = function(cb) {
@@ -1023,14 +1023,14 @@ define([
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
           expect(err).ok();
-          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+          expect(stats).toEqual({srv_note: syncmljs.makeStats({mode: syncmljs.SYNCTYPE_SLOW_SYNC})});
           return cb(err);
         });
       };
 
       // step 2: start a new session and initiate an alert
       var start_new_session = function(cb) {
-        session = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+        session = syncmljs.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
         var request    = makeRequest_init(serverID, clientID, {
           nextAnchor  : nextAnchor,
           sessionID   : '2',
@@ -1040,7 +1040,7 @@ define([
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
           expect(err).ok();
-          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+          expect(stats).toEqual({srv_note: syncmljs.makeStats({mode: syncmljs.SYNCTYPE_SLOW_SYNC})});
           peerAnchor = helpers.findXml(collector.contents[0], './SyncBody/Alert/Item/Meta/Anchor/Next');
           var chk = ''
             + '<SyncML>'
@@ -1122,7 +1122,7 @@ define([
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
           expect(err).ok();
-          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+          expect(stats).toEqual({srv_note: syncmljs.makeStats({mode: syncmljs.SYNCTYPE_SLOW_SYNC})});
           var chk = ''
             + '<SyncML>'
             + ' <SyncHdr>'
@@ -1192,12 +1192,12 @@ define([
     //-------------------------------------------------------------------------
     it('performs an initial slow-sync and exchanges data', function(done) {
 
-      var clientID   = 'test-jssyncml-server.client.' + (new Date()).getTime();
+      var clientID   = 'test-syncml-js-server.client.' + (new Date()).getTime();
       var serverID   = 'https://example.com/sync';
       var nextAnchor = '' + helpers.now();
       var peerAnchor = null;
       var returnUrl  = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
-      var session    = jssyncml.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+      var session    = syncmljs.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
 
       // step 0: initialize server storage with some data
       var initialize_storage = function(cb) {
@@ -1210,7 +1210,7 @@ define([
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
           expect(err).ok();
-          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
+          expect(stats).toEqual({srv_note: syncmljs.makeStats({mode: syncmljs.SYNCTYPE_SLOW_SYNC})});
           peerAnchor = helpers.findXml(collector.contents[0], './SyncBody/Alert/Item/Meta/Anchor/Next');
           return cb(err);
         });
@@ -1228,8 +1228,8 @@ define([
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
           expect(err).ok();
-          expect(stats).toEqual({srv_note: jssyncml.makeStats({
-            mode:    jssyncml.SYNCTYPE_SLOW_SYNC,
+          expect(stats).toEqual({srv_note: syncmljs.makeStats({
+            mode:    syncmljs.SYNCTYPE_SLOW_SYNC,
             hereAdd: 2
           })});
           var chk = ''
@@ -1318,8 +1318,8 @@ define([
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
           expect(err).ok();
-          expect(stats).toEqual({srv_note: jssyncml.makeStats({
-            mode:    jssyncml.SYNCTYPE_SLOW_SYNC,
+          expect(stats).toEqual({srv_note: syncmljs.makeStats({
+            mode:    syncmljs.SYNCTYPE_SLOW_SYNC,
             hereAdd: 2,
             peerAdd: 1
           })});

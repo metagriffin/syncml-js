@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml/common module
+// desc: unit test for the syncml-js/common module
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -14,9 +14,9 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  '../src/jssyncml/common'
+  '../src/syncml-js/common'
 ], function(_, ET, common) {
-  describe('jssyncml/common', function() {
+  describe('syncml-js/common', function() {
 
     //-------------------------------------------------------------------------
     it('makeID creates unique values', function() {

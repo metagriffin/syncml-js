@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml module in client-mode
+// desc: unit test for the syncml-js module in client-mode
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -15,16 +15,16 @@ define([
   'underscore',
   'elementtree',
   'sqlite3',
-  'jsindexeddb',
+  'indexeddb-js',
   'diff',
   './helpers.js',
-  '../src/jssyncml',
-  '../src/jssyncml/logging',
-  '../src/jssyncml/common',
-  '../src/jssyncml/state'
-], function(_, ET, sqlite3, jsindexeddb, diff, helpers, jssyncml, logging, common, state) {
+  '../src/syncml-js',
+  '../src/syncml-js/logging',
+  '../src/syncml-js/common',
+  '../src/syncml-js/state'
+], function(_, ET, sqlite3, indexeddbjs, diff, helpers, syncmljs, logging, common, state) {
 
-  describe('jssyncml-client', function() {
+  describe('syncml-js/client', function() {
 
     var seenRequests = '';
 
@@ -46,9 +46,9 @@ define([
 
       var sdb = new sqlite3.Database(':memory:');
       // var sdb = new sqlite3.Database('./test.db');
-      var idb = new jsindexeddb.indexedDB('sqlite3', sdb);
+      var idb = new indexeddbjs.indexedDB('sqlite3', sdb);
 
-      var context = new jssyncml.Context({
+      var context = new syncmljs.Context({
         storage: idb,
         prefix:  'memoryBasedClient.'
       });
@@ -56,10 +56,10 @@ define([
       context.getEasyClientAdapter({
         name: 'In-Memory Test Client',
         devInfo: {
-          devID               : 'test-jssyncml-devid',
-          devType             : jssyncml.DEVTYPE_WORKSTATION,
-          manufacturerName    : 'jssyncml',
-          modelName           : 'jssyncml.test.suite.client',
+          devID               : 'test-syncml-js-devid',
+          devType             : syncmljs.DEVTYPE_WORKSTATION,
+          manufacturerName    : 'syncml-js',
+          modelName           : 'syncml-js.test.suite.client',
           hierarchicalSync    : false
         },
         stores: [
@@ -73,7 +73,7 @@ define([
         ],
         peer: {
           url      : 'https://www.example.com/sync',
-          auth     : jssyncml.NAMESPACE_AUTH_BASIC,
+          auth     : syncmljs.NAMESPACE_AUTH_BASIC,
           username : 'guest',
           password : 'guest'
         },
@@ -124,7 +124,7 @@ define([
               + '  <SessionID>1</SessionID>'
               + '  <MsgID>1</MsgID>'
               + '  <Source>'
-              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocURI>test-syncml-js-devid</LocURI>'
               + '   <LocName>In-Memory Test Client</LocName>'
               + '  </Source>'
               + '  <Target>'
@@ -151,13 +151,13 @@ define([
               + '    <Data>'
               + '     <DevInf xmlns="syncml:devinf">'
               + '      <VerDTD>1.2</VerDTD>'
-              + '      <Man>jssyncml</Man>'
-              + '      <Mod>jssyncml.test.suite.client</Mod>'
+              + '      <Man>syncml-js</Man>'
+              + '      <Mod>syncml-js.test.suite.client</Mod>'
               + '      <OEM>-</OEM>'
               + '      <FwV>-</FwV>'
               + '      <SwV>-</SwV>'
               + '      <HwV>-</HwV>'
-              + '      <DevID>test-jssyncml-devid</DevID>'
+              + '      <DevID>test-syncml-js-devid</DevID>'
               + '      <DevTyp>workstation</DevTyp>'
               + '      <UTC/>'
               + '      <SupportLargeObjs/>'
@@ -216,7 +216,7 @@ define([
               + '   <LocName>Fake Server</LocName>'
               + '  </Source>'
               + '  <Target>'
-              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocURI>test-syncml-js-devid</LocURI>'
               + '   <LocName>In-Memory Test Client</LocName>'
               + '  </Target>'
               + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
@@ -227,7 +227,7 @@ define([
               + '   <MsgRef>1</MsgRef>'
               + '   <CmdRef>0</CmdRef>'
               + '   <Cmd>SyncHdr</Cmd>'
-              + '   <SourceRef>test-jssyncml-devid</SourceRef>'
+              + '   <SourceRef>test-syncml-js-devid</SourceRef>'
               + '   <TargetRef>https://www.example.com/sync</TargetRef>'
               + '   <Data>212</Data>'
               + '  </Status>'
@@ -257,13 +257,13 @@ define([
               + '    <Data>'
               + '     <DevInf xmlns="syncml:devinf">'
               + '      <VerDTD>1.2</VerDTD>'
-              + '      <Man>jssyncml</Man>'
-              + '      <Mod>jssyncml.test.suite.server</Mod>'
+              + '      <Man>syncml-js</Man>'
+              + '      <Mod>syncml-js.test.suite.server</Mod>'
               + '      <OEM>-</OEM>'
               + '      <FwV>1.2.3</FwV>'
               + '      <SwV>4.5.6</SwV>'
               + '      <HwV>7.8.9</HwV>'
-              + '      <DevID>jssyncml.test.suite.server</DevID>'
+              + '      <DevID>syncml-js.test.suite.server</DevID>'
               + '      <DevTyp>server</DevTyp>'
               + '      <UTC/>'
               + '      <SupportLargeObjs/>'
@@ -319,7 +319,7 @@ define([
               + '  <SessionID>1</SessionID>'
               + '  <MsgID>2</MsgID>'
               + '  <Source>'
-              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocURI>test-syncml-js-devid</LocURI>'
               + '   <LocName>In-Memory Test Client</LocName>'
               + '  </Source>'
               + '  <Target>'
@@ -333,7 +333,7 @@ define([
               + '   <CmdRef>0</CmdRef>'
               + '   <Cmd>SyncHdr</Cmd>'
               + '   <SourceRef>https://www.example.com/sync</SourceRef>'
-              + '   <TargetRef>test-jssyncml-devid</TargetRef>'
+              + '   <TargetRef>test-syncml-js-devid</TargetRef>'
               + '   <Data>200</Data>'
               + '  </Status>'
               + '  <Status>'
@@ -375,7 +375,7 @@ define([
               + '   <LocName>Fake Server</LocName>'
               + '  </Source>'
               + '  <Target>'
-              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocURI>test-syncml-js-devid</LocURI>'
               + '   <LocName>In-Memory Test Client</LocName>'
               + '  </Target>'
               + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
@@ -386,7 +386,7 @@ define([
               + '   <MsgRef>2</MsgRef>'
               + '   <CmdRef>0</CmdRef>'
               + '   <Cmd>SyncHdr</Cmd>'
-              + '   <SourceRef>test-jssyncml-devid</SourceRef>'
+              + '   <SourceRef>test-syncml-js-devid</SourceRef>'
               + '   <TargetRef>https://www.example.com/sync</TargetRef>'
               + '   <Data>200</Data>'
               + '  </Status>'
@@ -443,7 +443,7 @@ define([
               + '  <SessionID>1</SessionID>'
               + '  <MsgID>3</MsgID>'
               + '  <Source>'
-              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocURI>test-syncml-js-devid</LocURI>'
               + '   <LocName>In-Memory Test Client</LocName>'
               + '  </Source>'
               + '  <Target>'
@@ -457,7 +457,7 @@ define([
               + '   <CmdRef>0</CmdRef>'
               + '   <Cmd>SyncHdr</Cmd>'
               + '   <SourceRef>https://www.example.com/sync</SourceRef>'
-              + '   <TargetRef>test-jssyncml-devid</TargetRef>'
+              + '   <TargetRef>test-syncml-js-devid</TargetRef>'
               + '   <Data>200</Data>'
               + '  </Status>'
               + '  <Status>'
@@ -509,7 +509,7 @@ define([
               + '   <LocName>Fake Server</LocName>'
               + '  </Source>'
               + '  <Target>'
-              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocURI>test-syncml-js-devid</LocURI>'
               + '   <LocName>In-Memory Test Client</LocName>'
               + '  </Target>'
               + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
@@ -520,7 +520,7 @@ define([
               + '   <MsgRef>3</MsgRef>'
               + '   <CmdRef>0</CmdRef>'
               + '   <Cmd>SyncHdr</Cmd>'
-              + '   <SourceRef>test-jssyncml-devid</SourceRef>'
+              + '   <SourceRef>test-syncml-js-devid</SourceRef>'
               + '   <TargetRef>https://www.example.com/sync</TargetRef>'
               + '   <Data>200</Data>'
               + '  </Status>'
@@ -578,7 +578,7 @@ define([
               + '  <SessionID>1</SessionID>'
               + '  <MsgID>4</MsgID>'
               + '  <Source>'
-              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocURI>test-syncml-js-devid</LocURI>'
               + '   <LocName>In-Memory Test Client</LocName>'
               + '  </Source>'
               + '  <Target>'
@@ -592,7 +592,7 @@ define([
               + '   <CmdRef>0</CmdRef>'
               + '   <Cmd>SyncHdr</Cmd>'
               + '   <SourceRef>https://www.example.com/sync</SourceRef>'
-              + '   <TargetRef>test-jssyncml-devid</TargetRef>'
+              + '   <TargetRef>test-syncml-js-devid</TargetRef>'
               + '   <Data>200</Data>'
               + '  </Status>'
               + '  <Status>'
@@ -640,7 +640,7 @@ define([
               + '   <LocName>Fake Server</LocName>'
               + '  </Source>'
               + '  <Target>'
-              + '   <LocURI>test-jssyncml-devid</LocURI>'
+              + '   <LocURI>test-syncml-js-devid</LocURI>'
               + '   <LocName>In-Memory Test Client</LocName>'
               + '  </Target>'
               + '  <RespURI>https://www.example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
@@ -651,7 +651,7 @@ define([
               + '   <MsgRef>4</MsgRef>'
               + '   <CmdRef>0</CmdRef>'
               + '   <Cmd>SyncHdr</Cmd>'
-              + '   <SourceRef>test-jssyncml-devid</SourceRef>'
+              + '   <SourceRef>test-syncml-js-devid</SourceRef>'
               + '   <TargetRef>https://www.example.com/sync</TargetRef>'
               + '   <Data>200</Data>'
               + '  </Status>'
@@ -689,7 +689,7 @@ define([
 
         // NOTE: using peer._proxy is only for testing purposes!...
         sync.peer._proxy = fake_request_1;
-        sync.adapter.sync(sync.peer, jssyncml.SYNCTYPE_SLOW_SYNC, cb);
+        sync.adapter.sync(sync.peer, syncmljs.SYNCTYPE_SLOW_SYNC, cb);
       };
 
       scanForChanges(function(err) {
@@ -699,7 +699,7 @@ define([
           expect('' + err).toEqual('null');
           expect(_.keys(stats)).toEqual(['cli_memo']);
           expect(stats['cli_memo']).toEqual(state.makeStats({
-            mode: jssyncml.SYNCTYPE_SLOW_SYNC,
+            mode: syncmljs.SYNCTYPE_SLOW_SYNC,
             peerAdd: 1,
             hereAdd: 1
           }));

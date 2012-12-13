@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.devinfo
+// lib:  syncml-js.devinfo
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/11/06
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -33,7 +33,7 @@ define([
   state
 ) {
 
-  var log = logging.getLogger('jssyncml.devinfo');
+  var log = logging.getLogger('syncml-js.devinfo');
   var exports = {};
 
   var strAttributeMap = [

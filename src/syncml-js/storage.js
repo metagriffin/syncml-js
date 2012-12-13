@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.storage
+// lib:  syncml-js.storage
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/10/31
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -23,7 +23,7 @@ define([
   constant
 ) {
 
-  var log = logging.getLogger('jssyncml.storage');
+  var log = logging.getLogger('syncml-js.storage');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -35,14 +35,14 @@ define([
       var dbreq = context.storage.open(context.dbname, 1);
       dbreq.onblocked = function(event) {
         log.critical('syncml.storage: db "' + context.dbname + '" blocked');
-        cb({code: 'jssyncml.storage.OD.10',
+        cb({code: 'syncml-js.storage.OD.10',
             message: 'database blocked by other process/tab/window'});
       };
       dbreq.onerror = function(event) {
         log.critical('syncml.storage: db "' + context.dbname + '" error: '
                      + event.target.errorCode);
-        cb({code: 'jssyncml.storage.OD.20',
-            message: 'failed to open jssyncml database: '
+        cb({code: 'syncml-js.storage.OD.20',
+            message: 'failed to open syncml-js database: '
             + event.target.errorCode});
       };
       dbreq.onupgradeneeded = function(event) {
@@ -70,7 +70,7 @@ define([
 
         log.debug('syncml.storage: db "' + context.dbname + '" upgrade complete');
 
-        if ( context.storage.vendor != 'jsindexeddb' )
+        if ( context.storage.vendor != 'indexeddb-js' )
           return cb(null, db);
 
         adapterTable._create(function(err) {

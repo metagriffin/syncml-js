@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.adapter
+// lib:  syncml-js.adapter
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/10/22
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -39,7 +39,7 @@ define([
   state
 ) {
 
-  var log = logging.getLogger('jssyncml.adapter');
+  var log = logging.getLogger('syncml-js.adapter');
   var exports = {};
 
   //---------------------------------------------------------------------------
@@ -176,7 +176,7 @@ define([
 
       // todo: if we are adding a peer to an adapter that already has
       //       non-client peers, then we may have a problem!...
-      //       (this is only true while jssyncml is not capable of truly
+      //       (this is only true while syncml-js is not capable of truly
       //       operating in peer-to-peer mode)
 
       var peer = new remote.RemoteAdapter(this, peerInfo);

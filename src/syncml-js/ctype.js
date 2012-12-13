@@ -22,7 +22,7 @@ define([
   common
 ) {
 
-  var log = logging.getLogger('jssyncml.ctype');
+  var log = logging.getLogger('syncml-js.ctype');
   var exports = {};
 
   //---------------------------------------------------------------------------

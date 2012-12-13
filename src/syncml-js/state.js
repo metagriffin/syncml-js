@@ -22,7 +22,7 @@ define([
   common
 ) {
 
-  var log = logging.getLogger('jssyncml.state');
+  var log = logging.getLogger('syncml-js.state');
   var exports = {};
 
   //---------------------------------------------------------------------------

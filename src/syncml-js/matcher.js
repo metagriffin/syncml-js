@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.matcher
+// lib:  syncml-js.matcher
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/12/05
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -21,7 +21,7 @@ define([
   common
 ) {
 
-  var log = logging.getLogger('jssyncml.matcher');
+  var log = logging.getLogger('syncml-js.matcher');
   var exports = {};
 
   //---------------------------------------------------------------------------

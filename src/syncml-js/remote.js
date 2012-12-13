@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.remote
+// lib:  syncml-js.remote
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/11/04
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -33,7 +33,7 @@ define([
   storemod
 ) {
 
-  var log = logging.getLogger('jssyncml.remote');
+  var log = logging.getLogger('syncml-js.remote');
   var exports = {};
 
   //---------------------------------------------------------------------------

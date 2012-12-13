@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml/codec module
+// desc: unit test for the syncml-js/codec module
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -14,10 +14,10 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  '../src/jssyncml/constant',
-  '../src/jssyncml/codec'
+  '../src/syncml-js/constant',
+  '../src/syncml-js/codec'
 ], function(_, ET, constant, codec) {
-  describe('jssyncml/codec', function() {
+  describe('syncml-js/codec', function() {
 
     //-------------------------------------------------------------------------
     it('throws an exception for unknown codecs', function() {

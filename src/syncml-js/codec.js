@@ -24,7 +24,7 @@ define([
   constant
 ) {
 
-  var log = logging.getLogger('jssyncml.codec');
+  var log = logging.getLogger('syncml-js.codec');
   var exports = {};
 
   //---------------------------------------------------------------------------

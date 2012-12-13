@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  jssyncml.synchronizer
+// lib:  syncml-js.synchronizer
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/11/05
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -33,7 +33,7 @@ define([
   storage
 ) {
 
-  var log = logging.getLogger('jssyncml.synchronizer');
+  var log = logging.getLogger('syncml-js.synchronizer');
   var exports = {};
   var badStatus = protocol.badStatus;
 

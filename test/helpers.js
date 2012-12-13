@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// desc: unit test for the jssyncml module in client-mode
+// desc: unit test for the syncml-js module in client-mode
 // auth: metagriffin <metagriffin@uberdev.org>
 // date: 2012/10/13
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -15,14 +15,14 @@ define([
   'underscore',
   'elementtree',
   'sqlite3',
-  'jsindexeddb',
+  'indexeddb-js',
   'diff',
   './helpers.js',
-  '../src/jssyncml',
-  '../src/jssyncml/common',
-  '../src/jssyncml/codec',
-  '../src/jssyncml/state'
-], function(_, ET, sqlite3, jsindexeddb, diff, helpers, jssyncml, common, codec, state) {
+  '../src/syncml-js',
+  '../src/syncml-js/common',
+  '../src/syncml-js/codec',
+  '../src/syncml-js/state'
+], function(_, ET, sqlite3, indexeddbjs, diff, helpers, syncmljs, common, codec, state) {
 
   var exports = {};
 
@@ -76,7 +76,7 @@ define([
   };
 
   //---------------------------------------------------------------------------
-  exports.TestAgent = jssyncml.Agent.extend({
+  exports.TestAgent = syncmljs.Agent.extend({
 
     constructor: function(options) {
       options = options || {};
@@ -124,9 +124,9 @@ define([
 
     getContentTypes: function() {
       return [
-        new jssyncml.ContentTypeInfo('text/x-s4j-sifn', '1.1', {preferred: true}),
-        new jssyncml.ContentTypeInfo('text/x-s4j-sifn', '1.0'),
-        new jssyncml.ContentTypeInfo('text/plain', ['1.1', '1.0'])
+        new syncmljs.ContentTypeInfo('text/x-s4j-sifn', '1.1', {preferred: true}),
+        new syncmljs.ContentTypeInfo('text/x-s4j-sifn', '1.0'),
+        new syncmljs.ContentTypeInfo('text/plain', ['1.1', '1.0'])
       ];
     },
 
@@ -145,13 +145,13 @@ define([
 
   //---------------------------------------------------------------------------
   exports.getMaxMemorySize = function() {
-    // because of funambol, jssyncml always limits max-memory-size to 2GB...
+    // because of funambol, syncml-js always limits max-memory-size to 2GB...
     return 2147483647;
   };
 
   //---------------------------------------------------------------------------
   exports.getAddressSize = function() {
-    return jssyncml.platformBits();
+    return syncmljs.platformBits();
   };
 
   //---------------------------------------------------------------------------
