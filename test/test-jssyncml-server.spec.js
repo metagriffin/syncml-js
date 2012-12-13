@@ -21,8 +21,9 @@ define([
   '../src/jssyncml',
   '../src/jssyncml/logging',
   '../src/jssyncml/common',
-  '../src/jssyncml/state'
-], function(_, ET, sqlite3, jsindexeddb, diff, helpers, jssyncml, logging, common, state) {
+  '../src/jssyncml/state',
+  '../src/jssyncml/storage'
+], function(_, ET, sqlite3, jsindexeddb, diff, helpers, jssyncml, logging, common, state, storage) {
 
   describe('jssyncml-server', function() {
 
@@ -370,8 +371,9 @@ define([
     //-------------------------------------------------------------------------
     var makeRequest_map = function(targetID, sourceID, options) {
       options = _.defaults({}, options, {
-        sessionID : '1',
-        isAdd     : true
+        sessionID  : '1',
+        syncCmdRef : 3,
+        map        : {'1': '1000'}
       });
 
       var ret = ''
@@ -383,10 +385,10 @@ define([
         + '  <SessionID>' + options.sessionID + '</SessionID>'
         + '  <MsgID>3</MsgID>'
         + '  <Source>'
-        + '   <LocURI>' + options.sourceID + '</LocURI>'
+        + '   <LocURI>' + sourceID + '</LocURI>'
         + '   <LocName>test</LocName>'
         + '  </Source>'
-        + '  <Target><LocURI>' + options.targetID + '</LocURI></Target>'
+        + '  <Target><LocURI>' + targetID + '</LocURI></Target>'
         + '  <Meta>'
         + '   <MaxMsgSize xmlns="syncml:metinf">150000</MaxMsgSize>'
         + '   <MaxObjSize xmlns="syncml:metinf">4000000</MaxObjSize>'
@@ -398,14 +400,14 @@ define([
         + '   <MsgRef>2</MsgRef>'
         + '   <CmdRef>0</CmdRef>'
         + '   <Cmd>SyncHdr</Cmd>'
-        + '   <SourceRef>' + options.targetID + '</SourceRef>'
-        + '   <TargetRef>' + options.sourceID + '</TargetRef>'
+        + '   <SourceRef>' + targetID + '</SourceRef>'
+        + '   <TargetRef>' + sourceID + '</TargetRef>'
         + '   <Data>200</Data>'
         + '  </Status>'
         + '  <Status>'
         + '   <CmdID>2</CmdID>'
         + '   <MsgRef>2</MsgRef>'
-        + '   <CmdRef>3</CmdRef>'
+        + '   <CmdRef>' + options.syncCmdRef + '</CmdRef>'
         + '   <Cmd>Sync</Cmd>'
         + '   <SourceRef>srv_note</SourceRef>'
         + '   <TargetRef>cli_memo</TargetRef>'
@@ -413,27 +415,34 @@ define([
         + '  </Status>'
       ;
 
-      if ( options.isAdd )
+      if ( _.keys(options.map).length > 0 )
       {
         ret += ''
           + '  <Status>'
           + '   <CmdID>3</CmdID>'
           + '   <MsgRef>2</MsgRef>'
-          + '   <CmdRef>4</CmdRef>'
+          + '   <CmdRef>' + ( options.syncCmdRef + 1 ) + '</CmdRef>'
           + '   <Cmd>Add</Cmd>'
           + '   <SourceRef>1000</SourceRef>'
           + '   <Data>201</Data>'
           + '  </Status>'
-          + '  <Map>'
-          + '   <CmdID>4</CmdID>'
-          + '   <Source><LocURI>cli_memo</LocURI></Source>'
-          + '   <Target><LocURI>srv_note</LocURI></Target>'
-          + '   <MapItem>'
-          + '    <Source><LocURI>1</LocURI></Source>'
-          + '    <Target><LocURI>1000</LocURI></Target>'
-          + '   </MapItem>'
-          + '  </Map>'
         ;
+        var cmdid = 3;
+        for ( var key in options.map )
+        {
+          cmdid += 1;
+          ret += ''
+            + '  <Map>'
+            + '   <CmdID>' + cmdid + '</CmdID>'
+            + '   <Source><LocURI>cli_memo</LocURI></Source>'
+            + '   <Target><LocURI>srv_note</LocURI></Target>'
+            + '   <MapItem>'
+            + '    <Source><LocURI>' + key + '</LocURI></Source>'
+            + '    <Target><LocURI>' + options.map[key] + '</LocURI></Target>'
+            + '   </MapItem>'
+            + '  </Map>'
+          ;
+        }
       }
       else
       {
@@ -502,12 +511,10 @@ define([
           + '</SyncML>'
       );
       sync.adapter.authorize(request, session, null, function(err, auth) {
-        expect(err).toBeFalsy();
-        expect('' + err).toEqual('null');
+        expect(err).ok();
         expect(auth).toBeNull();
         sync.adapter.getTargetID(request, session, function(err, tid) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
+          expect(err).ok();
           expect(tid).toEqual(targetID);
           done();
         });
@@ -547,16 +554,14 @@ define([
           + '</SyncML>'
       );
       sync.adapter.authorize(request, session, null, function(err, auth) {
-        expect(err).toBeFalsy();
-        expect('' + err).toEqual('null');
+        expect(err).ok();
         expect(auth).toEqual({
           auth:     'syncml:auth-basic',
           username: 'guest',
           password: 'guest'
         });
         sync.adapter.getTargetID(request, session, function(err, tid) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
+          expect(err).ok();
           expect(tid).toEqual(targetID);
           done();
         });
@@ -619,16 +624,14 @@ define([
           + '</SyncML>'
       );
       sync.adapter.authorize(request, session, null, function(err, auth) {
-        expect(err).toBeFalsy();
-        expect('' + err).toEqual('null');
+        expect(err).ok();
         expect(auth).toEqual({
           auth:     'syncml:auth-basic',
           username: 'guest',
           password: 'guest'
         });
         sync.adapter.getTargetID(request, session, function(err, tid) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
+          expect(err).ok();
           expect(tid).toEqual(targetID);
           done();
         });
@@ -657,8 +660,7 @@ define([
         return cb();
       };
       sync.adapter.handleRequest(request, session, authorize, collector.write, function(err, stats) {
-        expect(err).toBeFalsy();
-        expect('' + err).toEqual('null');
+        expect(err).ok();
         expect(stats).toEqual({});
 
         var chk = ''
@@ -769,8 +771,7 @@ define([
       var collector  = new helpers.ResponseCollector();
 
       sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
-        expect(err).toBeFalsy();
-        expect('' + err).toEqual('null');
+        expect(err).ok();
         expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
         expect(collector.contents.length).toEqual(1);
 
@@ -1021,8 +1022,7 @@ define([
         var request    = makeRequest_init(serverID, clientID, {nextAnchor: nextAnchor});
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
+          expect(err).ok();
           expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
           return cb(err);
         });
@@ -1039,8 +1039,7 @@ define([
         });
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
+          expect(err).ok();
           expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
           peerAnchor = helpers.findXml(collector.contents[0], './SyncBody/Alert/Item/Meta/Anchor/Next');
           var chk = ''
@@ -1122,8 +1121,7 @@ define([
         });
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
+          expect(err).ok();
           expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
           var chk = ''
             + '<SyncML>'
@@ -1179,14 +1177,11 @@ define([
       };
 
       register_new_peer(function(err) {
-        expect(err).toBeFalsy();
-        expect('' + err).toEqual('null');
+        expect(err).ok();
         start_new_session(function(err) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
+          expect(err).ok();
           send_alert(function(err) {
-            expect(err).toBeFalsy();
-            expect('' + err).toEqual('null');
+            expect(err).ok();
             done();
           });
         });
@@ -1214,8 +1209,7 @@ define([
         var request    = makeRequest_init(serverID, clientID, {nextAnchor: nextAnchor});
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
+          expect(err).ok();
           expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
           peerAnchor = helpers.findXml(collector.contents[0], './SyncBody/Alert/Item/Meta/Anchor/Next');
           return cb(err);
@@ -1227,16 +1221,17 @@ define([
         var request = makeRequest_sync(serverID, clientID, {
           peerNextAnchor: peerAnchor,
           items: [
-            {id: '1000', body: 'first client item'},
-            {id: '1001', body: 'second client item'}
+            {id: '2000', body: 'first client item'},
+            {id: '2001', body: 'second client item'}
           ]
         });
         var collector  = new helpers.ResponseCollector();
         sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
-          expect(stats).toEqual({srv_note: jssyncml.makeStats({mode: jssyncml.SYNCTYPE_SLOW_SYNC})});
-
+          expect(err).ok();
+          expect(stats).toEqual({srv_note: jssyncml.makeStats({
+            mode:    jssyncml.SYNCTYPE_SLOW_SYNC,
+            hereAdd: 2
+          })});
           var chk = ''
             + '<SyncML>'
             + ' <SyncHdr>'
@@ -1278,16 +1273,16 @@ define([
             + '   <MsgRef>2</MsgRef>'
             + '   <CmdRef>5</CmdRef>'
             + '   <Cmd>Add</Cmd>'
-            + '   <SourceRef>1000</SourceRef>'
-            + '   <Data>200</Data>'
+            + '   <SourceRef>2000</SourceRef>'
+            + '   <Data>201</Data>'
             + '  </Status>'
             + '  <Status>'
             + '   <CmdID>4</CmdID>'
             + '   <MsgRef>2</MsgRef>'
             + '   <CmdRef>6</CmdRef>'
             + '   <Cmd>Add</Cmd>'
-            + '   <SourceRef>1001</SourceRef>'
-            + '   <Data>200</Data>'
+            + '   <SourceRef>2001</SourceRef>'
+            + '   <Data>201</Data>'
             + '  </Status>'
             + '  <Sync>'
             + '    <CmdID>5</CmdID>'
@@ -1310,29 +1305,105 @@ define([
           expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
           expect(collector.contents.length).toEqual(1);
           expect(collector.contents[0]).toEqualXml(chk);
-
           return cb(err);
         });
       };
 
-      // step 4: send mapping of server-sent data and terminate
+      // step 3: send mapping of server-sent data and terminate
       var map_data = function(cb) {
-        cb();
+        var request = makeRequest_map(serverID, clientID, {
+          syncCmdRef : 5,
+          map        : {'2002': '1000'}
+        });
+        var collector  = new helpers.ResponseCollector();
+        sync.adapter.handleRequest(request, session, null, collector.write, function(err, stats) {
+          expect(err).ok();
+          expect(stats).toEqual({srv_note: jssyncml.makeStats({
+            mode:    jssyncml.SYNCTYPE_SLOW_SYNC,
+            hereAdd: 2,
+            peerAdd: 1
+          })});
+          var chk = ''
+            + '<SyncML>'
+            + ' <SyncHdr>'
+            + '  <VerDTD>1.2</VerDTD>'
+            + '  <VerProto>SyncML/1.2</VerProto>'
+            + '  <SessionID>1</SessionID>'
+            + '  <MsgID>3</MsgID>'
+            + '  <Source>'
+            + '   <LocURI>https://example.com/sync</LocURI>'
+            + '   <LocName>In-Memory Test Server</LocName>'
+            + '  </Source>'
+            + '  <Target>'
+            + '   <LocURI>' + clientID + '</LocURI>'
+            + '   <LocName>test-client</LocName>'
+            + '  </Target>'
+            + '  <RespURI>' + returnUrl + '</RespURI>'
+            + ' </SyncHdr>'
+            + ' <SyncBody>'
+            + '  <Status>'
+            + '   <CmdID>1</CmdID>'
+            + '   <MsgRef>3</MsgRef>'
+            + '   <CmdRef>0</CmdRef>'
+            + '   <Cmd>SyncHdr</Cmd>'
+            + '   <SourceRef>' + clientID + '</SourceRef>'
+            + '   <TargetRef>https://example.com/sync</TargetRef>'
+            + '   <Data>200</Data>'
+            + '  </Status>'
+            + '  <Status>'
+            + '   <CmdID>2</CmdID>'
+            + '   <MsgRef>3</MsgRef>'
+            + '   <CmdRef>4</CmdRef>'
+            + '   <Cmd>Map</Cmd>'
+            + '   <SourceRef>cli_memo</SourceRef>'
+            + '   <TargetRef>srv_note</TargetRef>'
+            + '   <Data>200</Data>'
+            + '  </Status>'
+            + '  <Final/>'
+            + ' </SyncBody>'
+            + '</SyncML>'
+          ;
+          expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
+          expect(collector.contents.length).toEqual(1);
+          expect(collector.contents[0]).toEqualXml(chk);
+          return cb(err);
+        });
+      };
+
+      // step 4: check the server data...
+      var verify_data = function(cb) {
+        var txn = sync.context._db.transaction();
+        storage.getAll(txn.objectStore('mapping'), null, null, function(err, list) {
+          if ( err )
+            return cb(err);
+          list = _.map(list, function(item) {
+            return _.omit(item, 'store_id');
+          });
+          var s = function(item) {
+            return 'g:' + item.guid + ';l:' + item.luid;
+          };
+          expect(_.sortBy(list, s)).toEqual(_.sortBy([
+            {guid: '1000', luid: '2002'},
+            {guid: '1001', luid: '2000'},
+            {guid: '1002', luid: '2001'}
+          ], s));
+          // TODO: verify the storage of all other stores as well...
+          cb();
+        });
       };
 
       initialize_storage(function(err) {
-        expect(err).toBeFalsy();
-        expect('' + err).toEqual('null');
+        expect(err).ok();
         register_new_peer(function(err) {
-          expect(err).toBeFalsy();
-          expect('' + err).toEqual('null');
+          expect(err).ok();
           exchange_data(function(err) {
-            expect(err).toBeFalsy();
-            expect('' + err).toEqual('null');
+            expect(err).ok();
             map_data(function(err) {
-              expect(err).toBeFalsy();
-              expect('' + err).toEqual('null');
-              done();
+              expect(err).ok();
+              verify_data(function(err) {
+                expect(err).ok();
+                done();
+              });
             });
           });
         });

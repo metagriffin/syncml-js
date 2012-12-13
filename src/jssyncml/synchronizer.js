@@ -217,7 +217,7 @@ define([
         case constant.ALERT_ONE_WAY_FROM_SERVER: // when session.isServer
         {
 
-          return cb(new common.NotImplementedError('two-way or one-way sync'));
+          return cb(new common.NotImplementedError('TODO ::: two-way or one-way sync'));
 
   //     # send local changes
   //     changes  = adapter._context._model.Change.q(store_id=peerStore.id)
@@ -286,7 +286,11 @@ define([
           // todo: this approach assumes that the entire object set can fit
           //       in memory... perhaps move to an iterator-based approach?...
           cmd.data = [];
+
           agent.getAllItems(function(err, items) {
+
+            if ( err )
+              return cb(err);
 
             // TODO: support hierarchical sync...
 
@@ -322,54 +326,56 @@ define([
               if ( _.indexOf(dsstate.conflicts, '' + item.id) >= 0 )
                 return cb();
 
-              if ( session.isServer )
-              {
-                return cb(new common.NotImplementedError('server-side sync: send'));
-                // TODO: implement server-side...
-                // check to see if this item has already been mapped. if so,
-                // then don't send it.
-                //   try:
-                //     # todo: this is a bit of an abstraction violation...
-                //     query = adapter._context._model.Mapping.q(store_id=peerStore.id, guid=item.id)
-                //     if query.one().luid is not None:
-                //       continue
-                //   except NoResultFound:
-                //     pass
-              }
+              var check_sync = function(cb) {
+                if ( ! session.isServer )
+                  return cb(null, true);
+                peerStore._getMapping(item.id, function(err, luid) {
+                  return cb(err, luid ? false : true);
+                });
+              };
 
+              check_sync(function(err, dosync) {
+                if ( err )
+                  return cb(err);
 
-              agent.dumpsItem(
-                item, ctype[0], ctype[1],
-                function(err, data, new_ct, new_v) {
+                if ( ! dosync )
+                  return cb();
 
-                  if ( err )
-                    return cb(err);
+                agent.dumpsItem(
+                  item, ctype[0], ctype[1],
+                  function(err, data, new_ct, new_v) {
 
-                  // todo: do something with the content-type version...
-                  var scmd = state.makeCommand({
-                    name    : constant.CMD_ADD,
-                    cmdID   : session.nextCmdID(),
-                    format  : constant.FORMAT_AUTO,
-                    type    : new_ct || ctype[0],
-                    uri     : dsstate.uri,
-                    source  : '' + item.id,
-                    data    : data
+                    if ( err )
+                      return cb(err);
+
+                    // todo: do something with the content-type version...
+                    var scmd = state.makeCommand({
+                      name    : constant.CMD_ADD,
+                      cmdID   : session.nextCmdID(),
+                      format  : constant.FORMAT_AUTO,
+                      type    : new_ct || ctype[0],
+                      uri     : dsstate.uri,
+                      source  : '' + item.id,
+                      data    : data
                     });
 
-                  if ( agent.hierarchicalSync )
-                  {
-                    // TODO: support hierarchical sync...
-                    // if agent.hierarchicalSync and item.parent is not None:
-                    //   scmd.sourceParent = str(item.parent)
-                    return cb(new common.NotImplementedError('hierarchical-sync'));
-                  }
+                    if ( agent.hierarchicalSync )
+                    {
+                      // TODO: support hierarchical sync...
+                      // if agent.hierarchicalSync and item.parent is not None:
+                      //   scmd.sourceParent = str(item.parent)
+                      return cb(new common.NotImplementedError('hierarchical-sync'));
+                    }
 
-                  cmd.data.push(scmd);
-                  return cb();
-                });
+                    cmd.data.push(scmd);
+                    return cb();
+                  });
+
+              });
 
             }, function(err) {
-
+              if ( err )
+                return cb(err);
               cmd.noc = cmd.data.length;
               return cb(null, [cmd]);
             });
@@ -385,24 +391,29 @@ define([
           + ', isServer=' + ( session.isServer ? '1' : '0' ) + ')'));
     },
 
-  // #----------------------------------------------------------------------------
-  // def action_save(self, adapter, session, uri, dsstate):
-  //   if not session.isServer:
-  //     # TODO: for now, only servers should take the "save" action - the client
-  //     #       will explicitly do this at the end of the .sync() method.
-  //     #       ... mostly because clients don't call synchronizer.actions()
-  //     #       one final time ...
-  //     #       *BUT* perhaps that should be changed?... for example, .sync()
-  //     #       could call synchronizer.actions() to cause action_save's to occur
-  //     #       *AND* verify that synchronizer.actions() does not return anything...
-  //     raise common.InternalError('unexpected sync situation (action=%s, isServer=%s)'
-  //                                % (dsstate.action, '1' if session.isServer else '0'))
-  //   log.debug('storing anchors: peer=%s; source=%s/%s; target=%s/%s',
-  //             adapter.peer.devID, uri, dsstate.nextAnchor,
-  //             dsstate.peerUri, dsstate.peerNextAnchor)
-  //   peerStore = adapter.peer.stores[dsstate.peerUri]
-  //   peerStore.binding.sourceAnchor = dsstate.nextAnchor
-  //   peerStore.binding.targetAnchor = dsstate.peerNextAnchor
+    //-------------------------------------------------------------------------
+    _action_save: function(session, dsstate, cb) {
+      if ( ! session.isServer )
+        // TODO: for now, only servers should take the "save" action - the client
+        //       will explicitly do this at the end of the .sync() method.
+        //       ... mostly because clients don't call synchronizer.actions()
+        //       one final time ...
+        //       *BUT* perhaps that should be changed?... for example, .sync()
+        //       could call synchronizer.actions() to cause action_save's to occur
+        //       *AND* verify that synchronizer.actions() does not return anything...
+        return cb(new common.InternalError(
+          'unexpected sync situation (action="' + dsstate.action
+            + '", isServer=1)'));
+      log.debug('storing anchors: peer="' + session.peer.devID
+                + '"; local="' + dsstate.uri + '/' + dsstate.nextAnchor
+                + '"; remote="' + dsstate.peerUri + '/' + dsstate.peerNextAnchor
+                + '"');
+      var peerStore = session.peer.getStore(dsstate.peerUri);
+      var binding = peerStore.getBinding();
+      binding.localAnchor  = dsstate.nextAnchor;
+      binding.remoteAnchor = dsstate.peerNextAnchor;
+      return cb(null);
+    },
 
     //-------------------------------------------------------------------------
     // SYNCHRONIZATION PHASE: REACTION
@@ -647,9 +658,6 @@ define([
 
     //-------------------------------------------------------------------------
     _reaction_sync_add: function(session, cmd, store, dsstate, cb) {
-
-      console.log('REACTION.ADD');
-
       var curitem = null;
       var item    = null;
       if ( store.agent.hierarchicalSync )
@@ -723,17 +731,7 @@ define([
                            : constant.STATUS_ITEM_ADDED )
           })];
 
-          if ( session.isServer )
-          {
-            return cb(new common.NotImplementedError('server-side sync: add reaction'));
-            // TODO: implement server-side...
-            //     peerStore = adapter.peer.stores[session.dsstates[store.uri].peerUri]
-            //     # todo: this is a bit of an abstraction violation...
-            //     adapter._context._model.Mapping.q(store_id=peerStore.id, guid=item.id).delete()
-            //     newmap = adapter._context._model.Mapping(store_id=peerStore.id, guid=item.id, luid=cmd.source)
-            //     adapter._context._model.session.add(newmap)
-          }
-          else
+          if ( ! session.isServer )
           {
             ret.push(state.makeCommand({
               name       : constant.CMD_MAP,
@@ -743,9 +741,16 @@ define([
               sourceItem : item.id,
               targetItem : cmd.source
             }));
+            return cb(null, ret);
           }
 
-          return cb(null, ret);
+          var peerStore = session.peer.getStore(dsstate.peerUri);
+          peerStore._setMapping(item.id, cmd.source, function(err) {
+            if ( err )
+              return cb(err);
+            return cb(null, ret);
+          });
+
         });
       });
 
@@ -907,6 +912,35 @@ define([
   //     )]
 
     //-------------------------------------------------------------------------
+    _reaction_map: function(session, command, cb) {
+      var peerStore = session.peer.getStore(command.source);
+      if ( command.target != peerStore.getBinding().uri )
+        return cb(new common.NoSuchRoute(
+          'unexpected "Map" event for unbound stores (local: "'
+            + command.target + ', remote: "' + command.source + '")'));
+      common.cascade(command.items, function(item, cb) {
+        // todo: support hierarchical sync...
+
+        // console.log('MAP: ' + item.target + ' => ' + item.source);
+
+        peerStore._setMapping(item.target, item.source, cb);
+      }, function(err) {
+        if ( err )
+          return cb(err);
+        return cb(null, [state.makeCommand({
+          name       : constant.CMD_STATUS,
+          cmdID      : session.nextCmdID(),
+          msgRef     : command.msgID,
+          cmdRef     : command.cmdID,
+          targetRef  : command.target,
+          sourceRef  : command.source,
+          statusOf   : command.name,
+          statusCode : constant.STATUS_OK
+        })]);
+      });
+    },
+
+    //-------------------------------------------------------------------------
     // SYNCHRONIZATION PHASE: SETTLE
     //-------------------------------------------------------------------------
 
@@ -951,8 +985,7 @@ define([
       //         a) never updating a Change record (only deleting and replacing)
       //         b) deleting Change records by ID instead of by store/item/state...
 
-      var txn = session.context._db.transaction(null, 'readwrite');
-      var objstore = txn.objectStore('change');
+      var objstore = session.context._txn.objectStore('change');
       storage.iterateCursor(
         objstore.index('store_id').openCursor(peerStore.id),
         function(value, key, cb) {
