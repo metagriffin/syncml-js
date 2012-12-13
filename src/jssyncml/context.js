@@ -57,6 +57,7 @@ define([
       this.protocol     = options.protocol || new protocol.Protocol();
       this.codec        = options.codec || constant.CODEC_XML;
       this._db          = null;
+      this._txn         = null;
     },
 
     //-------------------------------------------------------------------------
@@ -74,6 +75,7 @@ define([
             log.error('jssyncml.context.db request failed with: '
                       + event.target.error);
           };
+          self._txn = self._db.transaction(null, 'readwrite');
           self.getAdapter(options, devInfo, cb);
         });
       }
