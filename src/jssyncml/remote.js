@@ -255,7 +255,8 @@ define([
 
       // TODO: this additional route may impact "smart routing" - recalculate?...
       // TODO: saving adapter from peer --- SHOULD IT BE DOING THIS?...
-      this._a._save(cb);
+      // TODO: get transaction from a session!...
+      this._a._save(this._c._txn, cb);
     },
 
     //-------------------------------------------------------------------------
