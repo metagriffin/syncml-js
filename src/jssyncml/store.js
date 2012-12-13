@@ -165,6 +165,52 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    _clearAllMappings: function(cb) {
+      if ( this._a.isLocal )
+        return cb(new common.InternalError(
+          'unexpected mapping request for local store'));
+      var mapping = this._a._c._txn.objectStore('mapping');
+      storage.deleteAll(mapping, {store_id: this.id}, cb);
+    },
+
+    //-------------------------------------------------------------------------
+    _setMapping: function(guid, luid, cb) {
+      var self = this;
+      if ( this._a.isLocal )
+        return cb(new common.InternalError(
+          'unexpected mapping request for local store'));
+      // delete all previous mappings for this guid/store (there should
+      // be at most one)... but paranoia rules.
+      var mapping = this._a._c._txn.objectStore('mapping');
+      storage.deleteAll(mapping, {store_id: this.id, guid: guid}, function(err) {
+        if ( err )
+          return cb(err);
+        storage.put(mapping, {store_id: self.id, guid: guid, luid: luid}, function(err) {
+          if ( err )
+            return cb(err);
+          cb();
+        });
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    _getMapping: function(guid, cb) {
+      if ( this._a.isLocal )
+        return cb(new common.InternalError(
+          'unexpected mapping request for local store'));
+      // todo: there must be a way to use IndexedDB...get({store_id:X,guid:Y})?...
+      var storeMapping = this._a._c._txn.objectStore('mapping').index('store_id');
+      storage.getAll(storeMapping, this.id, null, function(err, list) {
+        if ( err )
+          return cb(err);
+        var item = _.find(list, function(item) {
+          return item.guid == guid;
+        });
+        return cb(null, item ? item.luid : null);
+      });
+    },
+
+    //-------------------------------------------------------------------------
     registerChange: function(itemID, state, options, cb) {
       // options can include:
       //   - changeSpec (bool)
