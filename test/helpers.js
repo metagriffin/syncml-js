@@ -28,6 +28,19 @@ define([
 
   //---------------------------------------------------------------------------
   exports.matchers = {
+    ok: function(expected) {
+      var isOK = this.actual ? false : true;
+      this.message = function () {
+        if ( this.isNot )
+          return 'Expected an error to have happened.';
+        var json = JSON.stringify(this.actual);
+        var msg = 'Did not expect error "' + this.actual + '"';
+        if ( json != '' + this.actual )
+          msg += ' (' + json + ')';
+        return msg + '.';
+      };
+      return isOK;
+    },
     toEqualXml: function (expected) {
       var notText  = this.isNot ? ' not' : '';
       var difftext = '.';
@@ -54,7 +67,7 @@ define([
       }
 
       this.message = function () {
-        return 'Expected "' + this.actual + notText + '" to be "' + expected + '"' + difftext;
+        return 'Expected "' + this.actual + '"' + notText + ' to be "' + expected + '"' + difftext;
       };
 
       return isEqual;
