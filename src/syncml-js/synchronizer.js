@@ -985,7 +985,7 @@ define([
       //         a) never updating a Change record (only deleting and replacing)
       //         b) deleting Change records by ID instead of by store/item/state...
 
-      var objstore = session.context._txn.objectStore('change');
+      var objstore = session.context._dbtxn.objectStore('change');
       storage.iterateCursor(
         objstore.index('store_id').openCursor(peerStore.id),
         function(value, key, cb) {

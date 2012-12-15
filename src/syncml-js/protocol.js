@@ -350,7 +350,7 @@ define([
           func.call(this, session, cmd, xcmd);
         }catch(e){
           return cb(new common.InternalError(
-            'failed invoking protocol sub-production: ' + e, e));
+            'failed invoking protocol sub-production of "' + cmd.name + '": ' + e, e));
         }
         if ( cmd.name == constant.CMD_FINAL && idx + 1 != commands.length )
           return cb('command "' + cmd.name + '" not at end of commands');
@@ -1003,7 +1003,7 @@ define([
 
           }catch(e){
             return cb(new common.InternalError(
-              'failed invoking protocol sub-consumption: ' + e, e));
+              'failed invoking protocol sub-consumption of "' + child.tag + '": ' + e, e));
           }
 
         }, function(err) {
@@ -1129,7 +1129,7 @@ define([
             //       or Adapter.handleRequest() appropriately causes
             //       objects to save themselves to the model...
 
-            // session.adapter._save(session.txn, function(err) {
+            // session.adapter._save(session.dbtxn, function(err) {
             //   if ( err )
             //     return cb(err);
 

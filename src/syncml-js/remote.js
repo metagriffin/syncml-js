@@ -256,7 +256,7 @@ define([
       // TODO: this additional route may impact "smart routing" - recalculate?...
       // TODO: saving adapter from peer --- SHOULD IT BE DOING THIS?...
       // TODO: get transaction from a session!...
-      this._a._save(this._c._txn, cb);
+      this._a._save(this._c._dbtxn, cb);
     },
 
     //-------------------------------------------------------------------------
@@ -270,11 +270,11 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    sendRequest: function(txn, contentType, data, cb) {
+    sendRequest: function(dbtxn, contentType, data, cb) {
 
       // TODO: shouldn't proxies just overwrite .sendRequest() ?...
       if ( this._proxy )
-        return this._proxy.sendRequest(txn, contentType, data, cb);
+        return this._proxy.sendRequest(dbtxn, contentType, data, cb);
 
       // TODO: implement
       log.critical('TODO ::: RemoteAdapter.sendRequest NOT IMPLEMENTED');

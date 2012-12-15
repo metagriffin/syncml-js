@@ -7,7 +7,7 @@
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
 //-----------------------------------------------------------------------------
 
-// TODO: update all this._c._txn references...
+// TODO: update all this._c._dbtxn references...
 
 // for node compatibility...
 if ( typeof(define) !== 'function')
@@ -119,7 +119,7 @@ define([
         //       thing?...
         this._resetAllAnchors();
 
-        this._save(this._c._txn, cb);
+        this._save(this._c._dbtxn, cb);
 
       }, this));
     },
@@ -149,7 +149,7 @@ define([
         if ( err )
           return cb(err);
         self._stores[store.uri] = store;
-        self._save(self._c._txn, function(err) {
+        self._save(self._c._dbtxn, function(err) {
           if ( err )
             return cb(err);
           cb(null, store);
@@ -189,8 +189,8 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    _save: function(txn, cb) {
-      storage.put(txn.objectStore('adapter'), this._model, cb);
+    _save: function(dbtxn, cb) {
+      storage.put(dbtxn.objectStore('adapter'), this._model, cb);
     },
 
     //-------------------------------------------------------------------------
@@ -200,7 +200,7 @@ define([
       // TODO: if options specifies a devID/name/etc, use that...
 
       storage.getAll(
-        this._c._txn.objectStore('adapter').index('isLocal'),
+        this._c._dbtxn.objectStore('adapter').index('isLocal'),
         true, null,
         function(err, adapters) {
           if ( err )
@@ -284,7 +284,7 @@ define([
     sync: function(peer, mode, cb) {
 
       // TODO: initialize a new context transaction?...
-      // todo: or perhaps add a new session.txn?...
+      // todo: or perhaps add a new session.dbtxn?...
 
       var self = this;
 
@@ -301,7 +301,7 @@ define([
 
       var session = state.makeSession({
         context  : self._c,
-        txn      : self._c._txn,
+        dbtxn    : self._c._dbtxn,
         adapter  : self,
         peer     : peer,
         isServer : false,
@@ -335,7 +335,7 @@ define([
           self._transmit(session, commands, function(err) {
             if ( err )
               return cb(err);
-            self._save(session.txn, function(err) {
+            self._save(session.dbtxn, function(err) {
               if ( err )
                 return cb(err);
               return cb(null, self._session2stats(session));
@@ -439,12 +439,12 @@ define([
     handleRequest: function(request, sessionInfo, authorize, response, cb) {
 
       // TODO: initialize a new context transaction?...
-      // todo: or perhaps add a new session.txn?...
+      // todo: or perhaps add a new session.dbtxn?...
 
       var self = this;
       var session = state.makeSession({
         context  : self._c,
-        txn      : self._c._txn,
+        dbtxn    : self._c._dbtxn,
         adapter  : self,
         peer     : null,
         isServer : true,
@@ -454,7 +454,7 @@ define([
       this._receive(session, request, authorize, function(err, stats) {
         if ( err )
           return cb(err);
-        self._save(session.txn, function(err) {
+        self._save(session.dbtxn, function(err) {
           if ( err )
             return cb(err);
           return cb(null, self._session2stats(session));
@@ -493,7 +493,7 @@ define([
                   return cb(err);
                 if ( ! session.isServer )
                   return cb();
-                self._save(session.txn, function(err) {
+                self._save(session.dbtxn, function(err) {
                   if ( err )
                     return cb(err);
                   return cb(null, self._session2stats(session));
