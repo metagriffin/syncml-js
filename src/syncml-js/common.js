@@ -91,6 +91,7 @@ define([
     //---------------------------------------------------------------------------
     // exceptions
     SyncmlError:           SyncmlError.extend({name: 'SyncmlError'}),
+    TypeError:             SyncmlError.extend({name: 'TypeError'}),
     NotImplementedError:   SyncmlError.extend({name: 'NotImplementedError'}),
     ProtocolError:         SyncmlError.extend({name: 'ProtocolError'}),
     InternalError:         SyncmlError.extend({name: 'InternalError'}),
