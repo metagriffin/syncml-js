@@ -100,25 +100,25 @@ define([
     addItem: function(item, cb) {
       item.id = '' + this._lastID;
       this._lastID += 1;
-      this._items[item.id] = item;
+      this._items['' + item.id] = item;
       cb(null, item);
     },
 
     getItem: function(itemID, cb) {
-      if ( this._items[itemID] == undefined )
+      if ( this._items['' + itemID] == undefined )
         cb('no such item ID');
-      cb(null, this._items[itemID]);
+      cb(null, this._items['' + itemID]);
     },
 
     replaceItem: function(item, reportChanges, cb) {
       if ( reportChanges )
         cb('changeSpec not expected on the client-side');
-      this._items[item.id] = item;
+      this._items['' + item.id] = item;
       cb();
     },
 
     deleteItem: function(itemID, cb) {
-      delete this._items[itemID];
+      delete this._items['' + itemID];
       cb();
     },
 
