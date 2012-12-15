@@ -289,11 +289,13 @@ define([
       var self = this;
 
       if ( ! _.find(self._peers, function(p) { return p === peer; }) )
-        return cb('invalid peer for adapter');
+        return cb(new common.InvalidAdapter('invalid peer for adapter'));
       if ( mode != undefined )
+      {
         mode = common.synctype2alert(mode);
-      if ( ! mode )
-        return cb('invalid synctype');
+        if ( ! mode )
+          return cb(new common.TypeError('invalid synctype'));
+      }
       if ( ! self.devInfo )
         return cb('cannot synchronize adapter as client: invalid devInfo');
 
