@@ -77,6 +77,13 @@ define([
 
     //-------------------------------------------------------------------------
     authorize: function(xtree, uri, authorize, cb) {
+
+      // TODO: if this session has been authorized before, don't call authorize
+      //       ie.:
+      //         if ( session.info.authAccepted )
+      //           return cb();
+      //       BUT this requires the session object... oops.
+
       if ( ! authorize )
         authorize = function(uri, data, cb) { return cb(null, data); };
       if ( xtree.tag != 'SyncML' )
@@ -148,7 +155,23 @@ define([
         respUri     : session.isServer ? session.info.returnUrl : null
       });
 
-      var checkPeer = ( ! session.isServer ) ? common.noop : function(cb) {
+      var checkPeer = ( ! session.isServer ) ? function(cb) {
+        if ( ! xtree )
+          return cb();
+        var xhdr = xtree.find('SyncHdr');
+        // todo: check peer id...
+        if ( session.info.id != common.parseInt(xhdr.findtext('SessionID')) )
+        {
+          log.error('session ID mismatch "%d" (expected "%d")',
+                    common.parseInt(xhdr.findtext('SessionID')),
+                    session.info.id);
+          return cb(new common.ProtocolError('session ID mismatch "'
+                                             + xhdr.findtext('SessionID')
+                                             + '" (expected: ' + session.info.id + ')'));
+        }
+        // todo: check message id...
+        cb();
+      } : function(cb) {
         var xhdr = xtree.find('SyncHdr');
         var peerID = xhdr.findtext('Source/LocURI');
         if ( session.info.peerID && session.info.peerID != peerID )
@@ -162,6 +185,17 @@ define([
           return cb(new common.ProtocolError('unacceptable peer ID "' + peerID + '"'));
         }
         session.info.peerID = peerID;
+        // check that no session swapping occurred
+        if ( session.info.id != undefined
+             && session.info.id != common.parseInt(xhdr.findtext('SessionID')) )
+        {
+          log.error('session ID mismatch "%d" (expected "%d")',
+                    common.parseInt(xhdr.findtext('SessionID')),
+                    session.info.id);
+          return cb(new common.ProtocolError('session ID mismatch "'
+                                             + xhdr.findtext('SessionID')
+                                             + '" (expected: ' + session.info.id + ')'));
+        }
         session.info.id     = common.parseInt(xhdr.findtext('SessionID'));
         session.info.msgID  = common.parseInt(xhdr.findtext('MsgID'));
         if ( session.peer && session.peer.devID == peerID )
@@ -173,8 +207,11 @@ define([
           return ( peer.devID == peerID );
         });
         if ( session.peer )
+        {
+          log.debug('found pre-existing peer "%s"', peerID);
           return cb();
-        log.info('registering new peer "%s"', peerID);
+        }
+        log.debug('registering new peer "%s"', peerID);
         var peerInfo = {
           devID:      peerID,
           name:       xhdr.findtext('Source/LocName'),
@@ -191,18 +228,19 @@ define([
       };
 
       checkPeer(function(err) {
-        if ( err )
-          return cb(err);
 
+        session.info.cmdID        = 0;
         session.info.pendingMsgID = ( session.isServer
                                       ? session.info.msgID
                                       : session.info.lastMsgID );
-        session.info.cmdID        = 0;
         cmd.sessionID   = session.info.id;
         cmd.msgID       = session.info.msgID;
-        cmd.target      = session.peer.devID || null;
-        cmd.targetName  = session.peer.name || null;
-        cmd.auth        = session.peer.auth;
+        cmd.target      = session.peer ? session.peer.devID || null : null;
+        cmd.targetName  = session.peer ? session.peer.name || null : null;
+        cmd.auth        = session.peer ? session.peer.auth : null;
+
+        if ( err )
+          return cb(err, [cmd]);
 
         if ( cmd.msgID == 1 )
         {
@@ -569,10 +607,7 @@ define([
       var self = this;
 
       self.initialize(session, xsync, function(err, cmds) {
-        if ( err )
-          return cb(err);
-
-        var hdrcmd = cmds[0];
+        var hdrcmd = ( cmds && cmds.length > 0 ) ? cmds[0] : null;
         var makeErrorCommands = function(err, cb) {
           if ( ! session.isServer )
             return cb(err);
@@ -603,6 +638,9 @@ define([
           return cb(null, [hdrcmd, errcmd,
                            state.makeCommand({name: constant.CMD_FINAL})]);
         };
+
+        if ( err )
+          return makeErrorCommands(err, cb);
 
         try {
 
@@ -1030,8 +1068,6 @@ define([
 
       // do it!
 
-      log.debug('consuming status...');
-
       consumeStatus(function(err) {
 
         if ( err )
@@ -1046,8 +1082,6 @@ define([
                       chkcmd.cmdID, chkcmd.name);
           commands.push(chkcmd);
         });
-
-        log.debug('consuming commands...');
 
         return consumeCommands(function(err) {
           if ( err )
@@ -1226,6 +1260,21 @@ define([
             ds.action = 'alert';
             return cb(null, ds);
           }
+
+          var peerStore = session.peer.getStore(ruri);
+          if ( ! peerStore )
+            return cb(new common.ProtocolError(
+              'request to synchronize unknown remote client URI "' + ruri
+                + '" (to local server URI "' + uri + '")'));
+
+          // todo: if already correctly bound, then we don't need to re-bind
+          // if ( peerStore.getBinding() )
+          // {
+          //   log.critical('(currently bound)');
+          // }
+          // else
+          //   log.critical('(currently unbound)');
+
           session.peer.setRoute(uri, ruri, true, function(err) {
             if ( err )
               return cb(err);

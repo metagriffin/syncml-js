@@ -198,7 +198,9 @@ define([
       if ( this._a.isLocal )
         return cb(new common.InternalError(
           'unexpected mapping request for local store'));
-      // todo: there must be a way to use IndexedDB...get({store_id:X,guid:Y})?...
+      // todo: there must be a way to use IndexedDB since i have everything
+      //       needed to generate the keyPath!... eg:
+      //         objectStore.get({store_id:X,guid:Y})?...
       var storeMapping = this._a._c._dbtxn.objectStore('mapping').index('store_id');
       storage.getAll(storeMapping, this.id, null, function(err, list) {
         if ( err )
@@ -215,11 +217,69 @@ define([
       // options can include:
       //   - changeSpec (bool)
       //   - excludePeerID (string)
+      options = options || {};
+      var self = this;
+      if ( self._a.isLocal )
+      {
+        // TODO: THIS NEEDS TO BE SIGNIFICANTLY OPTIMIZED!... either:
+        //         a) optimize this reverse lookup, or
+        //         b) use a query that targets exactly the set of stores needed
+        //       note that a pre-emptive model.session.flush() may be necessary.
+        common.cascade(self._a.getPeers(), function(peer, cb) {
+          if ( options.excludePeerID && options.excludePeerID == peer.id )
+            return cb();
+          common.cascade(peer.getStores(), function(store, cb) {
+            var binding = store.getBinding()
+            if ( ! binding || binding.uri != self.uri )
+              return cb();
+            store.registerChange(itemID, state, options, cb);
+          }, cb);
+        }, cb);
+        return;
+      }
 
-      log.critical('TODO ::: Store.registerChange ::: NOT IMPLEMENTED');
+      itemID = '' + itemID;
+      var change = null;
 
-      return cb();
+      var update_change = ( ! options.changeSpec ) ? common.noop : function(cb) {
+        // todo: there must be a way to use IndexedDB since i have everything
+        //       needed to generate the keyPath!... eg:
+        //         objectStore.get({store_id:X,guid:Y})?...
+        var storeMapping = self._a._c._dbtxn.objectStore('change').index('store_id');
+        storage.getAll(storeMapping, self.id, null, function(err, changes) {
+          if ( err )
+            return cb(err);
+          change = _.find(changes, function(change) {
+            return change.item_id == itemID;
+          });
+          if ( ! change)
+            return cb();
+          change.state = state;
+          if ( change.changeSpec )
+            change.changeSpec += ';' + options.changeSpec;
+          storage.put(
+            self._a._c._dbtxn.objectStore('change'),
+            change,
+            cb);
+        });
+      };
 
+      update_change(function(err) {
+        if ( err )
+          return cb(err);
+        if ( change )
+          return cb();
+        // todo: is this deleteAll really necessary?... paranoia rules!
+        var changeTab = self._a._c._dbtxn.objectStore('change');
+        change = {store_id: self.id, item_id: itemID};
+        storage.deleteAll(changeTab, change, function(err) {
+          if ( err )
+            return cb(err);
+          change.state = state;
+          change.changeSpec = options.changeSpec;
+          storage.put(changeTab, change, cb);
+        });
+      });
     },
 
     //-------------------------------------------------------------------------
@@ -227,10 +287,29 @@ define([
       // - if options is null/empty, delete all changes recorded
       //   for this store
 
-      log.critical('TODO ::: Store._delChange ::: NOT IMPLEMENTED');
+      // // todo: this is *technically* subject to a race condition... but the
+      // //       same peer should really not be synchronizing at the same time...
+      // // todo: also potentially check Change.registered...
+      // // TODO: this could be solved by:
+      // //         a) never updating a Change record (only deleting and replacing)
+      // //         b) deleting Change records by ID instead of by store/item/state...
 
-      return cb();
+      // var objstore = session.context._dbtxn.objectStore('change');
+      // storage.iterateCursor(
+      //   objstore.index('store_id').openCursor(peerStore.id),
+      //   function(value, key, cb) {
+      //     if ( value.itemID != chkcmd.source || value.state != constant.ITEM_ADDED )
+      //       return;
+      //     storage.delete(objstore, key, cb);
+      //   }, cb);
 
+      var dbstore = this._a._c._dbtxn.objectStore('change');
+      var matches = {store_id: this.id};
+      if ( options.itemID )
+        matches.item_id = options.itemID;
+      if ( options.state )
+        matches.state = options.state;
+      storage.deleteAll(dbstore, matches, cb);
     },
 
     //-------------------------------------------------------------------------

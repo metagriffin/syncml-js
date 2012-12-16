@@ -52,8 +52,8 @@ define([
   //---------------------------------------------------------------------------
   exports.makeSessionInfo = function(options) {
     return _.defaults({}, options, {
-      id           : 1,
-      msgID        : 1,
+      id           : null,
+      msgID        : null,
       cmdID        : 0,
       dsstates     : {},
       lastCommands : [],

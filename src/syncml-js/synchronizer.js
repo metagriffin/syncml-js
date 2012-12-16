@@ -216,68 +216,115 @@ define([
         case constant.ALERT_ONE_WAY_FROM_CLIENT: // when ! session.isServer
         case constant.ALERT_ONE_WAY_FROM_SERVER: // when session.isServer
         {
+          // send local changes
 
-          return cb(new common.NotImplementedError('TODO ::: two-way or one-way sync'));
+          storage.getAll(
+            session.dbtxn.objectStore('change').index('store_id'),
+            peerStore.id,
+            null,
+            function(err, changes) {
+              if ( err )
+                return cb(err);
+              var ctype = session.context.router.getBestTransmitContentType(
+                session.adapter, session.peer, dsstate.uri);
+              cmd.data = [];
 
-  //     # send local changes
-  //     changes  = adapter._context._model.Change.q(store_id=peerStore.id)
-  //     cmd.data = []
-  //     ctype    = adapter.router.getBestTransmitContentType(uri)
+              // TODO: add support for hierarchical operations...
+              //       including MOVE, COPY, etc.
 
-  //     # TODO: add support for hierarchical operations...
-  //     #       including MOVE, COPY, etc.
+              // TODO: this assumes that the entire object set can fit in memory...
+              //       perhaps, as a work-around, just keep a reference to the object
+              //       and then stream-based serialize it actually gets converted to
+              //       XML.
 
-  //     # TODO: this assumes that the entire object set can fit in memory...
-  //     #       perhaps, as a work-around, just keep a reference to the object
-  //     #       and then stream-based serialize it actually gets converted to
-  //     #       XML.
+              common.cascade(changes, function(change, cb) {
 
-  //     for change in changes:
-  //       if dsstate.conflicts is not None and change.itemID in dsstate.conflicts:
-  //         continue
-  //       scmdtype = {
-  //         constant.ITEM_ADDED    : constant.CMD_ADD,
-  //         constant.ITEM_MODIFIED : constant.CMD_REPLACE,
-  //         constant.ITEM_DELETED  : constant.CMD_DELETE,
-  //         }.get(change.state)
-  //       if scmdtype is None:
-  //         log.error('could not resolve item state %d to sync command', change.state)
-  //         continue
-  //       # todo: do something with the content-type version?...
-  //       scmd = state.Command(
-  //         name    = scmdtype,
-  //         cmdID   = session.nextCmdID(),
-  //         format  = constant.FORMAT_AUTO,
-  //         type    = ctype[0] if change.state != constant.ITEM_DELETED else None,
-  //         uri     = uri,
-  //         )
-  //       # TODO: need to add hierarchical addition support here...
-  //       if scmdtype != constant.CMD_DELETE:
-  //         item = agent.getItem(change.itemID)
-  //         scmd.data = agent.dumpsItem(item, ctype[0], ctype[1])
-  //         if not isinstance(scmd.data, basestring):
-  //           scmd.type = scmd.data[0]
-  //           scmd.data = scmd.data[2]
-  //         if agent.hierarchicalSync and item.parent is not None:
-  //           scmd.sourceParent = str(item.parent)
-  //       if scmdtype == constant.CMD_ADD:
-  //         scmd.source = change.itemID
-  //       else:
-  //         if session.isServer:
-  //           try:
-  //             # todo: this is a bit of an abstraction violation...
-  //             query = adapter._context._model.Mapping.q(store_id=peerStore.id, guid=change.itemID)
-  //             scmd.target = query.one().luid
-  //           except NoResultFound:
-  //             scmd.source = change.itemID
-  //         else:
-  //           scmd.source = change.itemID
-  //       cmd.data.append(scmd)
+                if ( dsstate.conflicts && _.indexOf(dsstate.conflicts, change.item_id) >= 0 )
+                  return cb();
 
-  //     cmd.noc  = len(cmd.data)
-  //     return [cmd]
+                var scmdtype = null;
+                switch ( change.state )
+                {
+                  case constant.ITEM_ADDED:    scmdtype = constant.CMD_ADD;     break;
+                  case constant.ITEM_MODIFIED: scmdtype = constant.CMD_REPLACE; break;
+                  case constant.ITEM_DELETED:  scmdtype = constant.CMD_DELETE;  break;
+                  default:
+                  {
+                    log.error('could not resolve item state %d to sync command', change.state);
+                    return cb();
+                  }
+                }
 
-          return cb(null, [cmd]);
+                // todo: do something with the ctype version (ie. ctype[1])?...
+                var scmd = state.makeCommand({
+                  name    : scmdtype,
+                  cmdID   : session.nextCmdID(),
+                  format  : constant.FORMAT_AUTO,
+                  type    : change.state != constant.ITEM_DELETED ? ctype[0] : null,
+                  uri     : dsstate.uri
+                });
+
+                // TODO: need to add hierarchical addition support here...
+
+                var set_data = scmdtype == constant.CMD_DELETE ? common.noop : function(cb) {
+
+                  agent.getItem(change.item_id, function(err, item) {
+                    if ( err )
+                      return cb(err);
+                    agent.dumpsItem(item, ctype[0], ctype[1], function(err, data, nct, nv) {
+                      if ( err )
+                        return cb(err);
+                      scmd.data = data;
+                      scmd.type = nct || scmd.type;
+                      // todo: what to do with the content-type version?... eg.
+                      //         scmd.version = nv || scmd.version;
+                      // TODO: support hierarchical sync
+                      // if ( agent.hierarchicalSync && item.parent )
+                      //   scmd.sourceParent = '' + item.parent
+                      return cb();
+                    });
+                  });
+                };
+
+                var set_target = scmdtype == constant.CMD_ADD ? function(cb) {
+                  scmd.source = change.item_id;
+                  cb();
+                } : function(cb) {
+                  if ( ! session.isServer )
+                  {
+                    scmd.source = change.item_id;
+                    return cb();
+                  }
+                  peerStore._getMapping(change.item_id, function(err, luid) {
+                    if ( err )
+                      return cb(err);
+                    if ( luid )
+                      scmd.target = luid;
+                    else
+                      scmd.source = change.item_id;
+                    cb();
+                  });
+                };
+
+                set_data(function(err) {
+                  if ( err )
+                    return cb(err);
+                  set_target(function(err) {
+                    if ( err )
+                      return cb(err);
+                    cmd.data.push(scmd);
+                    return cb();
+                  });
+                });
+              }, function(err) {
+                if ( err )
+                  return cb(err);
+                cmd.noc = cmd.data.length;
+                return cb(null, [cmd]);
+              });
+            }
+          );
+          return;
         }
         case constant.ALERT_SLOW_SYNC:
         case constant.ALERT_REFRESH_FROM_SERVER: // when session.isServer
@@ -978,21 +1025,10 @@ define([
         session.context.router.getTargetUri(
           session.adapter, session.peer, chkcmd.uri));
 
-      // todo: this is *technically* subject to a race condition... but the
-      //       same peer should really not be synchronizing at the same time...
-      // todo: also potentially check Change.registered...
-      // TODO: this could be solved by:
-      //         a) never updating a Change record (only deleting and replacing)
-      //         b) deleting Change records by ID instead of by store/item/state...
-
-      var objstore = session.context._dbtxn.objectStore('change');
-      storage.iterateCursor(
-        objstore.index('store_id').openCursor(peerStore.id),
-        function(value, key, cb) {
-          if ( value.itemID != chkcmd.source || value.state != constant.ITEM_ADDED )
-            return;
-          storage.delete(objstore, value.itemID, cb);
-        }, cb);
+      peerStore._delChange({
+        itemID: chkcmd.source,
+        state: constant.ITEM_ADDED
+      }, cb);
     },
 
   // #----------------------------------------------------------------------------

@@ -24,6 +24,7 @@ define([
   describe('syncml-js', function() {
 
     beforeEach(function () {
+      // logging.level = logging.NOTSET;
       logging.level = logging.WARNING;
       this.addMatchers(helpers.matchers);
     });
@@ -179,6 +180,7 @@ define([
           syncobj.adapter = adapter;
           syncobj.store   = stores[0];
           syncobj.peer    = peer;
+          // NOTE: peer._proxy should only be used for testing!...
           syncobj.peer._proxy = {
             sendRequest: function(txn, contentType, requestBody, cb) {
               if ( ! syncobj.session )
@@ -237,33 +239,57 @@ define([
     });
 
     //-------------------------------------------------------------------------
-    it('propagates initial data', function(done) {
-
+    var initialize_and_sync_all_peers = function(cb) {
       var steps = [
-
         // initialize data
         function (cb) {
+          // NOTE: normally you would not call syncml agent methods (that
+          // should typically only be done by the adapter). however, because
+          // we know the implementation here, and storage is directly in the
+          // agent (which should only happen in unit testing contexts), we
+          // are taking the liberty here...
           sync.c1.agent.addItem({body: 'some c1 data'}, function(err) {
+            expect(err).ok();
             sync.c2.agent.addItem({body: 'some c2 data'}, cb);
           });
         },
-
         // initial sync c1 with server
         function (cb) {
-          sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, cb);
+          sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
+            expect(err).ok();
+            expect(stats).toEqual({cli_memo: syncml.makeStats({
+              mode:    syncml.SYNCTYPE_SLOW_SYNC,
+              peerAdd: 1,
+              hereAdd: 0
+            })});
+            cb(err);
+          });
         },
-
         // initial sync c2 with server
         function (cb) {
-          sync.c2.adapter.sync(sync.c2.peer, syncml.SYNCTYPE_AUTO, cb);
+          sync.c2.adapter.sync(sync.c2.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
+            expect(err).ok();
+            expect(stats).toEqual({cli_memo: syncml.makeStats({
+              mode:    syncml.SYNCTYPE_SLOW_SYNC,
+              peerAdd: 1,
+              hereAdd: 1
+            })});
+            cb(err);
+          });
         },
-
         // initial sync c3 with server
         function (cb) {
-          sync.c3.adapter.sync(sync.c3.peer, syncml.SYNCTYPE_AUTO, cb);
+          sync.c3.adapter.sync(sync.c3.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
+            expect(err).ok();
+            expect(stats).toEqual({cli_memo: syncml.makeStats({
+              mode:    syncml.SYNCTYPE_SLOW_SYNC,
+              peerAdd: 0,
+              hereAdd: 2
+            })});
+            cb(err);
+          });
         },
-
-        // validate data...
+        // validate data
         function (cb) {
           expect(sync.server.agent._items).toEqual({
             '100': {id: '100', body: 'some c1 data'},
@@ -282,15 +308,75 @@ define([
             '401': {id: '401', body: 'some c2 data'}
           });
           cb();
-        }
-      ];
+        },
 
+        // synchronize c1 with server to get all peers on the same page...
+        function (cb) {
+          sync.c1.session = null;
+          sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
+            expect(err).ok();
+            expect(stats).toEqual({cli_memo: syncml.makeStats({
+              mode:    syncml.SYNCTYPE_TWO_WAY,
+              peerAdd: 0,
+              hereAdd: 1
+            })});
+            cb(err);
+          });
+        },
+
+        // synchronize all peers again, expect no changes
+        function (cb) {
+          sync.c1.session = null;
+          sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
+            expect(err).ok();
+            expect(stats).toEqual({cli_memo: syncml.makeStats({mode: syncml.SYNCTYPE_TWO_WAY})});
+            sync.c2.session = null;
+            sync.c2.adapter.sync(sync.c2.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
+              expect(err).ok();
+              expect(stats).toEqual({cli_memo: syncml.makeStats({mode: syncml.SYNCTYPE_TWO_WAY})});
+              sync.c3.session = null;
+              sync.c3.adapter.sync(sync.c3.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
+                expect(err).ok();
+                expect(stats).toEqual({cli_memo: syncml.makeStats({mode: syncml.SYNCTYPE_TWO_WAY})});
+                cb();
+              });
+            });
+          });
+        },
+
+        // and validate data again
+        function (cb) {
+          expect(sync.server.agent._items).toEqual({
+            '100': {id: '100', body: 'some c1 data'},
+            '101': {id: '101', body: 'some c2 data'}
+          });
+          expect(sync.c1.agent._items).toEqual({
+            '200': {id: '200', body: 'some c1 data'},
+            '201': {id: '201', body: 'some c2 data'}
+          });
+          expect(sync.c2.agent._items).toEqual({
+            '300': {id: '300', body: 'some c2 data'},
+            '301': {id: '301', body: 'some c1 data'}
+          });
+          expect(sync.c3.agent._items).toEqual({
+            '400': {id: '400', body: 'some c1 data'},
+            '401': {id: '401', body: 'some c2 data'}
+          });
+          cb();
+        }
+
+      ];
       common.cascade(steps, function(step, cb) {
         step(cb);
       }, function(err) {
         expect(err).ok();
-        done(err);
+        cb(err);
       });
+    };
+
+    //-------------------------------------------------------------------------
+    it('propagates initial data', function(done) {
+      initialize_and_sync_all_peers(done);
     });
 
   });

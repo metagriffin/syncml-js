@@ -59,14 +59,14 @@ define([
           'mapping',
           {keyPath: ['store_id', 'guid']});
         mappingTable.createIndex('store_id', 'store_id', {unique: false});
-        mappingTable.createIndex('guid', 'guid', {unique: false});
-        mappingTable.createIndex('luid', 'luid', {unique: false});
+        // mappingTable.createIndex('guid', 'guid', {unique: false});
+        // mappingTable.createIndex('luid', 'luid', {unique: false});
 
         var changeTable = db.createObjectStore(
           'change',
           {keyPath: ['store_id', 'item_id']});
         changeTable.createIndex('store_id', 'store_id', {unique: false});
-        changeTable.createIndex('item_id', 'item_id', {unique: false});
+        // changeTable.createIndex('item_id', 'item_id', {unique: false});
 
         log.debug('syncml.storage: db "' + context.dbname + '" upgrade complete');
 
