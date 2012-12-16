@@ -379,6 +379,86 @@ define([
       initialize_and_sync_all_peers(done);
     });
 
+    //-------------------------------------------------------------------------
+    it('two-way synchronizes additions and deletions', function(done) {
+
+      var steps = [
+        initialize_and_sync_all_peers,
+
+        // add and delete an item on c1
+        function (cb) {
+          // NOTE: normally you would not call syncml agent methods (that
+          // should typically only be done by the adapter). however, because
+          // we know the implementation here, and storage is directly in the
+          // agent (which should only happen in unit testing contexts), we
+          // are taking the liberty here...
+          sync.c1.agent.addItem({body: 'a new c1 data'}, function(err, item) {
+            expect(err).ok();
+            sync.c1.store.registerChange(item.id, syncml.ITEM_ADDED, null, function(err) {
+              expect(err).ok();
+              sync.c1.agent.deleteItem('100', function(err) {
+                expect(err).ok();
+                sync.c1.store.registerChange('100', syncml.ITEM_DELETED, null, function(err) {
+                  expect(err).ok();
+                  cb(err);
+                });
+              });
+            });
+          });
+        },
+
+        // synchronize c1 with server
+        function (cb) {
+          sync.c1.session = null;
+          sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
+            expect(err).ok();
+            expect(stats).toEqual({cli_memo: syncml.makeStats({
+              mode: syncml.SYNCTYPE_TWO_WAY,
+              peerAdd: 1,
+              peerDel: 1
+            })});
+            cb();
+          });
+        },
+
+        // synchronize c2 with server
+        function (cb) {
+          sync.c2.session = null;
+          sync.c2.adapter.sync(sync.c2.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
+            expect(err).ok();
+            expect(stats).toEqual({cli_memo: syncml.makeStats({
+              mode: syncml.SYNCTYPE_TWO_WAY,
+              hereAdd: 1,
+              hereDel: 1
+            })});
+            cb();
+          });
+        },
+
+        // validate data
+        function (cb) {
+          expect(sync.server.agent._items).toEqual({
+            '101': {id: '101', body: 'some c2 data'},
+            '102': {id: '102', body: 'a new c1 data'}
+          });
+          expect(sync.c1.agent._items).toEqual({
+            '201': {id: '201', body: 'some c2 data'},
+            '202': {id: '202', body: 'a new c1 data'}
+          });
+          cb();
+        }
+
+      ];
+
+      common.cascade(steps, function(step, cb) {
+        step(cb);
+      }, function(err) {
+        expect(err).ok();
+        done(err);
+      });
+
+    });
+
   });
 });
 
