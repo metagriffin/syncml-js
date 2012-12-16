@@ -137,8 +137,13 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    getStore: function(storeUri) {
-      return this._stores[storeUri];
+    getStores: function() {
+      return _.values(this._stores);
+    },
+
+    //-------------------------------------------------------------------------
+    getStore: function(uri) {
+      return this._stores[this.normUri(uri)];
     },
 
     //-------------------------------------------------------------------------
@@ -297,7 +302,7 @@ define([
           return cb(new common.TypeError('invalid synctype'));
       }
       if ( ! self.devInfo )
-        return cb('cannot synchronize adapter as client: invalid devInfo');
+        return cb(new common.InvalidAdapter('cannot synchronize adapter as client: invalid devInfo'));
 
       var session = state.makeSession({
         context  : self._c,
@@ -307,6 +312,7 @@ define([
         isServer : false,
         info     : state.makeSessionInfo({
           id       : ( peer.lastSessionID || 0 ) + 1,
+          msgID    : 1,
           codec    : self._c.codec,
           mode     : mode
         })
