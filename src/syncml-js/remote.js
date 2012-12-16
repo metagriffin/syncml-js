@@ -14,6 +14,7 @@ if ( typeof(define) !== 'function')
 define([
   'underscore',
   'elementtree',
+  'stacktrace-js',
   './logging',
   './common',
   './constant',
@@ -24,6 +25,7 @@ define([
 ], function(
   _,
   ET,
+  stacktrace,
   logging,
   common,
   constant,
@@ -133,15 +135,13 @@ define([
     //-------------------------------------------------------------------------
     _updateModel: function(cb) {
       if ( ! this._a._model || ! this._a._model.peers )
-        return cb('store created on un-initialized adapter');
+        return cb(new common.InternalError('store created on un-initialized adapter'));
       // TODO: identifying peers by URL... is that really the right thing?...
       // todo: perhaps a better way would be tu use this._getModel() and if
       //       found, update, if not found, add?...
       this._a._model.peers = _.filter(this._a._model.peers, function(e) {
-        if ( e.url != this.url )
+        if ( e.id != this.id )
           return true;
-        // TODO: handle this!...
-        log.warning('potential peer info leakage - cleanup RemoteAdapter._updateModel');
         return false;
       }, this);
       this._a._model.peers.push(_.defaults({
@@ -220,7 +220,7 @@ define([
         return this.setRoute(localUri, remoteUri, false, autoMapped);
       var pmodel = this._getModel();
       if ( ! pmodel )
-        return cb('could not locate this peer in local adapter');
+        return cb(new common.InternalError('could not locate this peer in local adapter'));
       pmodel.routes = _.filter(pmodel.routes, function(r) {
         return r.localUri != localUri && r.remoteUri != remoteUri;
       });
@@ -257,6 +257,11 @@ define([
       // TODO: saving adapter from peer --- SHOULD IT BE DOING THIS?...
       // TODO: get transaction from a session!...
       this._a._save(this._c._dbtxn, cb);
+    },
+
+    //-------------------------------------------------------------------------
+    getStores: function() {
+      return _.values(this._stores);
     },
 
     //-------------------------------------------------------------------------
