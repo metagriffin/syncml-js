@@ -95,6 +95,40 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    dumpDatabase: function(context, cb) {
+
+      var ret = {};
+      var db  = context._dbtxn;
+
+      var steps = [
+        function(cb) {
+          exports.getAll(db.objectStore('adapter'), null, null, function(err, adapters) {
+            ret.adapter = adapters;
+            return cb(err);
+          });
+        },
+        function(cb) {
+          exports.getAll(db.objectStore('mapping'), null, null, function(err, mappings) {
+            ret.mapping = mappings;
+            return cb(err);
+          });
+        },
+        function(cb) {
+          exports.getAll(db.objectStore('change'), null, null, function(err, changes) {
+            ret.change = changes;
+            return cb(err);
+          });
+        }
+      ];
+
+      common.cascade(steps, function(step, cb) {
+        return step(cb);
+      }, function(err) {
+        return cb(err, ret);
+      });
+    },
+
+    //-------------------------------------------------------------------------
     getAll: function(source, range, direction, cb) {
       var req = source.openCursor(range, direction);
       var ret = [];
