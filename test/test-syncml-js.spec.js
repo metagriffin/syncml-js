@@ -552,6 +552,96 @@ define([
 
     });
 
+    //-------------------------------------------------------------------------
+    it('two-way synchronizes modifications to existing items', function(done) {
+
+      var steps = [
+        initialize_and_sync_all_peers,
+
+        // add and delete an item on c1
+        function (cb) {
+          // NOTE: normally you would not call syncml agent methods (that
+          // should typically only be done by the adapter). however, because
+          // we know the implementation here, and storage is directly in the
+          // agent (which should only happen in unit testing contexts), we
+          // are taking the liberty here...
+          var item = {id: '200', body: 'some c1 data - modified'};
+          sync.c1.agent.replaceItem(item, false, function(err) {
+            expect(err).ok();
+            sync.c1.store.registerChange(item.id, syncml.ITEM_MODIFIED, null, function(err) {
+              expect(err).ok();
+              cb(err);
+            });
+          });
+        },
+
+        // synchronize c1 with server
+        _.bind(sync.c1.sync, null, null, {peerMod: 1}),
+
+        // synchronize c2 with server
+        _.bind(sync.c2.sync, null, null, {hereMod: 1}),
+
+        // validate data
+        function (cb) {
+          expect(sync.server.agent._items).toEqual({
+            '100': {id: '100', body: 'some *modified* c1 data'},
+            '101': {id: '101', body: 'some c2 data'}
+          });
+          expect(sync.c1.agent._items).toEqual({
+            '200': {id: '200', body: 'some *modified* c1 data'},
+            '201': {id: '201', body: 'some c2 data'}
+          });
+          expect(sync.c2.agent._items).toEqual({
+            '300': {id: '300', body: 'some c2 data'},
+            '301': {id: '301', body: 'some *modified* c1 data'}
+          });
+          expect(sync.c3.agent._items).toEqual({
+            '400': {id: '400', body: 'some c1 data'},
+            '401': {id: '401', body: 'some c2 data'}
+          });
+          cb();
+        },
+
+        // re-synchronize c1 with server, expect no changes
+        _.bind(sync.c1.sync, null, null, {}),
+
+        // re-synchronize c2 with server, expect no changes
+        _.bind(sync.c2.sync, null, null, {}),
+
+        // re-validate data, expect no changes
+        function (cb) {
+          expect(sync.server.agent._items).toEqual({
+            '100': {id: '100', body: 'some *modified* c1 data'},
+            '101': {id: '101', body: 'some c2 data'}
+          });
+          expect(sync.c1.agent._items).toEqual({
+            '200': {id: '200', body: 'some *modified* c1 data'},
+            '201': {id: '201', body: 'some c2 data'}
+          });
+          expect(sync.c2.agent._items).toEqual({
+            '300': {id: '300', body: 'some c2 data'},
+            '301': {id: '301', body: 'some *modified* c1 data'}
+          });
+          expect(sync.c3.agent._items).toEqual({
+            '400': {id: '400', body: 'some c1 data'},
+            '401': {id: '401', body: 'some c2 data'}
+          });
+          cb();
+        }
+
+        // todo: check the server "change" table...
+
+      ];
+
+      common.cascade(steps, function(step, cb) {
+        step(cb);
+      }, function(err) {
+        expect(err).ok();
+        done(err);
+      });
+
+    });
+
   });
 });
 
