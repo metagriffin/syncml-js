@@ -604,6 +604,8 @@ define([
         return cb(new common.ProtocolError(
           'unexpected reaction requested for sync command "' + cmd.name + '"'));
 
+      var check_for_conflicts = common.noop;
+
       if ( session.isServer
            && cmd.name != constant.CMD_ADD
            && dsstate.mode != constant.ALERT_REFRESH_FROM_CLIENT )
@@ -613,93 +615,115 @@ define([
         // "Add" command; for example, two files with the same name cannot be added
         // from separate clients.
 
-        return cb(new common.NotImplementedError('server-side sync: reaction'));
-        // TODO: implement server-side...
+        check_for_conflicts = function(cb) {
 
-  //   # todo: allow agents to raise a ConflictError...
-  //   #       ==> perhaps this is already covered by the .matchItem() API?...
-  //   if session.isServer \
-  //      and cmd.name != constant.CMD_ADD \
-  //      and dsstate.mode != constant.ALERT_REFRESH_FROM_CLIENT:
-  //     itemID = self.getSourceMapping(adapter, session, constant.CMD_SYNC,
-  //                                    cmd, store.peer, cmd.source)
-  //     try:
-  //       change = adapter._context._model.Change.q(
-  //         store_id = store.peer.id,
-  //         itemID   = itemID).one()
+          // todo: allow agents to raise a ConflictError...
+          //       ==> perhaps this is already covered by the .matchItem() API?...
 
-  //       retcmd = state.Command(
-  //         name       = constant.CMD_STATUS,
-  //         cmdID      = session.nextCmdID(),
-  //         msgRef     = cmd.msgID,
-  //         cmdRef     = cmd.cmdID,
-  //         sourceRef  = cmd.source,
-  //         targetRef  = cmd.target,
-  //         statusOf   = cmd.name,
-  //         # todo: make this error message a bit more descriptive...
-  //         errorMsg   = 'command "%s" conflict for item ID %r (state: %s)' \
-  //                        % (cmd.name, itemID, common.state2string(change.state)),
-  //         )
+          var policy = store.conflictPolicy || session.adapter.conflictPolicy;
+          var peerStore = session.peer.getStore(dsstate.peerUri);
+          self.getSourceMapping(
+            session, constant.CMD_SYNC, cmd, peerStore, cmd.source,
+            function(err, itemID) {
 
-  //       # four possible states: mod-mod, mod-del, del-mod, del-del
-  //       if dsstate.conflicts is None:
-  //         dsstate.conflicts = []
+              if ( err )
+                return cb(err);
+              if ( ! itemID )
+                // this shouldn't happen...
+                return cb();
 
-  //       # handle mod-mod (but only if change-tracking is enabled)
-  //       if change.state == constant.ITEM_MODIFIED \
-  //          and cmd.name == constant.CMD_REPLACE:
-  //         cmd._conflict = retcmd
-  //         cmd._change   = change
-  //         # todo: this "raise" is a hack just to abort conflict handling!...
-  //         #       here and let reaction_sync_replace handle it...
-  //         raise NoResultFound
+              peerStore._getChange(itemID, function(err, change) {
+                if ( err )
+                  return cb(err);
+                if ( ! change )
+                  return cb();
 
-  //       # handle del-del
-  //       if change.state == constant.ITEM_DELETED \
-  //          and cmd.name == constant.CMD_DELETE:
-  //         # both changes are deletes... that's not a conflict.
-  //         # TODO: should i really be doing all this here?... it does not
-  //         #       follow the pattern...
-  //         adapter._context._model.session.delete(change)
-  //         dsstate.stats.peerDel   += 1
-  //         dsstate.stats.hereDel   += 1
-  //         dsstate.stats.merged    += 1
-  //         retcmd.statusCode = constant.STATUS_CONFLICT_RESOLVED_MERGE
-  //         retcmd.errorCode  = None
-  //         retcmd.errorMsg   = None
-  //         return [retcmd]
+                var retcmd = state.makeCommand({
+                  name       : constant.CMD_STATUS,
+                  cmdID      : session.nextCmdID(),
+                  msgRef     : cmd.msgID,
+                  cmdRef     : cmd.cmdID,
+                  sourceRef  : cmd.source,
+                  targetRef  : cmd.target,
+                  statusOf   : cmd.name,
+                  // todo: make this error message a bit more descriptive...
+                  errorMsg   : 'command "' + cmd.name + '" conflict for item ID "'
+                    + itemID + '" (state: ' + common.state2string(change.state) + ')'
+                });
 
-  //       # handle del-mod or mod-del
-  //       if ( change.state == constant.ITEM_DELETED \
-  //            or cmd.name == constant.CMD_DELETE ) \
-  //          and store.conflictPolicy != constant.POLICY_ERROR:
-  //         # one of them is a delete and a conflict that can be solved
-  //         # by the framework
-  //         cmd._conflict = retcmd
-  //         cmd._change   = change
-  //         # todo: this "raise" is a hack just to abort conflict handling
-  //         #       here and let reaction_sync_delete handle it...
-  //         raise NoResultFound
 
-  //       dsstate.conflicts.append(itemID)
-  //       dsstate.stats.peerErr   += 1
-  //       dsstate.stats.conflicts += 1
-  //       log.warning(retcmd.errorMsg)
-  //       retcmd.statusCode = constant.STATUS_UPDATE_CONFLICT
-  //       retcmd.errorCode  = common.fullClassname(self) + '.RSd.10'
-  //       return [retcmd]
+                // four possible states: mod-mod, mod-del, del-mod, del-del
+                if ( ! dsstate.conflicts )
+                  dsstate.conflicts = [];
 
-  //     except NoResultFound:
-  //       pass
+                // handle mod-mod (but only if change-tracking is enabled)
+                if ( change.state == constant.ITEM_MODIFIED
+                     && cmd.name == constant.CMD_REPLACE )
+                {
+                  cmd._conflict = retcmd;
+                  cmd._change   = change;
+                  return cb();
+                }
 
+                // handle del-del
+                if ( change.state == constant.ITEM_DELETED
+                     && cmd.name == constant.CMD_DELETE )
+                {
+                  // both changes are deletes... that's not a conflict.
+                  // TODO: should i really be doing all this here?... it does not
+                  //       follow the pattern..
+                  peerStore._delChange({
+                    itemID: change.item_id,
+                    state:  change.state
+                  }, function(err) {
+                    if ( err )
+                      return cb(err);
+                    dsstate.stats.peerDel   += 1;
+                    dsstate.stats.hereDel   += 1;
+                    dsstate.stats.merged    += 1;
+                    retcmd.statusCode = constant.STATUS_CONFLICT_RESOLVED_MERGE;
+                    retcmd.errorCode  = null;
+                    retcmd.errorMsg   = null;
+                    return cb(null, [retcmd]);
+                  });
+                  return;
+                }
+
+                // handle del-mod or mod-del
+                if ( ( change.state == constant.ITEM_DELETED
+                       || cmd.name == constant.CMD_DELETE )
+                     && policy != constant.POLICY_ERROR )
+                {
+                  // one of them is a delete and a conflict that can be solved
+                  // by the framework
+                  cmd._conflict = retcmd;
+                  cmd._change   = change;
+                  return cb();
+                }
+
+                dsstate.conflicts.push(itemID);
+                dsstate.stats.peerErr   += 1;
+                dsstate.stats.conflicts += 1;
+                log.warning(retcmd.errorMsg)
+                retcmd.statusCode = constant.STATUS_UPDATE_CONFLICT;
+                retcmd.errorCode  = 'syncml-js.synchronizer.RSd.10';
+                return cb(null, [retcmd]);
+              });
+            }
+          );
+        };
       }
 
-      try{
-        func.call(self, session, cmd, store, dsstate, cb);
-      }catch(e){
-        return cb(new common.InternalError(
-          'failed invoking synchronizer sync reaction: ' + e, e));
-      }
+      check_for_conflicts(function(err, cmds) {
+        if ( err || cmds )
+          return cb(err, cmds);
+        try{
+          func.call(self, session, cmd, store, dsstate, cb);
+        }catch(e){
+          return cb(new common.InternalError(
+            'failed invoking synchronizer sync reaction: ' + e, e));
+        }
+      });
 
     },
 
@@ -803,9 +827,23 @@ define([
 
     },
 
-  // #----------------------------------------------------------------------------
-  // def getSourceMapping(self, adapter, session, cmdctxt, cmd, peerStore, luid):
-  //   try:
+    //-------------------------------------------------------------------------
+    getSourceMapping: function(session, cmdctxt, cmd, peerStore, luid, cb) {
+      peerStore._getReverseMapping(luid, function(err, guid) {
+
+        if ( err )
+          return cb(err);
+
+        if ( guid )
+          return cb(null, guid);
+
+        return cb(new common.InvalidItem(
+          'unexpected "' + cmdctxt + '/' + cmd.name
+            + '" request for unmapped item ID "' + luid + '"'));
+
+        // todo: pysyncml generates a nice cmd-specific error node:
+        //       (which is probably over-kill)
+
   //     curmap = adapter._context._model.Mapping.q(store_id=peerStore.id, luid=luid).one()
   //     return str(curmap.guid)
   //   except NoResultFound:
@@ -824,6 +862,9 @@ define([
   //       errorCode  = __name__ + '.' + self.__class__.__name__ + '.GSM.10',
   //       errorMsg   = msg,
   //       )
+
+      });
+    },
 
   // #----------------------------------------------------------------------------
   // def reaction_sync_replace(self, adapter, session, cmd, store):
@@ -915,48 +956,108 @@ define([
   //                        changeSpec=cspec, excludePeerID=adapter.peer.id)
   //   return [okcmd]
 
-  // #----------------------------------------------------------------------------
-  // def reaction_sync_delete(self, adapter, session, cmd, store):
-  //   status = constant.STATUS_OK
-  //   if session.isServer:
-  //     itemID = self.getSourceMapping(adapter, session, constant.CMD_SYNC,
-  //                                    cmd, store.peer, cmd.source)
-  //     if not isinstance(itemID, basestring):
-  //       return [itemID]
-  //     if cmd._conflict is not None:
-  //       if store.conflictPolicy == constant.POLICY_CLIENT_WINS:
-  //         adapter._context._model.session.delete(cmd._change)
-  //         status = constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA
-  //         session.dsstates[store.uri].stats.merged += 1
-  //         # falling back to standard handling...
-  //       elif store.conflictPolicy == constant.POLICY_SERVER_WINS:
-  //         adapter._context._model.session.delete(cmd._change)
-  //         store.peer.registerChange(itemID, constant.ITEM_ADDED)
-  //         session.dsstates[store.uri].stats.merged += 1
-  //         cmd._conflict.statusCode = constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA
-  //         cmd._conflict.errorCode  = None
-  //         cmd._conflict.errorMsg   = None
-  //         return [cmd._conflict]
-  //       else:
-  //         # a POLICY_ERROR policy should have been handled by the dispatch
-  //         raise Exception('unexpected conflictPolicy: %r' % (store.conflictPolicy,))
-  //   else:
-  //     itemID = cmd.target
-  //   store.agent.deleteItem(itemID)
-  //   session.dsstates[store.uri].stats.hereDel += 1
-  //   store.registerChange(itemID, constant.ITEM_DELETED, excludePeerID=adapter.peer.id)
-  //   return [state.Command(
-  //     name       = constant.CMD_STATUS,
-  //     cmdID      = session.nextCmdID(),
-  //     msgRef     = cmd.msgID,
-  //     cmdRef     = cmd.cmdID,
-  //     targetRef  = cmd.target,
-  //     sourceRef  = cmd.source,
-  //     statusOf   = cmd.name,
-  //     # todo: should this return DELETE_WITHOUT_ARCHIVE instead of OK?...
-  //     # statusCode = constant.STATUS_DELETE_WITHOUT_ARCHIVE,
-  //     statusCode = status,
-  //     )]
+    //-------------------------------------------------------------------------
+    _reaction_sync_delete: function(session, cmd, store, dsstate, cb) {
+
+      var self   = this;
+      var status = constant.STATUS_OK;
+      var itemID = null;
+
+      var get_item_id = ( ! session.isServer ) ? function(cb) {
+        itemID = cmd.target;
+        return cb();
+      } : function(cb) {
+        var peerStore = session.peer.getStore(dsstate.peerUri);
+        self.getSourceMapping(
+          session, constant.CMD_SYNC, cmd, peerStore, cmd.source,
+          function(err, guid) {
+
+        // if not isinstance(itemID, basestring):
+        //   return [itemID]
+
+            if ( err )
+              return cb(err);
+            itemID = guid;
+            if ( ! cmd._conflict )
+              return cb();
+            var policy = store.conflictPolicy || session.adapter.conflictPolicy;
+            switch ( policy )
+            {
+
+              case constant.POLICY_CLIENT_WINS:
+              {
+
+                log.critical('TODO ::: constant.POLICY_CLIENT_WINS not implemented');
+
+              // TODO ::: implement these...
+
+              //   //     adapter._context._model.session.delete(cmd._change)
+              //   //     status = constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA
+              //   //     session.dsstates[store.uri].stats.merged += 1
+              //   //     # falling back to standard handling...
+
+              //   break;
+
+              }
+              case constant.POLICY_SERVER_WINS:
+              {
+
+                log.critical('TODO ::: constant.POLICY_SERVER_WINS not implemented');
+
+              //   //     adapter._context._model.session.delete(cmd._change)
+              //   //     store.peer.registerChange(itemID, constant.ITEM_ADDED)
+              //   //     session.dsstates[store.uri].stats.merged += 1
+              //   //     cmd._conflict.statusCode = constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA
+              //   //     cmd._conflict.errorCode  = None
+              //   //     cmd._conflict.errorMsg   = None
+              //   //     return [cmd._conflict]
+
+              //   break;
+
+              }
+
+              default:
+              {
+                // a constant.POLICY_ERROR policy should have been handled by the dispatch
+                return cb(new common.InternalError(
+                  'unexpected conflictPolicy: %s', '' + policy));
+              }
+            }
+          }
+        );
+
+      }
+
+      get_item_id(function(err) {
+        if ( err )
+          return cb(err);
+        store.agent.deleteItem(itemID, function(err) {
+          if ( err )
+            return cb(err);
+          dsstate.stats.hereDel += 1;
+          store.registerChange(
+            itemID, constant.ITEM_DELETED, {excludePeerID: session.peer.id},
+            function(err) {
+              if ( err )
+                return cb(err);
+              return cb(null, [state.makeCommand({
+                name       : constant.CMD_STATUS,
+                cmdID      : session.nextCmdID(),
+                msgRef     : cmd.msgID,
+                cmdRef     : cmd.cmdID,
+                targetRef  : cmd.target,
+                sourceRef  : cmd.source,
+                statusOf   : cmd.name,
+                // todo: should this return DELETE_WITHOUT_ARCHIVE instead of OK?...
+                // statusCode = constant.STATUS_DELETE_WITHOUT_ARCHIVE,
+                statusCode : status
+              })]);
+            }
+          );
+        });
+      });
+
+    },
 
     //-------------------------------------------------------------------------
     _reaction_map: function(session, command, cb) {
@@ -967,9 +1068,6 @@ define([
             + command.target + ', remote: "' + command.source + '")'));
       common.cascade(command.items, function(item, cb) {
         // todo: support hierarchical sync...
-
-        // console.log('MAP: ' + item.target + ' => ' + item.source);
-
         peerStore._setMapping(item.target, item.source, cb);
       }, function(err) {
         if ( err )
@@ -1006,7 +1104,7 @@ define([
 
       var func = this['_settle_' + cmd.name.toLowerCase()];
       if ( ! func )
-        return cb(new common.ProtocolError('unexpected command "' + cmd.name + '"'));
+        return cb(new common.ProtocolError('unexpected settle command "' + cmd.name + '"'));
       return func.call(this, session, cmd, chkcmd, xnode, cb);
     },
 
@@ -1069,54 +1167,76 @@ define([
   //     state     = constant.ITEM_MODIFIED,
   //     ).delete()
 
-  // #----------------------------------------------------------------------------
-  // def settle_delete(self, adapter, session, cmd, chkcmd, xnode):
-  //   if not session.isServer and cmd.data == constant.STATUS_UPDATE_CONFLICT:
-  //     session.dsstates[chkcmd.uri].stats.hereErr   += 1
-  //     session.dsstates[chkcmd.uri].stats.conflicts += 1
-  //     return
-  //   elif not session.isServer and cmd.data == constant.STATUS_CONFLICT_RESOLVED_MERGE:
-  //     session.dsstates[chkcmd.uri].stats.hereDel   += 1
-  //     session.dsstates[chkcmd.uri].stats.peerDel   += 1
-  //     session.dsstates[chkcmd.uri].stats.merged    += 1
-  //   elif not session.isServer and cmd.data == constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA:
-  //     session.dsstates[chkcmd.uri].stats.peerDel   += 1
-  //     session.dsstates[chkcmd.uri].stats.merged    += 1
-  //   elif not session.isServer and cmd.data == constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA:
-  //     session.dsstates[chkcmd.uri].stats.merged    += 1
-  //   elif cmd.data == constant.STATUS_ITEM_NOT_DELETED:
-  //     # note: the reason that this *may* be ok is that some servers (funambol)
-  //     #       will report ITEM_NOT_DELETED when the item did not exist, thus this
-  //     #       is "alright"...
-  //     # todo: perhaps this should be raised as an error if the
-  //     #       remote peer != funambol?...
-  //     log.warning('received ITEM_NOT_DELETED for DELETE command for URI "%s" item "%s"'
-  //                 ' - assuming previous pending deletion executed',
-  //                 chkcmd.uri, chkcmd.source)
-  //   elif cmd.data == constant.STATUS_OK:
-  //     session.dsstates[chkcmd.uri].stats.peerDel += 1
-  //   else:
-  //     raise badStatus(xnode)
-  //   peerStore = adapter.peer.stores[adapter.router.getTargetUri(chkcmd.uri)]
-  //   locItemID = chkcmd.source
-  //   # todo: handle hierarchical sync...
-  //   if chkcmd.target is not None:
-  //     locItemID = self.getSourceMapping(adapter, session, constant.CMD_STATUS,
-  //                                       cmd, peerStore, chkcmd.target)
-  //     if not isinstance(locItemID, basestring):
-  //       return locItemID
-  //   # todo: this is *technically* subject to a race condition... but the
-  //   #       same peer should really not be synchronizing at the same time...
-  //   # todo: also potentially check Change.registered...
-  //   # TODO: this could be solved by:
-  //   #         a) never updating a Change record (only deleting and replacing)
-  //   #         b) deleting Change records by ID instead of by store/item/state...
-  //   adapter._context._model.Change.q(
-  //     store_id  = peerStore.id,
-  //     itemID    = locItemID,
-  //     state     = constant.ITEM_DELETED,
-  //     ).delete()
+    //-------------------------------------------------------------------------
+    _settle_delete: function(session, cmd, chkcmd, xnode, cb) {
+      var self    = this;
+      var dsstate = session.info.dsstates[chkcmd.uri];
+      if ( ! session.isServer && cmd.data == constant.STATUS_UPDATE_CONFLICT )
+      {
+        dsstate.stats.hereErr   += 1;
+        dsstate.stats.conflicts += 1;
+        return cb();
+      }
+      if ( ! session.isServer && cmd.data == constant.STATUS_CONFLICT_RESOLVED_MERGE )
+      {
+        dsstate.stats.hereDel   += 1;
+        dsstate.stats.peerDel   += 1;
+        dsstate.stats.merged    += 1;
+      }
+      else if ( ! session.isServer && cmd.data == constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA )
+      {
+        dsstate.stats.peerDel   += 1;
+        dsstate.stats.merged    += 1;
+      }
+      else if ( ! session.isServer && cmd.data == constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA )
+        dsstate.stats.merged    += 1;
+      else if ( cmd.data == constant.STATUS_ITEM_NOT_DELETED )
+      {
+        // note: the reason that this *may* be ok is that some servers (funambol)
+        //       will report ITEM_NOT_DELETED when the item did not exist, thus this
+        //       is "alright"...
+        // todo: perhaps this should be raised as an error if the
+        //       remote peer != funambol?...
+        log.warning('received ITEM_NOT_DELETED for DELETE command for URI "%s" item "%s"'
+                    + ' - assuming previous pending deletion executed',
+                    chkcmd.uri, chkcmd.source);
+      }
+      else if ( cmd.data == constant.STATUS_OK )
+        dsstate.stats.peerDel += 1;
+      else
+        return cb(badStatus(xnode));
 
+      var peerStore = session.peer.getStore(
+        session.context.router.getTargetUri(
+          session.adapter, session.peer, chkcmd.uri));
+
+      // todo: handle hierarchical sync...
+      var get_locItemID = ( ! chkcmd.target ) ? function(cb) {
+        cb(null, chkcmd.source);
+      } : function(cb) {
+        self.getSourceMapping(
+          session, constant.CMD_STATUS, cmd, peerStore, chkcmd.target,
+          function(err, guid) { return cb(err, guid); }
+        );
+      };
+
+      // todo: this is *technically* subject to a race condition... but the
+      //       same peer should really not be synchronizing at the same time...
+      // todo: also potentially check Change.registered...
+      // TODO: this could be solved by:
+      //         a) never updating a Change record (only deleting and replacing)
+      //         b) deleting Change records by ID instead of by store/item/state...
+
+      get_locItemID(function(err, locItemID) {
+        if ( err )
+          return cb(err);
+        peerStore._delChange({
+          itemID    : locItemID,
+          state     : constant.ITEM_DELETED,
+        }, cb);
+      });
+
+    }
 
   });
 

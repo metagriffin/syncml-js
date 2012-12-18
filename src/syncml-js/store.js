@@ -213,6 +213,25 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    _getReverseMapping: function(luid, cb) {
+      if ( this._a.isLocal )
+        return cb(new common.InternalError(
+          'unexpected mapping request for local store'));
+      // todo: there must be a way to use IndexedDB since i have everything
+      //       needed to generate the keyPath!... eg:
+      //         objectStore.get({store_id:X,guid:Y})?...
+      var storeMapping = this._a._c._dbtxn.objectStore('mapping').index('store_id');
+      storage.getAll(storeMapping, this.id, null, function(err, list) {
+        if ( err )
+          return cb(err);
+        var item = _.find(list, function(item) {
+          return item.luid == luid;
+        });
+        return cb(null, item ? item.guid : null);
+      });
+    },
+
+    //-------------------------------------------------------------------------
     registerChange: function(itemID, state, options, cb) {
       // options can include:
       //   - changeSpec (bool)
@@ -245,6 +264,7 @@ define([
         // todo: there must be a way to use IndexedDB since i have everything
         //       needed to generate the keyPath!... eg:
         //         objectStore.get({store_id:X,guid:Y})?...
+        // todo: perhaps switch to using self._getChange() ?...
         var storeMapping = self._a._c._dbtxn.objectStore('change').index('store_id');
         storage.getAll(storeMapping, self.id, null, function(err, changes) {
           if ( err )
@@ -279,6 +299,22 @@ define([
           change.changeSpec = options.changeSpec;
           storage.put(changeTab, change, cb);
         });
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    _getChange: function(itemID, cb) {
+      // returns cb(null, CHANGE)
+      // change ::= { store_id: ID, item_id: GUID, state: STATE, changeSpec: SPEC }
+      var self = this;
+      var storeMapping = self._a._c._dbtxn.objectStore('change').index('store_id');
+      storage.getAll(storeMapping, self.id, null, function(err, changes) {
+        if ( err )
+          return cb(err);
+        var change = _.find(changes, function(change) {
+          return change.item_id == itemID;
+        });
+        return cb(null, change);
       });
     },
 

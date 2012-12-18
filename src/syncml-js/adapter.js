@@ -72,6 +72,10 @@ define([
       //: object size.
       this.maxObjSize = options.maxObjSize || null;
 
+      //: [read-only] specifies default conflict resolution policy for
+      //: this adapter. if undefined, defaults to constant.POLICY_ERROR.
+      this.conflictPolicy = options.conflictPolicy || constant.POLICY_ERROR;
+
       // --- private attributes
       this.id       = options.id || common.makeID();
       this._c       = context;
@@ -92,14 +96,15 @@ define([
     setDevInfo: function(devInfo, cb) {
       if ( this._model == undefined )
         this._model = {
-          id          : this.id,
-          name        : this.name,
-          maxMsgSize  : this.maxMsgSize,
-          maxObjSize  : this.maxObjSize,
-          devInfo     : null,
-          stores      : [],
-          peers       : [],
-          isLocal     : true
+          id              : this.id,
+          name            : this.name,
+          maxMsgSize      : this.maxMsgSize,
+          maxObjSize      : this.maxObjSize,
+          conflictPolicy  : this.conflictPolicy,
+          devInfo         : null,
+          stores          : [],
+          peers           : [],
+          isLocal         : true
         };
 
       var di = new devinfomod.DevInfo(this, devInfo);
@@ -229,11 +234,12 @@ define([
       log.critical('TODO :::   (because they were not saved)');
 
       var self = this;
-      self._model      = model;
-      self.name        = model.name;
-      self.devID       = model.devID;
-      self.maxMsgSize  = model.maxMsgSize;
-      self.maxObjSize  = model.maxObjSize;
+      self._model         = model;
+      self.name           = model.name;
+      self.devID          = model.devID;
+      self.maxMsgSize     = model.maxMsgSize;
+      self.maxObjSize     = model.maxObjSize;
+      self.conflictPolicy = model.conflictPolicy;
 
       var loadDevInfo = function(cb) {
         var di = new devinfomod.DevInfo(self, self._model.devInfo);
