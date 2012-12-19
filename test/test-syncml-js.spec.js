@@ -281,7 +281,7 @@ define([
     var initialize_and_sync_all_peers = function(cb) {
       var steps = [
         // initialize data
-        function (cb) {
+        function(cb) {
           // NOTE: normally you would not call syncml agent methods (that
           // should typically only be done by the adapter). however, because
           // we know the implementation here, and storage is directly in the
@@ -293,7 +293,7 @@ define([
           });
         },
         // initial sync c1 with server
-        function (cb) {
+        function(cb) {
           sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
             expect(stats).toEqual({cli_memo: syncml.makeStats({
@@ -305,7 +305,7 @@ define([
           });
         },
         // initial sync c2 with server
-        function (cb) {
+        function(cb) {
           sync.c2.adapter.sync(sync.c2.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
             expect(stats).toEqual({cli_memo: syncml.makeStats({
@@ -317,7 +317,7 @@ define([
           });
         },
         // initial sync c3 with server
-        function (cb) {
+        function(cb) {
           sync.c3.adapter.sync(sync.c3.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
             expect(stats).toEqual({cli_memo: syncml.makeStats({
@@ -329,7 +329,7 @@ define([
           });
         },
         // validate data
-        function (cb) {
+        function(cb) {
           expect(sync.server.agent._items).toEqual({
             '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'}
@@ -349,7 +349,7 @@ define([
           cb();
         },
         // synchronize c1 with server to get all peers on the same page...
-        function (cb) {
+        function(cb) {
           sync.c1.session = null;
           sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
@@ -362,7 +362,7 @@ define([
           });
         },
         // synchronize all peers again, expect no changes
-        function (cb) {
+        function(cb) {
           sync.c1.session = null;
           sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
@@ -381,7 +381,7 @@ define([
           });
         },
         // and validate data again
-        function (cb) {
+        function(cb) {
           expect(sync.server.agent._items).toEqual({
             '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'}
@@ -468,7 +468,7 @@ define([
         initialize_and_sync_all_peers,
 
         // add and delete an item on c1
-        function (cb) {
+        function(cb) {
           // NOTE: normally you would not call syncml agent methods (that
           // should typically only be done by the adapter). however, because
           // we know the implementation here, and storage is directly in the
@@ -496,7 +496,7 @@ define([
         _.bind(sync.c2.sync, null, null, {hereAdd: 1, hereDel: 1}),
 
         // validate data
-        function (cb) {
+        function(cb) {
           expect(sync.server.agent._items).toEqual({
             // '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'},
@@ -522,7 +522,7 @@ define([
         _.bind(sync.c2.sync, null, null, {}),
 
         // re-validate data, expect no changes
-        function (cb) {
+        function(cb) {
           expect(sync.server.agent._items).toEqual({
             // '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'},
@@ -559,13 +559,13 @@ define([
         initialize_and_sync_all_peers,
 
         // add and delete an item on c1
-        function (cb) {
+        function(cb) {
           // NOTE: normally you would not call syncml agent methods (that
           // should typically only be done by the adapter). however, because
           // we know the implementation here, and storage is directly in the
           // agent (which should only happen in unit testing contexts), we
           // are taking the liberty here...
-          var item = {id: '200', body: 'some c1 data - modified'};
+          var item = {id: '200', body: 'some *modified* c1 data'};
           sync.c1.agent.replaceItem(item, false, function(err) {
             expect(err).ok();
             sync.c1.store.registerChange(item.id, syncml.ITEM_MODIFIED, null, function(err) {
@@ -582,7 +582,7 @@ define([
         _.bind(sync.c2.sync, null, null, {hereMod: 1}),
 
         // validate data
-        function (cb) {
+        function(cb) {
           expect(sync.server.agent._items).toEqual({
             '100': {id: '100', body: 'some *modified* c1 data'},
             '101': {id: '101', body: 'some c2 data'}
@@ -609,7 +609,7 @@ define([
         _.bind(sync.c2.sync, null, null, {}),
 
         // re-validate data, expect no changes
-        function (cb) {
+        function(cb) {
           expect(sync.server.agent._items).toEqual({
             '100': {id: '100', body: 'some *modified* c1 data'},
             '101': {id: '101', body: 'some c2 data'}
@@ -629,7 +629,7 @@ define([
           cb();
         }
 
-        // todo: check the server "change" table...
+        // todo: check the server state tables (ie change/mapping)...
 
       ];
 

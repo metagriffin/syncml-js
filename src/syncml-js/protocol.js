@@ -656,6 +656,7 @@ define([
         } catch ( exc ) {
 
           log.error('failed with unexpected exception: ' + exc);
+          log.error('  ' + stacktrace({e: exc}).join('\n  '));
           return makeErrorCommands(exc, cb);
 
         }

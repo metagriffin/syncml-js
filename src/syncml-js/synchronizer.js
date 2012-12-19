@@ -866,32 +866,45 @@ define([
       });
     },
 
-  // #----------------------------------------------------------------------------
-  // def reaction_sync_replace(self, adapter, session, cmd, store):
+    //-------------------------------------------------------------------------
+    _reaction_sync_replace: function(session, cmd, store, dsstate, cb) {
 
-  //   # TODO: handle hierarchical data...
+      // TODO: handle hierarchical-sync...
+      var self = this;
+      var item = cmd.data;
 
-  //   item = cmd.data
-  //   if session.isServer:
-  //     item.id = self.getSourceMapping(adapter, session, constant.CMD_SYNC,
-  //                                     cmd, store.peer, cmd.source)
-  //     if not isinstance(item.id, basestring):
-  //       return [item.id]
-  //   else:
-  //     item.id = cmd.target
+      var get_item_id = ( ! session.isServer ) ? function(cb) {
+        item.id = cmd.target;
+        return cb();
+      } : function(cb) {
+        var peerStore = session.peer.getStore(dsstate.peerUri);
+        self.getSourceMapping(
+          session, constant.CMD_SYNC, cmd, peerStore, cmd.source,
+          function(err, guid) {
 
-  //   dsstate = session.dsstates[store.uri]
+            if ( err )
+              return cb(err);
 
-  //   okcmd = state.Command(
-  //     name       = constant.CMD_STATUS,
-  //     cmdID      = session.nextCmdID(),
-  //     msgRef     = cmd.msgID,
-  //     cmdRef     = cmd.cmdID,
-  //     targetRef  = cmd.target,
-  //     sourceRef  = cmd.source,
-  //     statusOf   = cmd.name,
-  //     statusCode = constant.STATUS_OK,
-  //     )
+            // todo: what if guid is null?...
+
+            item.id = guid;
+            return cb();
+          }
+        );
+      };
+
+      var okcmd = state.makeCommand({
+        name       : constant.CMD_STATUS,
+        cmdID      : session.nextCmdID(),
+        msgRef     : cmd.msgID,
+        cmdRef     : cmd.cmdID,
+        targetRef  : cmd.target,
+        sourceRef  : cmd.source,
+        statusOf   : cmd.name,
+        statusCode : constant.STATUS_OK
+      });
+
+      var handle_conflict = ( ! cmd._conflict ) ? common.noop : function(cb) {
 
   //   if cmd._conflict is not None:
   //     try:
@@ -947,14 +960,38 @@ define([
   //         dsstate.conflicts.append(str(item.id))
   //         return [cmd._conflict]
 
-  //   # if store.agent.hierarchicalSync:
-  //   #   session.hierlut[cmd.source] = item.id
+        cb();
 
-  //   cspec = store.agent.replaceItem(item, reportChanges=session.isServer)
-  //   dsstate.stats.hereMod += 1
-  //   store.registerChange(item.id, constant.ITEM_MODIFIED,
-  //                        changeSpec=cspec, excludePeerID=adapter.peer.id)
-  //   return [okcmd]
+      };
+
+      // TODO: support hierarchical-sync...
+      // if ( store.agent.hierarchicalSync )
+      //   session.hierlut[cmd.source] = item.id;
+
+      get_item_id(function(err) {
+        if ( err )
+          return cb(err);
+        handle_conflict(function(err) {
+          if ( err )
+            return cb(err);
+          store.agent.replaceItem(item, session.isServer, function(err, cspec) {
+            if ( err )
+              return cb(err);
+            dsstate.stats.hereMod += 1;
+            store.registerChange(
+              item.id, constant.ITEM_MODIFIED,
+              {changeSpec: cspec, excludePeerID: session.peer.id},
+              function(err) {
+                if ( err )
+                  return cb(err);
+                return cb(null, [okcmd]);
+              }
+            );
+          });
+        });
+      });
+
+    },
 
     //-------------------------------------------------------------------------
     _reaction_sync_delete: function(session, cmd, store, dsstate, cb) {
@@ -977,6 +1014,9 @@ define([
 
             if ( err )
               return cb(err);
+
+            // todo: what if guid is null?...
+
             itemID = guid;
             if ( ! cmd._conflict )
               return cb();
@@ -1026,7 +1066,7 @@ define([
           }
         );
 
-      }
+      };
 
       get_item_id(function(err) {
         if ( err )
@@ -1129,43 +1169,66 @@ define([
       }, cb);
     },
 
-  // #----------------------------------------------------------------------------
-  // def settle_replace(self, adapter, session, cmd, chkcmd, xnode):
-  //   if not session.isServer and cmd.data == constant.STATUS_UPDATE_CONFLICT:
-  //     session.dsstates[chkcmd.uri].stats.hereErr   += 1
-  //     session.dsstates[chkcmd.uri].stats.conflicts += 1
-  //     return
-  //   if cmd.data not in (constant.STATUS_OK,
-  //                       constant.STATUS_CONFLICT_RESOLVED_MERGE,
-  //                       constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA,
-  //                       constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA,
-  //                       ):
-  //     raise badStatus(xnode)
-  //   if cmd.data in (constant.STATUS_CONFLICT_RESOLVED_MERGE,
-  //                   constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA,
-  //                   constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA):
-  //     session.dsstates[chkcmd.uri].stats.merged += 1
-  //   if cmd.data != constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA:
-  //     session.dsstates[chkcmd.uri].stats.peerMod += 1
-  //   peerStore = adapter.peer.stores[adapter.router.getTargetUri(chkcmd.uri)]
-  //   locItemID = chkcmd.source
-  //   # todo: handle hierarchical sync...
-  //   if session.isServer and chkcmd.target is not None:
-  //     locItemID = self.getSourceMapping(adapter, session, constant.CMD_STATUS,
-  //                                       cmd, peerStore, chkcmd.target)
-  //     if not isinstance(locItemID, basestring):
-  //       return locItemID
-  //   # todo: this is *technically* subject to a race condition... but the
-  //   #       same peer should really not be synchronizing at the same time...
-  //   # todo: also potentially check Change.registered...
-  //   # TODO: this could be solved by:
-  //   #         a) never updating a Change record (only deleting and replacing)
-  //   #         b) deleting Change records by ID instead of by store/item/state...
-  //   adapter._context._model.Change.q(
-  //     store_id  = peerStore.id,
-  //     itemID    = locItemID,
-  //     state     = constant.ITEM_MODIFIED,
-  //     ).delete()
+    //-------------------------------------------------------------------------
+    _settle_replace: function(session, cmd, chkcmd, xnode, cb) {
+
+      var self = this;
+      var dsstate = session.info.dsstates[chkcmd.uri];
+
+      if ( ! session.isServer && cmd.data == constant.STATUS_UPDATE_CONFLICT )
+      {
+        dsstate.stats.hereErr   += 1;
+        dsstate.stats.conflicts += 1;
+        return cb();
+      }
+      if ( cmd.data != constant.STATUS_OK
+           && cmd.data != constant.STATUS_CONFLICT_RESOLVED_MERGE
+           && cmd.data != constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA
+           && cmd.data != constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA )
+        return cb(badStatus(xnode));
+      if ( cmd.data == constant.STATUS_CONFLICT_RESOLVED_MERGE
+           || cmd.data == constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA
+           || cmd.data == constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA )
+        dsstate.stats.merged += 1;
+      if ( cmd.data != constant.STATUS_CONFLICT_RESOLVED_SERVER_DATA )
+        dsstate.stats.peerMod += 1;
+
+      var peerStore = session.peer.getStore(
+        session.context.router.getTargetUri(
+          session.adapter, session.peer, chkcmd.uri));
+
+      var get_item_id = ( ! session.isServer ) ? function(cb) {
+        return cb(null, chkcmd.source);
+      } : function(cb) {
+        // if not isinstance(locItemID, basestring):
+        //   return locItemID
+
+        self.getSourceMapping(
+          session, constant.CMD_STATUS, cmd, peerStore, chkcmd.target,
+          function(err, guid) { return cb(err, guid); }
+        );
+      };
+
+      get_item_id(function(err, locItemID) {
+
+        if ( err )
+          return cb(err);
+
+        // todo: this is *technically* subject to a race condition... but the
+        //       same peer should really not be synchronizing at the same time...
+        // todo: also potentially check Change.registered...
+        // TODO: this could be solved by:
+        //         a) never updating a Change record (only deleting and replacing)
+        //         b) deleting Change records by ID instead of by store/item/state...
+
+        peerStore._delChange({
+          itemID    : locItemID,
+          state     : constant.ITEM_MODIFIED,
+        }, cb);
+
+      });
+
+    },
 
     //-------------------------------------------------------------------------
     _settle_delete: function(session, cmd, chkcmd, xnode, cb) {

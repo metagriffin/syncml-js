@@ -85,12 +85,12 @@ define([
     },
 
     dumpsItem: function(item, contentType, version, cb) {
-      cb(null, item.body);
+      return cb(null, item.body);
     },
 
     loadsItem: function(data, contentType, version, cb) {
       var item = {body: data};
-      cb(null, item);
+      return cb(null, item);
     },
 
     getAllItems: function(cb) {
@@ -101,25 +101,26 @@ define([
       item.id = '' + this._lastID;
       this._lastID += 1;
       this._items['' + item.id] = item;
-      cb(null, item);
+      return cb(null, item);
     },
 
     getItem: function(itemID, cb) {
       if ( this._items['' + itemID] == undefined )
-        cb('no such item ID');
-      cb(null, this._items['' + itemID]);
+        return cb('no such item ID');
+      return cb(null, this._items['' + itemID]);
     },
 
     replaceItem: function(item, reportChanges, cb) {
-      if ( reportChanges )
-        cb('changeSpec not expected on the client-side');
+      // todo: implement reportChanges
+      // if ( reportChanges )
+      //   return cb('changeSpec not expected on the client-side');
       this._items['' + item.id] = item;
-      cb();
+      return cb();
     },
 
     deleteItem: function(itemID, cb) {
       delete this._items['' + itemID];
-      cb();
+      return cb();
     },
 
     getContentTypes: function() {
