@@ -76,12 +76,57 @@ define([
   };
 
   //---------------------------------------------------------------------------
-  exports.TestAgent = syncmljs.Agent.extend({
+  exports.TestStorage = common.Base.extend({
 
     constructor: function(options) {
       options = options || {};
       this._lastID = options.startID || 1000;
       this._items = {};
+    },
+
+    all: function(cb) {
+      return cb(null, _.values(this._items));
+    },
+
+    add: function(item, cb) {
+      item.id = '' + this._lastID;
+      this._lastID += 1;
+      this._items['' + item.id] = item;
+      return cb(null, item);
+    },
+
+    get: function(itemID, cb) {
+      if ( this._items['' + itemID] == undefined )
+        return cb('no such item ID');
+      return cb(null, this._items['' + itemID]);
+    },
+
+    replace: function(item, cb) {
+      this._items['' + item.id] = item;
+      return cb();
+    },
+
+    delete: function(itemID, cb) {
+      delete this._items['' + itemID];
+      return cb();
+    }
+
+  });
+
+  //---------------------------------------------------------------------------
+  exports.TestAgent = syncmljs.Agent.extend({
+
+    constructor: function(options) {
+      options = options || {};
+      this._storage = options.storage || new exports.TestStorage(options);
+    },
+
+    getContentTypes: function() {
+      return [
+        new syncmljs.ContentTypeInfo('text/x-s4j-sifn', '1.1', {preferred: true}),
+        new syncmljs.ContentTypeInfo('text/x-s4j-sifn', '1.0'),
+        new syncmljs.ContentTypeInfo('text/plain', ['1.1', '1.0'])
+      ];
     },
 
     dumpsItem: function(item, contentType, version, cb) {
@@ -93,43 +138,16 @@ define([
       return cb(null, item);
     },
 
-    getAllItems: function(cb) {
-      return cb(null, _.values(this._items));
-    },
-
-    addItem: function(item, cb) {
-      item.id = '' + this._lastID;
-      this._lastID += 1;
-      this._items['' + item.id] = item;
-      return cb(null, item);
-    },
-
-    getItem: function(itemID, cb) {
-      if ( this._items['' + itemID] == undefined )
-        return cb('no such item ID');
-      return cb(null, this._items['' + itemID]);
-    },
-
+    getAllItems: function(cb) { return this._storage.all(cb); },
+    addItem: function(item, cb) { return this._storage.add(item, cb); },
+    getItem: function(itemID, cb) { return this._storage.get(itemID, cb); },
     replaceItem: function(item, reportChanges, cb) {
       // todo: implement reportChanges
       // if ( reportChanges )
       //   return cb('changeSpec not expected on the client-side');
-      this._items['' + item.id] = item;
-      return cb();
+      this._storage.replace(item, cb);
     },
-
-    deleteItem: function(itemID, cb) {
-      delete this._items['' + itemID];
-      return cb();
-    },
-
-    getContentTypes: function() {
-      return [
-        new syncmljs.ContentTypeInfo('text/x-s4j-sifn', '1.1', {preferred: true}),
-        new syncmljs.ContentTypeInfo('text/x-s4j-sifn', '1.0'),
-        new syncmljs.ContentTypeInfo('text/plain', ['1.1', '1.0'])
-      ];
-    },
+    deleteItem: function(itemID, cb) { return this._storage.delete(itemID, cb); }
 
   });
 

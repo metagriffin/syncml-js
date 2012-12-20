@@ -104,7 +104,7 @@ define([
 
       var scanForChanges = function(cb) {
         // not doing a scan as we will force a slow-sync
-        sync.agent._items['1'] = {id: '1', body: 'first'};
+        sync.agent._storage._items['1'] = {id: '1', body: 'first'};
         cb();
       };
 

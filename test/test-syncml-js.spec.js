@@ -49,7 +49,8 @@ define([
           context: null,
           adapter: null,
           store:   null,
-          agent:   new helpers.TestAgent({startID: 100})
+          storage: new helpers.TestStorage({startID: 100}),
+          agent:   null
         },
         c1: {
           // sdb:     new sqlite3.Database('./test-client1.db'),
@@ -58,7 +59,8 @@ define([
           adapter: null,
           store:   null,
           peer:    null,
-          agent:   new helpers.TestAgent({startID: 200})
+          storage: new helpers.TestStorage({startID: 200}),
+          agent:   null
         },
         c2: {
           // sdb:     new sqlite3.Database('./test-client2.db'),
@@ -67,7 +69,8 @@ define([
           adapter: null,
           store:   null,
           peer:    null,
-          agent:   new helpers.TestAgent({startID: 300})
+          storage: new helpers.TestStorage({startID: 300}),
+          agent:   null
         },
         c3: {
           // sdb:     new sqlite3.Database('./test-client3.db'),
@@ -76,7 +79,8 @@ define([
           adapter: null,
           store:   null,
           peer:    null,
-          agent:   new helpers.TestAgent({startID: 400})
+          storage: new helpers.TestStorage({startID: 400}),
+          agent:   null
         }
       };
 
@@ -84,6 +88,11 @@ define([
       sync.c1.idb = new indexeddbjs.indexedDB('sqlite3', sync.c1.sdb);
       sync.c2.idb = new indexeddbjs.indexedDB('sqlite3', sync.c2.sdb);
       sync.c3.idb = new indexeddbjs.indexedDB('sqlite3', sync.c3.sdb);
+
+      sync.server.agent = new helpers.TestAgent({storage: sync.server.storage});
+      sync.c1.agent = new helpers.TestAgent({storage: sync.c1.storage});
+      sync.c2.agent = new helpers.TestAgent({storage: sync.c2.storage});
+      sync.c3.agent = new helpers.TestAgent({storage: sync.c3.storage});
 
       sync.server.context = new syncml.Context({
         storage: sync.server.idb,
@@ -282,14 +291,11 @@ define([
       var steps = [
         // initialize data
         function(cb) {
-          // NOTE: normally you would not call syncml agent methods (that
-          // should typically only be done by the adapter). however, because
-          // we know the implementation here, and storage is directly in the
-          // agent (which should only happen in unit testing contexts), we
-          // are taking the liberty here...
-          sync.c1.agent.addItem({body: 'some c1 data'}, function(err) {
+          // NOTE: no need to call sync.c*.store.registerChange() since
+          //       no sync has happened yet...
+          sync.c1.storage.add({body: 'some c1 data'}, function(err) {
             expect(err).ok();
-            sync.c2.agent.addItem({body: 'some c2 data'}, cb);
+            sync.c2.storage.add({body: 'some c2 data'}, cb);
           });
         },
         // initial sync c1 with server
@@ -330,19 +336,19 @@ define([
         },
         // validate data
         function(cb) {
-          expect(sync.server.agent._items).toEqual({
+          expect(sync.server.storage._items).toEqual({
             '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'}
           });
-          expect(sync.c1.agent._items).toEqual({
+          expect(sync.c1.storage._items).toEqual({
             // note: c1 was sync'd before c2, so will not have c2 data
             '200': {id: '200', body: 'some c1 data'}
           });
-          expect(sync.c2.agent._items).toEqual({
+          expect(sync.c2.storage._items).toEqual({
             '300': {id: '300', body: 'some c2 data'},
             '301': {id: '301', body: 'some c1 data'}
           });
-          expect(sync.c3.agent._items).toEqual({
+          expect(sync.c3.storage._items).toEqual({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -382,19 +388,19 @@ define([
         },
         // and validate data again
         function(cb) {
-          expect(sync.server.agent._items).toEqual({
+          expect(sync.server.storage._items).toEqual({
             '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'}
           });
-          expect(sync.c1.agent._items).toEqual({
+          expect(sync.c1.storage._items).toEqual({
             '200': {id: '200', body: 'some c1 data'},
             '201': {id: '201', body: 'some c2 data'}
           });
-          expect(sync.c2.agent._items).toEqual({
+          expect(sync.c2.storage._items).toEqual({
             '300': {id: '300', body: 'some c2 data'},
             '301': {id: '301', body: 'some c1 data'}
           });
-          expect(sync.c3.agent._items).toEqual({
+          expect(sync.c3.storage._items).toEqual({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -469,16 +475,11 @@ define([
 
         // add and delete an item on c1
         function(cb) {
-          // NOTE: normally you would not call syncml agent methods (that
-          // should typically only be done by the adapter). however, because
-          // we know the implementation here, and storage is directly in the
-          // agent (which should only happen in unit testing contexts), we
-          // are taking the liberty here...
-          sync.c1.agent.addItem({body: 'a new c1 data'}, function(err, item) {
+          sync.c1.storage.add({body: 'a new c1 data'}, function(err, item) {
             expect(err).ok();
             sync.c1.store.registerChange(item.id, syncml.ITEM_ADDED, null, function(err) {
               expect(err).ok();
-              sync.c1.agent.deleteItem('200', function(err) {
+              sync.c1.storage.delete('200', function(err) {
                 expect(err).ok();
                 sync.c1.store.registerChange('200', syncml.ITEM_DELETED, null, function(err) {
                   expect(err).ok();
@@ -497,17 +498,17 @@ define([
 
         // validate data
         function(cb) {
-          expect(sync.server.agent._items).toEqual({
+          expect(sync.server.storage._items).toEqual({
             // '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'},
             '102': {id: '102', body: 'a new c1 data'}
           });
-          expect(sync.c1.agent._items).toEqual({
+          expect(sync.c1.storage._items).toEqual({
             // '200': {id: '200', body: 'some c1 data'},
             '201': {id: '201', body: 'some c2 data'},
             '202': {id: '202', body: 'a new c1 data'}
           });
-          expect(sync.c2.agent._items).toEqual({
+          expect(sync.c2.storage._items).toEqual({
             '300': {id: '300', body: 'some c2 data'},
             // '301': {id: '301', body: 'some c1 data'},
             '302': {id: '302', body: 'a new c1 data'}
@@ -523,17 +524,17 @@ define([
 
         // re-validate data, expect no changes
         function(cb) {
-          expect(sync.server.agent._items).toEqual({
+          expect(sync.server.storage._items).toEqual({
             // '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'},
             '102': {id: '102', body: 'a new c1 data'}
           });
-          expect(sync.c1.agent._items).toEqual({
+          expect(sync.c1.storage._items).toEqual({
             // '200': {id: '200', body: 'some c1 data'},
             '201': {id: '201', body: 'some c2 data'},
             '202': {id: '202', body: 'a new c1 data'}
           });
-          expect(sync.c2.agent._items).toEqual({
+          expect(sync.c2.storage._items).toEqual({
             '300': {id: '300', body: 'some c2 data'},
             // '301': {id: '301', body: 'some c1 data'},
             '302': {id: '302', body: 'a new c1 data'}
@@ -566,7 +567,7 @@ define([
           // agent (which should only happen in unit testing contexts), we
           // are taking the liberty here...
           var item = {id: '200', body: 'some *modified* c1 data'};
-          sync.c1.agent.replaceItem(item, false, function(err) {
+          sync.c1.storage.replace(item, function(err) {
             expect(err).ok();
             sync.c1.store.registerChange(item.id, syncml.ITEM_MODIFIED, null, function(err) {
               expect(err).ok();
@@ -583,19 +584,19 @@ define([
 
         // validate data
         function(cb) {
-          expect(sync.server.agent._items).toEqual({
+          expect(sync.server.storage._items).toEqual({
             '100': {id: '100', body: 'some *modified* c1 data'},
             '101': {id: '101', body: 'some c2 data'}
           });
-          expect(sync.c1.agent._items).toEqual({
+          expect(sync.c1.storage._items).toEqual({
             '200': {id: '200', body: 'some *modified* c1 data'},
             '201': {id: '201', body: 'some c2 data'}
           });
-          expect(sync.c2.agent._items).toEqual({
+          expect(sync.c2.storage._items).toEqual({
             '300': {id: '300', body: 'some c2 data'},
             '301': {id: '301', body: 'some *modified* c1 data'}
           });
-          expect(sync.c3.agent._items).toEqual({
+          expect(sync.c3.storage._items).toEqual({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -610,19 +611,19 @@ define([
 
         // re-validate data, expect no changes
         function(cb) {
-          expect(sync.server.agent._items).toEqual({
+          expect(sync.server.storage._items).toEqual({
             '100': {id: '100', body: 'some *modified* c1 data'},
             '101': {id: '101', body: 'some c2 data'}
           });
-          expect(sync.c1.agent._items).toEqual({
+          expect(sync.c1.storage._items).toEqual({
             '200': {id: '200', body: 'some *modified* c1 data'},
             '201': {id: '201', body: 'some c2 data'}
           });
-          expect(sync.c2.agent._items).toEqual({
+          expect(sync.c2.storage._items).toEqual({
             '300': {id: '300', body: 'some c2 data'},
             '301': {id: '301', body: 'some *modified* c1 data'}
           });
-          expect(sync.c3.agent._items).toEqual({
+          expect(sync.c3.storage._items).toEqual({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
