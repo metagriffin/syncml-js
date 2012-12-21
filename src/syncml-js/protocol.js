@@ -1041,6 +1041,8 @@ define([
             });
 
           }catch(e){
+            // log.error('failed invoking protocol sub-consumption: ' + e);
+            // log.error('  ' + stacktrace({e: e}).join('\n  '));
             return cb(new common.InternalError(
               'failed invoking protocol sub-consumption of "' + child.tag + '": ' + e, e));
           }
@@ -1269,7 +1271,7 @@ define([
                 + '" (to local server URI "' + uri + '")'));
 
           // todo: if already correctly bound, then we don't need to re-bind
-          // if ( peerStore.getBinding() )
+          // if ( peerStore._getBinding() )
           // {
           //   log.critical('(currently bound)');
           // }
@@ -1283,7 +1285,7 @@ define([
             var ds = state.makeStoreSyncState({
               uri        : uri,
               peerUri    : ruri,
-              lastAnchor : peerStore.getBinding().localAnchor,
+              lastAnchor : peerStore._getBinding().localAnchor,
               mode       : null,
               action     : 'alert'
             });
@@ -1316,11 +1318,11 @@ define([
         ds.peerLastAnchor = xnode.findtext('Item/Meta/Anchor/Last', null);
         ds.peerNextAnchor = xnode.findtext('Item/Meta/Anchor/Next', null);
 
-        if ( ds.peerLastAnchor != session.peer.getStore(ruri).getBinding().remoteAnchor )
+        if ( ds.peerLastAnchor != session.peer.getStore(ruri)._getBinding().remoteAnchor )
         {
           log.warning(
             'last-anchor mismatch (here: %r, peer: %r) for datastore "%s" - forcing slow-sync',
-            session.peer.getStore(ruri).getBinding().remoteAnchor, ds.peerLastAnchor, uri);
+            session.peer.getStore(ruri)._getBinding().remoteAnchor, ds.peerLastAnchor, uri);
           ds.peerLastAnchor = null;
           switch ( ds.mode )
           {
