@@ -456,7 +456,7 @@ define([
                 + '"; remote="' + dsstate.peerUri + '/' + dsstate.peerNextAnchor
                 + '"');
       var peerStore = session.peer.getStore(dsstate.peerUri);
-      var binding = peerStore.getBinding();
+      var binding = peerStore._getBinding();
       binding.localAnchor  = dsstate.nextAnchor;
       binding.remoteAnchor = dsstate.peerNextAnchor;
       return cb(null);
@@ -1102,7 +1102,7 @@ define([
     //-------------------------------------------------------------------------
     _reaction_map: function(session, command, cb) {
       var peerStore = session.peer.getStore(command.source);
-      if ( command.target != peerStore.getBinding().uri )
+      if ( command.target != peerStore._getBinding().uri )
         return cb(new common.NoSuchRoute(
           'unexpected "Map" event for unbound stores (local: "'
             + command.target + ', remote: "' + command.source + '")'));
