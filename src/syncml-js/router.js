@@ -14,6 +14,7 @@ if ( typeof(define) !== 'function')
 define([
   'underscore',
   'elementtree',
+  'stacktrace-js',
   './logging',
   './common',
   './constant',
@@ -23,6 +24,7 @@ define([
 ], function(
   _,
   ET,
+  stacktrace,
   logging,
   common,
   constant,

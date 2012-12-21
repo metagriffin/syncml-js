@@ -176,40 +176,44 @@ define([
       self.devInfo._updateModel(function(err) {
         if ( err )
           return cb(err);
-
-        //---------------------------------------------------------------------
-        // TODO: fix this...
-        log.critical('TODO ::: setRemoteInfo is currently nuking previous store info');
-        log.critical('TODO ::: this will cause slow-syncs everytime...');
-        // TODO: right here...
-        self._stores  = {};
-
-        // # merge the new datastore info
-
-        // # step 1: prepare the new stores (clean up the URIs)
-        // lut = dict([(adapter.peer.normUri(s.uri), s) for s in stores])
-        // for key, store in lut.items():
-        //   store.uri = key
-
-        // # step 2: remove all stores that are no longer mentioned
-        // adapter.peer._stores = [s for s in adapter.peer._stores if s.uri in lut]
-
-        // # step 3: merge the datastore info for existing stores
-        // for store in adapter.peer._stores:
-        //   store.merge(lut[store.uri])
-        //   del lut[store.uri]
-
-        // # step 4: add new datastores
-        // for store in lut.values():
-        //   adapter.peer.addStore(store)
-        //---------------------------------------------------------------------
-
-        common.cascade(stores, function(store, cb) {
+        // merge the new datastore info with any pre-existing store bindings
+        // step 1: prepare the new stores (clean up the URIs)
+        var lut = _.object(_.map(stores, function(store) {
           store.uri = self.normUri(store.uri);
-          store._a  = self;
-          self._stores[store.uri] = store;
-          store._updateModel(cb);
-        }, cb);
+          return [store.uri, store];
+        }));
+        // step 2: remove all stores that are no longer mentioned
+        self._stores = _.object(
+          _.map(
+            _.filter(_.keys(self._stores), function(oldUri) {
+              return _.indexOf(_.keys(lut), oldUri) >= 0;
+            }), function(uri) {
+              return [uri, self._stores[uri]];
+            }
+          )
+        );
+        // step 3: merge the datastore info for existing stores
+        var merge_stores = function(cb) {
+          common.cascade(_.values(self._stores), function(store, cb) {
+            store.merge(lut[store.uri], function(err) {
+              if ( err )
+                return cb(err);
+              delete lut[store.uri];
+              return cb();
+            });
+          }, cb);
+        };
+        // step 4: add new datastores
+        var add_stores = function(cb) {
+          common.cascade(_.values(lut), function(store, cb) {
+            self.addStore(store, cb);
+          }, cb);
+        };
+        merge_stores(function(err) {
+          if ( err )
+            return cb(err);
+          add_stores(cb);
+        });
       });
     },
 
@@ -267,6 +271,29 @@ define([
     //-------------------------------------------------------------------------
     getStore: function(uri) {
       return this._stores[this.normUri(uri)];
+    },
+
+    //-------------------------------------------------------------------------
+    addStore: function(store, cb) {
+      var self = this;
+      if ( store instanceof storemod.Store )
+      {
+        store.uri = self.normUri(store.uri);
+        store._a  = self;
+      }
+      else
+        store = new storemod.Store(this, store);
+      store._updateModel(function(err) {
+        if ( err )
+          return cb(err);
+        self._stores[store.uri] = store;
+        // self._save(self._c._dbtxn, function(err) {
+        //   if ( err )
+        //     return cb(err);
+        //   cb(null, store);
+        // });
+        return cb();
+      });
     },
 
     //-------------------------------------------------------------------------
