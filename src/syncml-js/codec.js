@@ -82,7 +82,14 @@ define([
         cb(new common.ProtocolError(
           'received unexpected content-type "' + contentType + '" (expected "'
             + expCT + '")'));
-      cb(null, ET.parse(data).getroot());
+      try
+      {
+        return cb(null, ET.parse(data).getroot());
+      }
+      catch(e)
+      {
+        return cb(new common.ProtocolError('could not parse XML: ' + e, e));
+      }
     }
 
   });
