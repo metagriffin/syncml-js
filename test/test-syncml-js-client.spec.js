@@ -727,25 +727,25 @@ define([
       callback();
     });
 
-    // //-------------------------------------------------------------------------
-    // it('does a slow-sync with all stores upon initial synchronization', function(done) {
-    //   doFirstSync(sync, function(err, ret) {
-    //     expect(err).ok();
-    //     expect(sync.adapter._model.peers.length).toEqual(1);
-    //     expect(sync.adapter._model.peers[0].stores.length).toEqual(1);
-    //     var store = sync.adapter._model.peers[0].stores[0];
-    //     var now   = helpers.now();
-    //     expect(store.binding.localAnchor).toBeCloseTo(now, -1);
-    //     expect(store.binding.remoteAnchor).toBeCloseTo(now, -1);
-    //     expect(store.binding).toEqual({
-    //       uri          : "cli_memo",
-    //       autoMapped   : false,
-    //       localAnchor  : store.binding.localAnchor,
-    //       remoteAnchor : store.binding.remoteAnchor
-    //     });
-    //     done();
-    //   });
-    // });
+    //-------------------------------------------------------------------------
+    it('does a slow-sync with all stores upon initial synchronization', function(done) {
+      doFirstSync(sync, function(err, ret) {
+        expect(err).ok();
+        expect(sync.adapter._model.peers.length).toEqual(1);
+        expect(sync.adapter._model.peers[0].stores.length).toEqual(1);
+        var store = sync.adapter._model.peers[0].stores[0];
+        var now   = helpers.now();
+        expect(store.binding.localAnchor).toBeCloseTo(now, -1);
+        expect(store.binding.remoteAnchor).toBeCloseTo(now, -1);
+        expect(store.binding).toEqual({
+          uri          : "cli_memo",
+          autoMapped   : false,
+          localAnchor  : store.binding.localAnchor,
+          remoteAnchor : store.binding.remoteAnchor
+        });
+        done();
+      });
+    });
 
     //-------------------------------------------------------------------------
     var doSecondSyncWithForcedPutGet = function(sync, cb) {
@@ -949,7 +949,7 @@ define([
           expect(sync.adapter._model.peers.length).toEqual(1);
           expect(sync.adapter._model.peers[0].stores.length).toEqual(1);
           var newbinding = sync.adapter._model.peers[0].stores[0].binding;
-          expect(binding).toEqual(newbinding);
+          expect(newbinding).toEqual(binding);
           done();
         });
       });
