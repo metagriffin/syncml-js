@@ -152,9 +152,15 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    addStore: function(storeInfo, cb) {
+    addStore: function(store, cb) {
       var self  = this;
-      var store = new storemod.Store(this, storeInfo);
+      if ( store instanceof storemod.Store )
+      {
+        store.uri = self.normUri(store.uri);
+        store._a  = self;
+      }
+      else
+        store = new storemod.Store(this, store);
       store._updateModel(function(err) {
         if ( err )
           return cb(err);
