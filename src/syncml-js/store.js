@@ -133,8 +133,13 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    getBinding: function() {
+    _getBinding: function() {
       return this._getModel().binding;
+    },
+
+    //-------------------------------------------------------------------------
+    _setBinding: function(binding) {
+      this._getModel().binding = binding;
     },
 
     //-------------------------------------------------------------------------
@@ -162,6 +167,31 @@ define([
 
       return null;
 
+    },
+
+    //-------------------------------------------------------------------------
+    merge: function(store, cb) {
+
+      log.critical('TODO ::: ensure that an adapter._save (at session end) saves merged info');
+
+      if ( this.uri != store.uri )
+        return cb(new common.InternalError(
+          'unexpected merging of stores with different URIs ("' + this.uri
+            + '" != "' + store.uri + '")'));
+      if ( ! _.isEqual(this.contentTypes, store.contentTypes) )
+      {
+        // todo: this is a bit drastic... perhaps have an operational setting
+        //       which controls how paranoid to be?...
+        this._setBinding(null);
+      }
+      this.displayName    = store.displayName;
+      this.contentTypes   = _.rest(store.contentTypes, 0);
+      this.syncTypes      = _.rest(store.syncTypes, 0);
+      this.maxGuidSize    = store.maxGuidSize;
+      this.maxObjSize     = store.maxObjSize;
+      this.agent          = store.agent;
+      this.conflictPolicy = store.conflictPolicy;
+      return cb();
     },
 
     //-------------------------------------------------------------------------
@@ -248,7 +278,7 @@ define([
           if ( options.excludePeerID && options.excludePeerID == peer.id )
             return cb();
           common.cascade(peer.getStores(), function(store, cb) {
-            var binding = store.getBinding()
+            var binding = store._getBinding()
             if ( ! binding || binding.uri != self.uri )
               return cb();
             store.registerChange(itemID, state, options, cb);
