@@ -113,7 +113,7 @@ define([
 
       var synchronize = function(cb) {
 
-        var fake_request_1 = {
+        var fake_response_1_1 = {
           sendRequest: function(txn, contentType, requestBody, cb) {
             seenRequests += '1';
             var chk =
@@ -300,12 +300,12 @@ define([
               headers: { 'Content-Type': responseType },
               body: responseBody
             };
-            sync.peer._proxy = fake_request_2;
+            sync.peer._proxy = fake_response_1_2;
             cb(null, response);
           }
         };
 
-        var fake_request_2 = {
+        var fake_response_1_2 = {
           sendRequest: function(txn, contentType, requestBody, cb) {
             seenRequests += '2';
             var nextAnchor = ET.parse(requestBody)
@@ -423,12 +423,12 @@ define([
               headers: { 'Content-Type': responseType },
               body: responseBody
             };
-            sync.peer._proxy = fake_request_3;
+            sync.peer._proxy = fake_response_1_3;
             cb(null, response);
           }
         };
 
-        var fake_request_3 = {
+        var fake_response_1_3 = {
           sendRequest: function(txn, contentType, requestBody, cb) {
             seenRequests += '3';
             var nextAnchor = ET.parse(requestBody)
@@ -562,12 +562,12 @@ define([
               headers: { 'Content-Type': responseType },
               body: responseBody
             };
-            sync.peer._proxy = fake_request_4;
+            sync.peer._proxy = fake_response_1_4;
             cb(null, response);
           }
         };
 
-        var fake_request_4 = {
+        var fake_response_1_4 = {
           sendRequest: function(txn, contentType, requestBody, cb) {
             seenRequests += '4';
             var chk =
@@ -672,13 +672,13 @@ define([
               headers: { 'Content-Type': responseType },
               body: responseBody
             };
-            sync.peer._proxy = fake_request_5;
+            sync.peer._proxy = fake_response_1_5;
 
             cb(null, response);
           }
         };
 
-        var fake_request_5 = {
+        var fake_response_1_5 = {
           sendRequest: function(txn, contentType, requestBody, cb) {
             seenRequests += '5';
             // request #4 should have been the last...
@@ -688,7 +688,7 @@ define([
         };
 
         // NOTE: using peer._proxy is only for testing purposes!...
-        sync.peer._proxy = fake_request_1;
+        sync.peer._proxy = fake_response_1_1;
         sync.adapter.sync(sync.peer, syncmljs.SYNCTYPE_SLOW_SYNC, cb);
       };
 
@@ -704,7 +704,7 @@ define([
             hereAdd: 1
           }));
           expect(seenRequests).toEqual('1234');
-          callback(null, 'complete');
+          callback(null);
         });
       });
 
@@ -727,25 +727,232 @@ define([
       callback();
     });
 
+    // //-------------------------------------------------------------------------
+    // it('does a slow-sync with all stores upon initial synchronization', function(done) {
+    //   doFirstSync(sync, function(err, ret) {
+    //     expect(err).ok();
+    //     expect(sync.adapter._model.peers.length).toEqual(1);
+    //     expect(sync.adapter._model.peers[0].stores.length).toEqual(1);
+    //     var store = sync.adapter._model.peers[0].stores[0];
+    //     var now   = helpers.now();
+    //     expect(store.binding.localAnchor).toBeCloseTo(now, -1);
+    //     expect(store.binding.remoteAnchor).toBeCloseTo(now, -1);
+    //     expect(store.binding).toEqual({
+    //       uri          : "cli_memo",
+    //       autoMapped   : false,
+    //       localAnchor  : store.binding.localAnchor,
+    //       remoteAnchor : store.binding.remoteAnchor
+    //     });
+    //     done();
+    //   });
+    // });
+
     //-------------------------------------------------------------------------
-    describe('that synchronizes for the first time', function() {
+    var doSecondSyncWithForcedPutGet = function(sync, cb) {
 
-      var done = 'synchronization';
+      var fake_response_2_1 = {
+        sendRequest: function(txn, contentType, requestBody, cb) {
+          var lastAnchor = helpers.findXml(requestBody, './SyncBody/Alert/Item/Meta/Anchor/Last');
+          var nextAnchor = helpers.findXml(requestBody, './SyncBody/Alert/Item/Meta/Anchor/Next');
+          var chk =
+            '<SyncML>'
+            + ' <SyncHdr>'
+            + '  <VerDTD>1.2</VerDTD>'
+            + '  <VerProto>SyncML/1.2</VerProto>'
+            + '  <SessionID>2</SessionID>'
+            + '  <MsgID>1</MsgID>'
+            + '  <Source>'
+            + '   <LocURI>test-syncml-js-devid</LocURI>'
+            + '   <LocName>In-Memory Test Client</LocName>'
+            + '  </Source>'
+            + '  <Target>'
+            + '   <LocURI>https://example.com/sync</LocURI>'
+            + '  </Target>'
+            + '  <Cred>'
+            + '    <Meta>'
+            + '      <Format xmlns="syncml:metinf">b64</Format>'
+            + '      <Type xmlns="syncml:metinf">syncml:auth-basic</Type>'
+            + '    </Meta>'
+            + '    <Data>Z3Vlc3Q6Z3Vlc3Q=</Data>'
+            + '  </Cred>'
+            + '  <Meta>'
+            + '   <MaxMsgSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxMsgSize>'
+            + '   <MaxObjSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxObjSize>'
+            + '  </Meta>'
+            + ' </SyncHdr>'
+            + ' <SyncBody>'
+            + '  <Alert>'
+            + '   <CmdID>1</CmdID>'
+            + '   <Data>200</Data>'
+            + '   <Item>'
+            + '    <Source>'
+            + '     <LocURI>cli_memo</LocURI>'
+            + '    </Source>'
+            + '    <Target>'
+            + '     <LocURI>srv_note</LocURI>'
+            + '    </Target>'
+            + '    <Meta>'
+            + '     <Anchor xmlns="syncml:metinf">'
+            + '      <Last>' + lastAnchor + '</Last>'
+            + '      <Next>' + nextAnchor + '</Next>'
+            + '     </Anchor>'
+            + '     <MaxObjSize xmlns="syncml:metinf">2147483647</MaxObjSize>'
+            + '    </Meta>'
+            + '   </Item>'
+            + '  </Alert>'
+            + '  <Final/>'
+            + ' </SyncBody>'
+            + '</SyncML>';
+          expect(contentType).toEqual('application/vnd.syncml+xml; charset=UTF-8');
+          // todo: make this display in "pretty" xml and "multi-line-diff" mode...
+          expect(requestBody).toEqualXml(chk);
 
-      //-----------------------------------------------------------------------
-      beforeEach(function(callback) {
-        doFirstSync(sync, function(err, ret) {
-          expect(err).toBeFalsy();
-          done = ret;
-          callback();
+          var responseType = 'application/vnd.syncml+xml; charset=UTF-8';
+          var responseBody =
+            '<SyncML>'
+            + ' <SyncHdr>'
+            + '  <VerDTD>1.2</VerDTD>'
+            + '  <VerProto>SyncML/1.2</VerProto>'
+            + '  <SessionID>2</SessionID>'
+            + '  <MsgID>1</MsgID>'
+            + '  <Source>'
+            + '   <LocURI>https://example.com/sync</LocURI>'
+            + '   <LocName>Fake Server</LocName>'
+            + '  </Source>'
+            + '  <Target>'
+            + '   <LocURI>test-syncml-js-devid</LocURI>'
+            + '   <LocName>In-Memory Test Client</LocName>'
+            + '  </Target>'
+            + '  <RespURI>https://example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
+            + ' </SyncHdr>'
+            + ' <SyncBody>'
+            + '  <Status>'
+            + '   <CmdID>1</CmdID>'
+            + '   <MsgRef>1</MsgRef>'
+            + '   <CmdRef>0</CmdRef>'
+            + '   <Cmd>SyncHdr</Cmd>'
+            + '   <SourceRef>test-syncml-js-devid</SourceRef>'
+            + '   <TargetRef>https://example.com/sync</TargetRef>'
+            + '   <Data>212</Data>'
+            + '  </Status>'
+            + '  <Status>'
+            + '   <CmdID>2</CmdID>'
+            + '   <MsgRef>1</MsgRef>'
+            + '   <CmdRef>1</CmdRef>'
+            + '   <Cmd>Alert</Cmd>'
+            + '   <SourceRef>cli_memo</SourceRef>'
+            + '   <TargetRef>srv_note</TargetRef>'
+            + '   <Data>200</Data>'
+            + '   <Item>'
+            + '    <Data>'
+            + '     <Anchor xmlns="syncml:metinf">'
+            + '      <Last>' + lastAnchor + '</Last>'
+            + '      <Next>' + nextAnchor + '</Next>'
+            + '     </Anchor>'
+            + '    </Data>'
+            + '   </Item>'
+            + '  </Status>'
+            + '  <Put>'
+            + '   <CmdID>3</CmdID>'
+            + '   <Meta><Type xmlns="syncml:metinf">application/vnd.syncml-devinf+xml</Type></Meta>'
+            + '   <Item>'
+            + '    <Source><LocURI>./devinf12</LocURI><LocName>./devinf12</LocName></Source>'
+            + '    <Data>'
+            + '     <DevInf xmlns="syncml:devinf">'
+            + '      <VerDTD>1.2</VerDTD>'
+            + '      <Man>syncml-js</Man>'
+            + '      <Mod>syncml-js.test.suite.server</Mod>'
+            + '      <OEM>-</OEM>'
+            + '      <FwV>1.2.3</FwV>'
+            + '      <SwV>4.5.6</SwV>'
+            + '      <HwV>7.8.9</HwV>'
+            + '      <DevID>syncml-js.test.suite.server</DevID>'
+            + '      <DevTyp>server</DevTyp>'
+            + '      <UTC/>'
+            + '      <SupportLargeObjs/>'
+            + '      <SupportNumberOfChanges/>'
+            + '      <DataStore>'
+            + '       <SourceRef>srv_note</SourceRef>'
+            + '       <DisplayName>Note Storage</DisplayName>'
+            + '       <MaxGUIDSize>' + helpers.getAddressSize() + '</MaxGUIDSize>'
+            + '       <Rx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Rx-Pref>'
+            + '       <Rx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Rx>'
+            + '       <Rx><CTType>text/plain</CTType><VerCT>1.1</VerCT><VerCT>1.0</VerCT></Rx>'
+            + '       <Tx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Tx-Pref>'
+            + '       <Tx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Tx>'
+            + '       <Tx><CTType>text/plain</CTType><VerCT>1.1</VerCT><VerCT>1.0</VerCT></Tx>'
+            + '       <SyncCap>'
+            + '        <SyncType>1</SyncType>'
+            + '        <SyncType>2</SyncType>'
+            + '        <SyncType>3</SyncType>'
+            + '        <SyncType>4</SyncType>'
+            + '        <SyncType>5</SyncType>'
+            + '        <SyncType>6</SyncType>'
+            + '        <SyncType>7</SyncType>'
+            + '       </SyncCap>'
+            + '      </DataStore>'
+            + '     </DevInf>'
+            + '    </Data>'
+            + '   </Item>'
+            + '  </Put>'
+            + '  <Get>'
+            + '   <CmdID>4</CmdID>'
+            + '   <Meta><Type xmlns="syncml:metinf">application/vnd.syncml-devinf+xml</Type></Meta>'
+            + '   <Item>'
+            + '    <Target><LocURI>./devinf12</LocURI><LocName>./devinf12</LocName></Target>'
+            + '   </Item>'
+            + '  </Get>'
+            + '  <Final/>'
+            + ' </SyncBody>'
+            + '</SyncML>';
+          var response = {
+            headers: { 'Content-Type': responseType },
+            body: responseBody
+          };
+
+          sync.peer._proxy = fake_response_2_2;
+          cb(null, response);
+
+        }
+      };
+
+      var fake_response_2_2 = {
+        sendRequest: function(txn, contentType, requestBody, cb) {
+          var response = {
+            headers: { 'Content-Type': 'application/vnd.syncml+xml; charset=UTF-8' },
+            body: 'ABORT'
+          };
+          sync.peer._proxy = null;
+          cb(null, response);
+        }
+      };
+
+      // NOTE: using peer._proxy is only for testing purposes!...
+      sync.peer._proxy = fake_response_2_1;
+      sync.adapter.sync(sync.peer, syncmljs.SYNCTYPE_AUTO, cb);
+
+    };
+
+    //-------------------------------------------------------------------------
+    it('does not disolve previous bindings on Put/Get of device info', function(done) {
+      doFirstSync(sync, function(err) {
+        expect(err).ok();
+        var binding = _.clone(sync.adapter._model.peers[0].stores[0].binding);
+        // this should pass since it passed in the other test, but just
+        // sanity checking...
+        expect(_.keys(binding)).toEqual(['uri', 'autoMapped', 'localAnchor', 'remoteAnchor']);
+        expect(binding.uri).toEqual('cli_memo');
+        expect(binding.autoMapped).toEqual(false);
+        doSecondSyncWithForcedPutGet(sync, function(err) {
+          expect(err).not.ok();
+          expect(err.message).toMatch('ProtocolError: could not parse XML: .*')
+          expect(sync.adapter._model.peers.length).toEqual(1);
+          expect(sync.adapter._model.peers[0].stores.length).toEqual(1);
+          var newbinding = sync.adapter._model.peers[0].stores[0].binding;
+          expect(binding).toEqual(newbinding);
+          done();
         });
       });
-
-      //-----------------------------------------------------------------------
-      it('does a slow-sync with all stores', function() {
-        expect(done).toEqual('complete');
-      });
-
     });
 
   });
