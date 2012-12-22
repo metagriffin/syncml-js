@@ -35,7 +35,7 @@ define([
       var xver  = ET.SubElement(xhdr, 'VerDTD');
       xver.set('xmlns', constant.NAMESPACE_METINF);
       xver.text = '1.2'
-      var chk = '<?xml version=\'1.0\' encoding=\'utf-8\'?>\n'
+      var chk = '<?xml version="1.0" encoding="utf-8"?>\n'
         + '<SyncML xmlns="syncml:syncml1.2">'
         +  '<SyncHdr>'
         +   '<VerDTD xmlns="syncml:metinf">1.2</VerDTD>'

@@ -73,7 +73,14 @@ define([
     encode: function(xtree, cb) {
       // todo: really enforce this charset...
       var ctype = constant.TYPE_SYNCML + '+' + this.name + '; charset=UTF-8';
-      cb(null, ctype, ET.tostring(xtree));
+      var ret = ET.tostring(xtree);
+      if ( ret.charAt(0) == '<' && ret.charAt(1) == '?' )
+      {
+        var idx = ret.indexOf('?>');
+        if ( idx >= 0 )
+          ret = ret.substr(0, idx + 2).replace(/'/g, '"') + ret.substr(idx + 2);
+      }
+      cb(null, ctype, ret);
     },
 
     decode: function(contentType, data, cb) {
