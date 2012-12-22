@@ -15,6 +15,7 @@ define([
   'underscore',
   'elementtree',
   'stacktrace-js',
+  'request',
   './logging',
   './common',
   './constant',
@@ -26,6 +27,7 @@ define([
   _,
   ET,
   stacktrace,
+  request,
   logging,
   common,
   constant,
@@ -308,10 +310,19 @@ define([
       if ( this._proxy )
         return this._proxy.sendRequest(dbtxn, contentType, data, cb);
 
-      // TODO: implement
-      log.critical('TODO ::: RemoteAdapter.sendRequest NOT IMPLEMENTED');
-      cb('TODO ::: RemoteAdapter.sendRequest NOT IMPLEMENTED');
-
+      var req = {
+        url     : this.url,
+        method  : 'POST',
+        headers : {'Content-Type': contentType},
+        body    : data
+      };
+      request(req, function(err, response, body) {
+        if ( err )
+          return cb(err);
+        // todo: is this really necessary?...
+        response.headers['Content-Type'] = response.headers['content-type'];
+        return cb(null, response);
+      });
     },
 
   });
