@@ -86,6 +86,15 @@ define([
     }
   });
 
+  //---------------------------------------------------------------------------
+  exports.Stream = exports.Base.extend({
+
+    writeln: function(data) {
+      return this.write(data + '\n');
+    }
+
+  });
+
   _.extend(exports, {
 
     //---------------------------------------------------------------------------
@@ -262,7 +271,71 @@ define([
       var tmp = ret.slice(0, limit);
       tmp.push(ret.slice(limit).join(sep));
       return tmp;
-    }
+    },
+
+    //-------------------------------------------------------------------------
+    StringStream: exports.Stream.extend({
+
+      constructor: function(initData) {
+        this._data = initData || '';
+      },
+
+      write: function(data) {
+        this._data += data;
+      },
+
+      getData: function() {
+        return this._data;
+      }
+
+    }),
+
+    //-------------------------------------------------------------------------
+    IndentStream: exports.Stream.extend({
+
+      //-----------------------------------------------------------------------
+      constructor: function(stream, indent, options) {
+        options = options || {};
+        this._stream    = stream;
+        this._indent    = indent || '  ';
+        this._cleared   = true;
+        this._stayBlank = !!options.stayBlank;
+      },
+
+      //-----------------------------------------------------------------------
+      write: function(data) {
+        var self = this;
+        if ( ! data || ! data.length || data.length <= 0 )
+          return;
+        var lines = data.split('\n');
+        if ( self._cleared )
+          self._stream.write(self._indent);
+        self._cleared = false;
+        for ( var idx=0 ; idx<lines.length ; idx++ )
+        {
+          var line = lines[idx];
+          if ( line == '' )
+          {
+            if ( idx + 1 >= lines.length )
+              self._cleared = true;
+            else
+            {
+              if ( idx != 0 && ! self._stayBlank )
+                self._stream.write(self._indent);
+            }
+          }
+          else
+          {
+            if ( idx != 0 || self._cleared )
+              self._stream.write(self._indent);
+            self._stream.write(line);
+          }
+          if ( idx + 1 < lines.length )
+            self._stream.write('\n');
+        }
+      }
+
+    })
 
   });
 
