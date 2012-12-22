@@ -325,6 +325,25 @@ define([
       });
     },
 
+    //-------------------------------------------------------------------------
+    describe: function(stream, cb) {
+      stream.writeln('URL: ' + this.url);
+      stream.writeln('Device ID: ' + this.devID);
+      var stores = this.getStores();
+      if ( stores.length <= 0 )
+      {
+        stream.writeln('Data stores: (none)');
+        return cb();
+      }
+      stream.writeln('Data stores:');
+      var s1 = new common.IndentStream(stream);
+      var s2 = new common.IndentStream(s1);
+      common.cascade(stores, function(store, cb) {
+        s1.writeln(( store.displayName || store.uri ) + ':');
+        store.describe(s2, cb);
+      }, cb);
+    }
+
   });
 
   return exports;
