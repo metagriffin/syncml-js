@@ -452,6 +452,28 @@ define([
 
     },
 
+    describe: function(stream, cb) {
+      stream.writeln('URI: ' + this.uri);
+      stream.writeln('Max ID size: ' + ( this.maxGuidSize || '(none)' ));
+      stream.writeln('Max object size: ' + ( this.maxObjSize || '(none)' ));
+
+      //      print >>s2, 'Sync types:', ','.join([str(e) for e in self.syncTypes or []])
+
+      var cts = this.getContentTypes();
+      if ( cts.length <= 0 )
+      {
+        stream.writeln('Capabilities: (none)');
+        return cb();
+      }
+      stream.writeln('Capabilities:');
+      var s1 = new common.IndentStream(stream);
+      common.cascade(cts, function(ct, cb) {
+        s1.write('- ');
+        ct.describe(s1);
+        return cb();
+      }, cb);
+    }
+
   }, {
 
     //-------------------------------------------------------------------------

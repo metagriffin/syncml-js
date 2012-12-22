@@ -97,6 +97,26 @@ define([
       return ret;
     },
 
+    describe: function(stream, cb) {
+      stream.write(this.ctype);
+      stream.write(this.versions.length == 1 ? ' version ' : ' versions ');
+      stream.write(this.versions.join(', '));
+      var flags = [];
+      if ( this.preferred )
+        flags.push('preferred');
+      if ( this.transmit )
+        flags.push('tx');
+      if ( this.receive )
+        flags.push('rx');
+      if ( flags.length > 0 )
+      {
+        stream.write(' (');
+        stream.write(flags.join(', '));
+        stream.write(')');
+      }
+      stream.write('\n');
+    }
+
   }, {
 
     //-------------------------------------------------------------------------
