@@ -46,6 +46,16 @@ define([
       expect(common.normpath('..//../b')).toEqual('../../b');
     });
 
+    //-------------------------------------------------------------------------
+    it('indents output streams', function() {
+      var str = new common.StringStream();
+      var ind = new common.IndentStream(str, '>>'); 
+      str.writeln('hello there,');
+      ind.writeln('for example.');
+      ind.write('thats\nit, folks!');
+      expect(str.getData()).toEqual('hello there,\n>>for example.\n>>thats\n>>it, folks!');
+    });
+
   });
 });
 
