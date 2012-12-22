@@ -82,6 +82,7 @@ define([
       this.adapter   = options.adapter || null;
       this.peer      = options.peer    || null;
       this.info      = options.info    || null;
+      this.discover  = options.discover ? true : false;
       this.isServer  = options.isServer ? true : false;
       this.nextCmdID = function() {
         this.info.cmdID += 1;

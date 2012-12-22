@@ -456,9 +456,7 @@ define([
       stream.writeln('URI: ' + this.uri);
       stream.writeln('Max ID size: ' + ( this.maxGuidSize || '(none)' ));
       stream.writeln('Max object size: ' + ( this.maxObjSize || '(none)' ));
-
-      //      print >>s2, 'Sync types:', ','.join([str(e) for e in self.syncTypes or []])
-
+      stream.writeln('Sync types: ' + this.syncTypes.join(', '));
       var cts = this.getContentTypes();
       if ( cts.length <= 0 )
       {

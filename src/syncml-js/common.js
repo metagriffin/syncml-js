@@ -299,7 +299,7 @@ define([
         this._stream    = stream;
         this._indent    = indent || '  ';
         this._cleared   = true;
-        this._stayBlank = !!options.stayBlank;
+        this._stayBlank = !! options.stayBlank;
       },
 
       //-----------------------------------------------------------------------

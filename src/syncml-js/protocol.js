@@ -275,17 +275,20 @@ define([
 
       var createCommands = function(commands, cb) {
         // request the remote device info if not currently available
-        if ( ! session.peer.devInfo )
+        if ( !! session.discover || ! session.peer.devInfo )
         {
           log.debug('no peer.devinfo - requesting from target (and sending source devinfo)');
-          commands.push(state.makeCommand({
-            name       : constant.CMD_PUT,
-            cmdID      : session.nextCmdID(),
-            type       : constant.TYPE_SYNCML_DEVICE_INFO + '+' + session.info.codec,
-            source     : './' + constant.URI_DEVINFO_1_2,
-            data       : session.adapter.devInfo.toSyncML(constant.SYNCML_DTD_VERSION_1_2,
-                                                          _.values(session.adapter._stores))
-          }));
+          if ( ! session.discover )
+          {
+            commands.push(state.makeCommand({
+              name       : constant.CMD_PUT,
+              cmdID      : session.nextCmdID(),
+              type       : constant.TYPE_SYNCML_DEVICE_INFO + '+' + session.info.codec,
+              source     : './' + constant.URI_DEVINFO_1_2,
+              data       : session.adapter.devInfo.toSyncML(constant.SYNCML_DTD_VERSION_1_2,
+                                                            _.values(session.adapter._stores))
+            }));
+          }
           commands.push(state.makeCommand({
             name     : constant.CMD_GET,
             cmdID    : session.nextCmdID(),

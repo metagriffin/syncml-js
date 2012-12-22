@@ -52,6 +52,9 @@ define([
     SYNCTYPE_REFRESH_FROM_SERVER            : 6,
     SYNCTYPE_SERVER_ALERTED                 : 7,
 
+    // Special syncml-js SyncTypes
+    SYNCTYPE_DISCOVER                       : 'discover',
+
     // SyncML synctype-to-alertcode mapping
     // taking advantage of the fact that 1..7 maps to 200..206
     // (more or less... "7" is a bit "nebulous"...)

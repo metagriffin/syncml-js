@@ -304,6 +304,9 @@ define([
       // todo: or perhaps add a new session.dbtxn?...
 
       var self = this;
+      var discover = ( mode == constant.SYNCTYPE_DISCOVER );
+      if ( discover )
+        mode = constant.SYNCTYPE_SLOW_SYNC;
 
       if ( ! _.find(self._peers, function(p) { return p === peer; }) )
         return cb(new common.InvalidAdapter('invalid peer for adapter'));
@@ -322,6 +325,7 @@ define([
         adapter  : self,
         peer     : peer,
         isServer : false,
+        discover : discover,
         info     : state.makeSessionInfo({
           id       : ( peer.lastSessionID || 0 ) + 1,
           msgID    : 1,
@@ -506,6 +510,8 @@ define([
             function(err, commands) {
               if ( err )
                 return cb(err);
+              if ( session.discover && session.peer.devInfo )
+                return cb(null, self._session2stats(session));
               self._transmit(session, commands, function(err) {
                 if ( err )
                   return cb(err);
