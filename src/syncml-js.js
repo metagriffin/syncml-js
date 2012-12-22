@@ -22,7 +22,8 @@ define([
   './syncml-js/agent',
   './syncml-js/router',
   './syncml-js/synchronizer',
-  './syncml-js/protocol'
+  './syncml-js/protocol',
+  './syncml-js/backup'
 ], function(
   _,
   constant,
@@ -34,7 +35,8 @@ define([
   agent,
   router,
   synchronizer,
-  protocol
+  protocol,
+  backup
 ) {
 
   return _.extend(
@@ -52,7 +54,10 @@ define([
     agent,
     router,
     synchronizer,
-    protocol
+    protocol,
+    {
+      backup: backup
+    }
   );
 
 });
