@@ -304,14 +304,14 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    sendRequest: function(dbtxn, contentType, data, cb) {
+    sendRequest: function(session, contentType, data, cb) {
 
       // TODO: shouldn't proxies just overwrite .sendRequest() ?...
       if ( this._proxy )
-        return this._proxy.sendRequest(dbtxn, contentType, data, cb);
+        return this._proxy.sendRequest(session, contentType, data, cb);
 
       var req = {
-        url     : this.url,
+        url     : session.info.respUri || this.url,
         method  : 'POST',
         headers : {'Content-Type': contentType},
         body    : data
