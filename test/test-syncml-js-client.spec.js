@@ -114,7 +114,7 @@ define([
       var synchronize = function(cb) {
 
         var fake_response_1_1 = {
-          sendRequest: function(txn, contentType, requestBody, cb) {
+          sendRequest: function(session, contentType, requestBody, cb) {
             seenRequests += '1';
             var chk =
               '<SyncML>'
@@ -306,7 +306,7 @@ define([
         };
 
         var fake_response_1_2 = {
-          sendRequest: function(txn, contentType, requestBody, cb) {
+          sendRequest: function(session, contentType, requestBody, cb) {
             seenRequests += '2';
             var nextAnchor = ET.parse(requestBody)
               .getroot().findtext('SyncBody/Alert/Item/Meta/Anchor/Next');
@@ -429,7 +429,7 @@ define([
         };
 
         var fake_response_1_3 = {
-          sendRequest: function(txn, contentType, requestBody, cb) {
+          sendRequest: function(session, contentType, requestBody, cb) {
             seenRequests += '3';
             var nextAnchor = ET.parse(requestBody)
               .getroot().findtext('SyncBody/Status/Item/Data/Anchor/Next');
@@ -568,7 +568,7 @@ define([
         };
 
         var fake_response_1_4 = {
-          sendRequest: function(txn, contentType, requestBody, cb) {
+          sendRequest: function(session, contentType, requestBody, cb) {
             seenRequests += '4';
             var chk =
               '<SyncML>'
@@ -679,7 +679,7 @@ define([
         };
 
         var fake_response_1_5 = {
-          sendRequest: function(txn, contentType, requestBody, cb) {
+          sendRequest: function(session, contentType, requestBody, cb) {
             seenRequests += '5';
             // request #4 should have been the last...
             expect('this').toBe('*not* called');
@@ -751,7 +751,7 @@ define([
     var doSecondSyncWithForcedPutGet = function(sync, cb) {
 
       var fake_response_2_1 = {
-        sendRequest: function(txn, contentType, requestBody, cb) {
+        sendRequest: function(session, contentType, requestBody, cb) {
           var lastAnchor = helpers.findXml(requestBody, './SyncBody/Alert/Item/Meta/Anchor/Last');
           var nextAnchor = helpers.findXml(requestBody, './SyncBody/Alert/Item/Meta/Anchor/Next');
           var chk =
@@ -917,7 +917,7 @@ define([
       };
 
       var fake_response_2_2 = {
-        sendRequest: function(txn, contentType, requestBody, cb) {
+        sendRequest: function(session, contentType, requestBody, cb) {
           var response = {
             headers: { 'Content-Type': 'application/vnd.syncml+xml; charset=UTF-8' },
             body: 'ABORT'
