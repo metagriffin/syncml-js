@@ -151,22 +151,17 @@ define([
 
     //-------------------------------------------------------------------------
     getPeerStore: function(peer) {
-
+      var peerUri = null;
       if ( this._a.isLocal )
+        peerUri = this._a._c.router.getTargetUri(this._a, peer, this.uri);
+      else
       {
-        var peerUri = this._a._c.router.getTargetUri(this._a, peer, this.uri);
-        if ( ! peerUri )
-          return null;
-
-        log.warning('TODO ::: Store.getPeerStore NOT IMPLEMENTED');
-
-        return null;
+        var binding = this.getBinding();
+        peerUri = binding ? binding.uri : null;
       }
-
-      log.warning('TODO ::: Store.getPeerStore NOT IMPLEMENTED');
-
-      return null;
-
+      if ( ! peerUri )
+        return null;
+      return peer.getStore(peerUri);
     },
 
     //-------------------------------------------------------------------------
@@ -452,6 +447,7 @@ define([
 
     },
 
+    //-------------------------------------------------------------------------
     describe: function(stream, cb) {
       stream.writeln('URI: ' + this.uri);
       stream.writeln('Max ID size: ' + ( this.maxGuidSize || '(none)' ));
