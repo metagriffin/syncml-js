@@ -201,7 +201,7 @@ define([
           syncobj.peer    = peer;
           // NOTE: peer._proxy should only be used for testing!...
           syncobj.peer._proxy = {
-            sendRequest: function(txn, contentType, requestBody, cb) {
+            sendRequest: function(session, contentType, requestBody, cb) {
               if ( ! syncobj.session )
                 syncobj.session = syncml.makeSessionInfo({effectiveID: 'https://example.com/sync'});
               var session   = syncobj.session;
@@ -211,11 +211,6 @@ define([
                 headers: { 'Content-Type': contentType},
                 body:    requestBody
               };
-
-              // console.log('>>>>>>>>>>>>>>>>>>>>>>>>');
-              // console.log(request.body);
-              // console.log('========================');
-
               sync.server.adapter.handleRequest(request, session, authorize, collector.write, function(err) {
                 expect(err).ok();
                 expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
@@ -224,19 +219,12 @@ define([
                   headers: { 'Content-Type': collector.contentTypes[0]},
                   body:    collector.contents[0]
                 };
-
-                // console.log('<<<<<<<<<<<<<<<<<<<<<<<<');
-                // console.log(response.body);
-                // console.log('========================');
-
                 cb(err, response);
               });
             }
           };
           syncobj.sync = function(options, expectStats, cb) {
-            // console.log('****************************************************************');
-            var mode = options ? options.mode : null;
-            mode = mode || syncml.SYNCTYPE_AUTO;
+            var mode = ( options ? options.mode : null ) || syncml.SYNCTYPE_AUTO;
             if ( expectStats && ! expectStats.mode )
               // todo: make this dependent on options.mode...
               expectStats.mode = syncml.SYNCTYPE_TWO_WAY;
@@ -244,11 +232,6 @@ define([
             syncobj.adapter.sync(syncobj.peer, mode, function(err, stats) {
               expect(err).ok();
               expect(stats).toEqual({cli_memo: syncml.makeStats(expectStats)});
-
-              // console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
-              // console.log(common.j(syncobj.session))
-              // console.log('################################################################');
-
               cb(err);
             });
           };
@@ -491,10 +474,10 @@ define([
         },
 
         // synchronize c1 with server
-        _.bind(sync.c1.sync, null, null, {peerAdd: 1, peerDel: 1}),
+        _.bind(sync.c1.sync, null, {}, {peerAdd: 1, peerDel: 1}),
 
         // synchronize c2 with server
-        _.bind(sync.c2.sync, null, null, {hereAdd: 1, hereDel: 1}),
+        _.bind(sync.c2.sync, null, {}, {hereAdd: 1, hereDel: 1}),
 
         // validate data
         function(cb) {
@@ -517,10 +500,10 @@ define([
         },
 
         // re-synchronize c1 with server, expect no changes
-        _.bind(sync.c1.sync, null, null, {}),
+        _.bind(sync.c1.sync, null, {}, {}),
 
         // re-synchronize c2 with server, expect no changes
-        _.bind(sync.c2.sync, null, null, {}),
+        _.bind(sync.c2.sync, null, {}, {}),
 
         // re-validate data, expect no changes
         function(cb) {
@@ -577,10 +560,10 @@ define([
         },
 
         // synchronize c1 with server
-        _.bind(sync.c1.sync, null, null, {peerMod: 1}),
+        _.bind(sync.c1.sync, null, {}, {peerMod: 1}),
 
         // synchronize c2 with server
-        _.bind(sync.c2.sync, null, null, {hereMod: 1}),
+        _.bind(sync.c2.sync, null, {}, {hereMod: 1}),
 
         // validate data
         function(cb) {
@@ -604,10 +587,10 @@ define([
         },
 
         // re-synchronize c1 with server, expect no changes
-        _.bind(sync.c1.sync, null, null, {}),
+        _.bind(sync.c1.sync, null, {}, {}),
 
         // re-synchronize c2 with server, expect no changes
-        _.bind(sync.c2.sync, null, null, {}),
+        _.bind(sync.c2.sync, null, {}, {}),
 
         // re-validate data, expect no changes
         function(cb) {
