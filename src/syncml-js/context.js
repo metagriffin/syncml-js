@@ -26,7 +26,7 @@ define([
   './router',
   './synchronizer',
   './protocol',
-  './adapter'
+  './localadapter'
 ], function(
   _,
   ET,
@@ -37,7 +37,7 @@ define([
   router,
   synchronizer,
   protocol,
-  adapter
+  localadapter
 ) {
 
   var log = logging.getLogger('syncml-js.context');
@@ -81,7 +81,7 @@ define([
       }
       else
       {
-        var ret = new adapter.Adapter(this, options, devInfo);
+        var ret = new localadapter.LocalAdapter(this, options, devInfo);
         return ret._load(cb);
       }
     },
