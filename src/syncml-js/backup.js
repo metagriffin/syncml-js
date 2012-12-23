@@ -289,7 +289,7 @@ define([
         help     : 'exclusive version of --include-store (ie. specifies the inverse set)'
       });
       // todo: ideally, this should just take a positional parameter...
-      parser.addArgument(['--dir'], {
+      parser.addArgument(['-d', '--dir'], {
         dest     : 'directory',
         metavar  : 'DIRECTORY',
         required : true,
@@ -404,10 +404,16 @@ define([
         var stores = [];
         var routes = [];
         common.cascade([
+
           // todo: really clear the directory?... what if i just want to do
           //       a fresh backup from the same stored info?...
+
+          // TODO: at least warn the user if a current backup is being
+          //       destroyed...
+
           // setup the storage directory structure
           _.bind(self._prepDirectory, self, true),
+
           // configure local stores and agents
           function(cb) {
             common.cascade(uris, function(uri, cb) {
@@ -438,11 +444,10 @@ define([
               });
             }, cb);
           },
+
           // execute the sync
           function(cb) {
-
             // todo: should these be Tool member variables?...
-
             var sdb     = new sqlite3.Database(self._opts.directory + '/.sync/syncml.db');
             var idb     = new indexeddbjs.indexedDB('sqlite3', sdb);
             var ctxt    = new context.Context({storage: idb});
@@ -479,14 +484,11 @@ define([
                 return cb();
               });
             });
-
           },
 
           // create a snapshot (so that change detection can happen)
           function(cb) {
-
             var snapshot = {};
-
             common.cascade(stores, function(store, cb) {
               snapshot[store.uri] = {};
               store.agent._storage.allMeta(function(err, items) {
@@ -499,11 +501,10 @@ define([
               });
             }, function(err, cb) {
               fs.writeFile(
-                self._opts.directory + '/.sync/snapshot.json',
+                self._opts.directory + '/.sync/state.json',
                 common.prettyJson(snapshot),
                 cb);
             });
-
           }
 
         ], cb);
@@ -513,10 +514,30 @@ define([
     //-------------------------------------------------------------------------
     sync: function(cb) {
       var self = this;
-      return cb('TODO ::: "sync" not implemented');
-
-      // TODO: implement
-
+      var s0   = new StdoutStream();
+      // todo: should these be Tool member variables?...
+      var sdb  = new sqlite3.Database(self._opts.directory + '/.sync/syncml.db');
+      var idb  = new indexeddbjs.indexedDB('sqlite3', sdb);
+      var ctxt = new context.Context({storage: idb});
+      ctxt.getAdapter(null, null, function(err, adapter) {
+        if ( err )
+          return cb(err);
+        var peers = adapter.getPeers();
+        if ( peers.length <= 0 )
+          return cb('cannot sync: no known peer recorded');
+        if ( peers.length != 1 )
+          return cb('cannot sync: multiple peers recorded');
+        // todo: tell the adapter than no change in synctype will be tolerated
+        adapter.sync(peers[0], constant.SYNCTYPE_TWO_WAY, function(err, stats) {
+          if ( err )
+            return cb(err);
+          if ( ! self._opts.quiet )
+            state.describeStats(stats, s0, {
+              title: 'SyncML Backup Tool Results'
+            });
+          return cb();
+        });
+      });
     },
 
     //-------------------------------------------------------------------------
