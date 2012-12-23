@@ -651,6 +651,7 @@ define([
             if ( err )
             {
               log.error('failed with anticipated error: ' + common.j(err));
+              log.error('  ' + stacktrace().join('\n  '));
               return makeErrorCommands(err, cb);
             }
             return cb(null, commands);
@@ -1044,7 +1045,7 @@ define([
             });
 
           }catch(e){
-            // log.error('failed invoking protocol sub-consumption: ' + e);
+            // log.error('failed invoking protocol sub-consumption of "%s": %s', child.tag, e);
             // log.error('  ' + stacktrace({e: e}).join('\n  '));
             return cb(new common.InternalError(
               'failed invoking protocol sub-consumption of "' + child.tag + '": ' + e, e));
@@ -1324,7 +1325,7 @@ define([
         if ( ds.peerLastAnchor != session.peer.getStore(ruri)._getBinding().remoteAnchor )
         {
           log.warning(
-            'last-anchor mismatch (here: %r, peer: %r) for datastore "%s" - forcing slow-sync',
+            'last-anchor mismatch (here: %s, peer: %s) for datastore "%s" - forcing slow-sync',
             session.peer.getStore(ruri)._getBinding().remoteAnchor, ds.peerLastAnchor, uri);
           ds.peerLastAnchor = null;
           switch ( ds.mode )
