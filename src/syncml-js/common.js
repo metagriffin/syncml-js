@@ -11,9 +11,13 @@ if ( typeof(define) !== 'function')
   var define = require('amdefine')(module);
 
 define([
+  'fs',
+  'path',
   'underscore',
   './constant'
 ], function(
+  fs,
+  pathmod,
   _,
   constant
 ) {
@@ -90,6 +94,8 @@ define([
   exports.Stream = exports.Base.extend({
 
     writeln: function(data) {
+      if ( data == undefined )
+        return;
       return this.write(data + '\n');
     }
 
@@ -170,18 +176,26 @@ define([
 
     //-------------------------------------------------------------------------
     cascade: function(list, iterator, cb) {
+      if ( ! cb && iterator )
+      {
+        cb = iterator;
+        iterator = null;
+      }
       if ( ! list )
         return cb();
       var cur = 0;
       var next = function() {
         if ( cur >= list.length )
           return cb();
-        iterator(list[cur], function(err) {
+        var curcb = function(err) {
           if ( err )
             return cb(err);
           cur += 1;
           return next();
-        });
+        };
+        if ( iterator )
+          return iterator(list[cur], curcb);
+        return list[cur](curcb);
       };
       return next();
     },
@@ -274,6 +288,94 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    prettyJson: function(obj, indent) {
+      indent = indent || '';
+      var ret = '';
+      if ( _.isArray(obj) )
+      {
+        if ( obj.length <= 0 )
+          return '[]';
+        ret = '[\n' + indent;
+        _.each(obj, function(el, idx) {
+          ret += '  ' + exports.prettyJson(el, indent + '  ');
+          if ( idx + 1 < obj.length )
+            ret += ',';
+          ret += '\n' + indent;
+        });
+        return ret + ']';
+      }
+      if ( _.isObject(obj) )
+      {
+        var keys = _.keys(obj);
+        if ( keys.length <= 0 )
+          return '{}';
+        keys.sort();
+        ret = '{\n' + indent;
+        _.each(keys, function(key, idx) {
+          ret += '  ' + exports.prettyJson(key)
+            + ': ' + exports.prettyJson(obj[key], indent + '  ');
+          if ( idx + 1 < keys.length )
+            ret += ',';
+          ret += '\n' + indent;
+        });
+        return ret + ( indent.length <= 0 ? '}\n' : '}' );
+      }
+      return JSON.stringify(obj);
+    },
+
+    //-------------------------------------------------------------------------
+    urlEncode: function(dat) {
+      return ( dat == undefined ? dat : encodeURIComponent(dat) );
+    },
+
+    //-------------------------------------------------------------------------
+    rmfr: function(path, cb) {
+      fs.stat(path, function(err, stats) {
+        if ( err && err.code == 'ENOENT' )
+          return cb();
+        if ( err )
+          return cb(err);
+        if ( ! stats.isDirectory() )
+          return fs.unlink(path, cb);
+        fs.readdir(path, function(err, files) {
+          exports.cascade(files, function(file, cb) {
+            var curpath = pathmod.join(path, file);
+            return exports.rmfr(curpath, cb);
+          }, function(err) {
+            if ( err )
+              return cb(err);
+            fs.rmdir(path, cb);
+          });
+        });
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    makedirs: function(path, cb) {
+      // node sucks. i can't believe it doesn't provide a fs.makedirs(). wtf.
+      // clean up the path
+      path = pathmod.normalize(path.split(/[\\\/]/).join('/'));
+      var paths = path.split('/');
+      paths = _.map(paths, function(p, idx) {
+        return paths.slice(0, idx + 1).join('/');
+      });
+      if ( path.charAt(0) == '/' )
+        paths.shift();
+      exports.cascade(paths, function(path, cb) {
+        fs.stat(path, function(err, stats) {
+          if ( err && err.code == 'ENOENT' )
+            return fs.mkdir(path, cb);
+          if ( err )
+            return cb(err);
+          if ( stats.isDirectory() )
+            return cb();
+          // this probably won't work, but let's get the error anyhow...
+          return fs.mkdir(path, cb);
+        });
+      }, cb);
+    },
+
+    //-------------------------------------------------------------------------
     StringStream: exports.Stream.extend({
 
       constructor: function(initData) {
@@ -281,6 +383,8 @@ define([
       },
 
       write: function(data) {
+        if ( data == undefined )
+          return;
         this._data += data;
       },
 
@@ -305,8 +409,10 @@ define([
       //-----------------------------------------------------------------------
       write: function(data) {
         var self = this;
-        if ( ! data || ! data.length || data.length <= 0 )
+        if ( data == undefined )
           return;
+        // if ( ! data || ! data.length || data.length <= 0 )
+        //   return;
         var lines = data.split('\n');
         if ( self._cleared )
           self._stream.write(self._indent);
