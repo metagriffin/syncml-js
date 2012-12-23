@@ -97,6 +97,10 @@ define([
       if ( data == undefined )
         return;
       return this.write(data + '\n');
+    },
+
+    indented: function(indent) {
+      return new exports.IndentStream(this, indent || this._indent);
     }
 
   });
