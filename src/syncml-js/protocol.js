@@ -1058,7 +1058,7 @@ define([
 
           if ( ! gotFinal )
           {
-            commands.append(state.makeCommand({
+            commands.push(state.makeCommand({
               name       : constant.CMD_ALERT,
               cmdID      : session.nextCmdID(),
               data       : constant.STATUS_NEXT_MESSAGE,

@@ -512,6 +512,24 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    _makeAgents: function(adapter, peer, cb) {
+      var self = this;
+      common.cascade(adapter.getStores(), function(store, cb) {
+        var pstore = peer.getStore(store.uri);
+        var storage = new ItemStorage({
+          rootdir  : self._opts.directory,
+          reldir   : 'stores/' + common.urlEncode(store.uri),
+          label    : store.uri
+        });
+        store.agent = new Agent({
+          storage      : storage,
+          contentTypes : pstore.getContentTypes()
+        });
+        cb();
+      }, cb);
+    },
+
+    //-------------------------------------------------------------------------
     sync: function(cb) {
       var self = this;
       var s0   = new StdoutStream();
@@ -527,15 +545,23 @@ define([
           return cb('cannot sync: no known peer recorded');
         if ( peers.length != 1 )
           return cb('cannot sync: multiple peers recorded');
-        // todo: tell the adapter than no change in synctype will be tolerated
-        adapter.sync(peers[0], constant.SYNCTYPE_TWO_WAY, function(err, stats) {
+
+        self._makeAgents(adapter, peers[0], function(err) {
           if ( err )
             return cb(err);
-          if ( ! self._opts.quiet )
-            state.describeStats(stats, s0, {
-              title: 'SyncML Backup Tool Results'
-            });
-          return cb();
+
+
+          // todo: tell the adapter than no change in synctype will be tolerated
+          adapter.sync(peers[0], constant.SYNCTYPE_TWO_WAY, function(err, stats) {
+            if ( err )
+              return cb(err);
+            if ( ! self._opts.quiet )
+              state.describeStats(stats, s0, {
+                title: 'SyncML Backup Tool Results'
+              });
+            return cb();
+          });
+
         });
       });
     },
