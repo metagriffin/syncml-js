@@ -169,6 +169,7 @@ define([
     },
 
     delete: function(itemID, cb) {
+      var self = this;
       fs.unlink(
         pathmod.join(self.rootdir, self.reldir, itemID + '.json'),
         function(err, data) {
@@ -239,22 +240,19 @@ define([
 
       var parser = new argparse.ArgumentParser({
         // TODO: figure out how to pull this dynamically from package.json...
-        // version     : '0.0.5',
+        // version     : '0.0.6',
         addHelp     : true,
-        usage       : '%(prog)s [-h] [--version] COMMAND [OPTIONS] DIRECTORY',
+        usage       : '%(prog)s [-h|--help] [--version] [OPTIONS] COMMAND DIRECTORY',
         formatterClass : RawDescriptionHelpFormatter,
         description : 'SyncML Backup Tool (syncml-js)\n\nAvailable commands:\n'
           + '  discover              query and display the server\'s data structure\n'
           + '  backup                download server data, overriding local data\n'
-          // + '  sync                  update local data with changes made since a backup\n'
+          + '  sync                  synchronize remote and local changes\n'
           + '  restore               upload local data, overriding server data\n'
       });
       parser.addArgument(['--version'], {
         action   : 'storeTrue',
         help     : 'Show program\'s version number and exit.'
-      });
-      parser.addArgument(['command'], {
-        choices: ['discover', 'backup', 'sync', 'restore']
       });
       parser.addArgument(['-v', '--verbose'], {
         action   : 'count',
@@ -288,13 +286,21 @@ define([
         action   : 'append',
         help     : 'exclusive version of --include-store (ie. specifies the inverse set)'
       });
-      // todo: ideally, this should just take a positional parameter...
-      parser.addArgument(['-d', '--dir'], {
-        dest     : 'directory',
+
+      // todo: ideally, i'd like to declare that sbt takes 2 positional
+      //       parameters - regardless of where the options are. unfortunately,
+      //       that does not seem to be possible with argparse?...
+
+      parser.addArgument(['command'], {
+        choices  : ['discover', 'backup', 'sync', 'restore']
+      });
+      parser.addArgument(['directory'], {
+        // dest     : 'directory',
+        // required : true,
         metavar  : 'DIRECTORY',
-        required : true,
         help     : 'the directory to store all sync data'
       });
+
       this._opts    = parser.parseArgs();
       this._sdb     = null;
       this._idb     = null;
@@ -390,6 +396,30 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    _takeSnapshot: function(adapter, cb) {
+      var self     = this;
+      var snapshot = {};
+      common.cascade(adapter.getStores(), function(store, cb) {
+        snapshot[store.uri] = {};
+        store.agent._storage.allMeta(function(err, items) {
+          if ( err )
+            return cb(err);
+          _.each(items, function(item) {
+            snapshot[store.uri][item.id] = item;
+          });
+          return cb();
+        });
+      }, function(err) {
+        if ( err )
+          return cb(err);
+        fs.writeFile(
+          self._opts.directory + '/.sync/state.json',
+          common.prettyJson(snapshot),
+          cb);
+      });
+    },
+
+    //-------------------------------------------------------------------------
     backup: function(cb) {
       var self = this;
       self._discover(function(err, peer) {
@@ -401,8 +431,9 @@ define([
         log.debug('remote stores: ' + uris.join(', '));
         uris = self._filterUris(uris);
         log.debug('backing up stores: ' + uris.join(', '));
-        var stores = [];
-        var routes = [];
+        var stores  = [];
+        var routes  = [];
+        var adapter = null;
         common.cascade([
 
           // todo: really clear the directory?... what if i just want to do
@@ -468,9 +499,10 @@ define([
                 password : self._opts.password
               },
               routes: routes
-            }, function(err, adapter, stores, peer) {
+            }, function(err, newAdapter, stores, peer) {
               if ( err )
                 return cb(err);
+              adapter = newAdapter;
               adapter.sync(peer, constant.SYNCTYPE_REFRESH_FROM_SERVER, function(err, stats) {
                 if ( err )
                   return cb(err);
@@ -486,25 +518,9 @@ define([
             });
           },
 
-          // create a snapshot (so that change detection can happen)
+          // take a snapshot (so that change detection can happen)
           function(cb) {
-            var snapshot = {};
-            common.cascade(stores, function(store, cb) {
-              snapshot[store.uri] = {};
-              store.agent._storage.allMeta(function(err, items) {
-                if ( err )
-                  return cb(err);
-                _.each(items, function(item) {
-                  snapshot[store.uri][item.id] = item;
-                });
-                return cb();
-              });
-            }, function(err, cb) {
-              fs.writeFile(
-                self._opts.directory + '/.sync/state.json',
-                common.prettyJson(snapshot),
-                cb);
-            });
+            self._takeSnapshot(adapter, cb);
           }
 
         ], cb);
@@ -537,22 +553,72 @@ define([
       var sdb  = new sqlite3.Database(self._opts.directory + '/.sync/syncml.db');
       var idb  = new indexeddbjs.indexedDB('sqlite3', sdb);
       var ctxt = new context.Context({storage: idb});
-      ctxt.getAdapter(null, null, function(err, adapter) {
-        if ( err )
-          return cb(err);
-        var peers = adapter.getPeers();
-        if ( peers.length <= 0 )
-          return cb('cannot sync: no known peer recorded');
-        if ( peers.length != 1 )
-          return cb('cannot sync: multiple peers recorded');
+      var adapter = null;
+      var peer    = null;
+      common.cascade([
 
-        self._makeAgents(adapter, peers[0], function(err) {
-          if ( err )
-            return cb(err);
+        // configure adapter
+        function(cb) {
+          ctxt.getAdapter(null, null, function(err, newAdapter) {
+            if ( err )
+              return cb(err);
+            var peers = newAdapter.getPeers();
+            if ( peers.length <= 0 )
+              return cb('cannot sync: no known peer recorded');
+            if ( peers.length != 1 )
+              return cb('cannot sync: multiple peers recorded');
+            self._makeAgents(newAdapter, peers[0], function(err) {
+              if ( err )
+                return cb(err);
+              adapter = newAdapter;
+              peer    = peers[0];
+              cb();
+            });
+          });
+        },
 
+        // detect changes
+        function(cb) {
+          fs.readFile(self._opts.directory + '/.sync/state.json', function(err, data) {
+            var prev = JSON.parse(data);
 
+            common.cascade(adapter.getStores(), function(store, cb) {
+              store.agent._storage.allMeta(function(err, items) {
+                if ( err )
+                  return cb(err);
+
+                pitems = prev[store.uri];
+                if ( ! pitems )
+                  return cb('unexpected store "' + store.uri + '" (not in state.json)');
+
+                // search for added/changed items
+                common.cascade(items, function(item, cb) {
+                  if ( ! pitems[item.id] )
+                    return store.registerChange(item.id, constant.ITEM_ADDED, null, cb);
+                  pitems[item.id].checked = true;
+                  if ( pitems[item.id].sha1 != item.sha1 )
+                    return store.registerChange(item.id, constant.ITEM_MODIFIED, null, cb);
+                  return cb();
+                }, function(err) {
+                  if ( err )
+                    return cb(err);
+                  // search for deleted items
+                  common.cascade(_.keys(pitems), function(itemID, cb) {
+                    var item = pitems[itemID];
+                    if ( item.checked )
+                      return cb();
+                    return store.registerChange(item.id, constant.ITEM_DELETED, null, cb);
+                  }, cb);
+                });
+              });
+            }, cb);
+          });
+        },
+
+        // execute the sync
+        function(cb) {
           // todo: tell the adapter than no change in synctype will be tolerated
-          adapter.sync(peers[0], constant.SYNCTYPE_TWO_WAY, function(err, stats) {
+          adapter.sync(peer, constant.SYNCTYPE_TWO_WAY, function(err, stats) {
             if ( err )
               return cb(err);
             if ( ! self._opts.quiet )
@@ -561,9 +627,14 @@ define([
               });
             return cb();
           });
+        },
 
-        });
-      });
+        // record the current state
+        function(cb) {
+          self._takeSnapshot(adapter, cb);
+        }
+
+      ], cb);
     },
 
     //-------------------------------------------------------------------------
@@ -578,7 +649,7 @@ define([
     //-------------------------------------------------------------------------
     version: function(cb) {
       // TODO: figure out how to pull this dynamically from package.json...
-      util.puts('0.0.5');
+      util.puts('0.0.6');
       return cb();
     },
 

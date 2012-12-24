@@ -612,6 +612,11 @@ define([
       self.initialize(session, xsync, function(err, cmds) {
         var hdrcmd = ( cmds && cmds.length > 0 ) ? cmds[0] : null;
         var makeErrorCommands = function(err, cb) {
+
+          log.error('creating error commands for: ' + common.j(err));
+          if ( err.exception )
+            log.error('  ' + stacktrace({e: err.exception}).join('\n  '));
+
           if ( ! session.isServer )
             return cb(err);
 
@@ -646,23 +651,13 @@ define([
           return makeErrorCommands(err, cb);
 
         try {
-
           self._consume(session, lastcmds, xsync, cmds, function(err, commands) {
             if ( err )
-            {
-              log.error('failed with anticipated error: ' + common.j(err));
-              log.error('  ' + stacktrace().join('\n  '));
               return makeErrorCommands(err, cb);
-            }
             return cb(null, commands);
           });
-
         } catch ( exc ) {
-
-          log.error('failed with unexpected exception: ' + exc);
-          log.error('  ' + stacktrace({e: exc}).join('\n  '));
           return makeErrorCommands(exc, cb);
-
         }
 
       });
