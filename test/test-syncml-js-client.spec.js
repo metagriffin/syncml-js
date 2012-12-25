@@ -49,8 +49,9 @@ define([
       var idb = new indexeddbjs.indexedDB('sqlite3', sdb);
 
       var context = new syncmljs.Context({
-        storage: idb,
-        prefix:  'memoryBasedClient.'
+        storage : idb,
+        prefix  : 'memoryBasedClient.',
+        config  : {trustDevInfo: true}
       });
 
       context.getEasyClientAdapter({

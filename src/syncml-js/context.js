@@ -56,6 +56,9 @@ define([
       this.synchronizer = options.synchronizer || new synchronizer.Synchronizer();
       this.protocol     = options.protocol || new protocol.Protocol();
       this.codec        = options.codec || constant.CODEC_XML;
+      this.config       = _.defaults({}, options.config, {
+        trustDevInfo      : false
+      });
       this._db          = null;
       this._dbtxn       = null;
     },

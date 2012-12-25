@@ -371,7 +371,7 @@ define([
           session.peer.lastSessionID = session.info.id;
           pmodel.lastSessionID       = session.info.id;
           log.debug('synchronization complete for "' + session.peer.devID + '" (s'
-                    + session.info.id + '.m' + session.info.lastMsgID)
+                    + session.info.id + '.m' + session.info.lastMsgID + ')')
           return cb();
         }
 

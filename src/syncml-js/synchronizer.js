@@ -48,6 +48,8 @@ define([
     initStoreSync: function(session, cb) {
       var err = null;
       _.each(session.peer._getModel().stores, function(rstore) {
+        // TODO: should the server-side be doing this? probably not
+        //       since store mapping is a client-side decision...
         if ( err )
           return;
         var ruri = session.peer.normUri(rstore.uri);
@@ -63,7 +65,8 @@ define([
           mode       : session.info.mode || constant.ALERT_TWO_WAY,
           action     : 'alert'
         });
-        log.debug('adding store "%s" (remote "%s") to sync list', ds.uri, ruri);
+        log.debug('%s: adding store "%s" (remote "%s") to sync list',
+                  session.adapter.devID, ds.uri, ruri);
         if ( ! ds.lastAnchor )
         {
           switch ( ds.mode )

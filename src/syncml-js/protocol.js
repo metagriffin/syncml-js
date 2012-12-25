@@ -274,10 +274,27 @@ define([
         return cb(null, commands);
 
       var createCommands = function(commands, cb) {
-        // request the remote device info if not currently available
-        if ( !! session.discover || ! session.peer.devInfo )
+        // request the remote device info if not currently available or
+        // in discover mode or explicitly re-exchanging it (paranoid mode)
+        var putget = false;
+        if ( !! session.discover )
         {
-          log.debug('no peer.devinfo - requesting from target (and sending source devinfo)');
+          log.debug('discover mode - submitting and requesting devinfo');
+          putget = true;
+        }
+        else if ( ! session.peer.devInfo )
+        {
+          log.debug('no peer devinfo - submitting and requesting devinfo');
+          putget = true;
+        }
+        else if ( ! session.context.config.trustDevInfo && ! session.info.gotinfo )
+        {
+          log.debug('refreshing devinfo');
+          putget = true;
+          session.info.gotinfo = true;
+        }
+        if ( putget )
+        {
           if ( ! session.discover )
           {
             commands.push(state.makeCommand({
@@ -1152,6 +1169,12 @@ define([
       session.peer._setRemoteInfo(res[0], res[1], function(err) {
         if ( err )
           return cb(err);
+
+        // TODO: on the server-side, should a devInfo "PUT" really result
+        //       in a router recalculate and an initStoreSync?... after all,
+        //       it is completely up to the client which stores get sync'd
+        //       with which...
+
         session.context.router.recalculate(session.adapter, session.peer, function(err) {
           if ( err )
             return cb(err);

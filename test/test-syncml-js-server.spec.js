@@ -48,7 +48,8 @@ define([
 
       sync.context = new syncmljs.Context({
         storage: idb,
-        prefix:  'memoryBasedServer.'
+        prefix:  'memoryBasedServer.',
+        config  : {trustDevInfo: true}
       });
 
       sync.context.getAdapter({name: 'In-Memory Test Server'}, null, function(err, adapter) {
@@ -966,7 +967,8 @@ define([
 
         var ctxt2 = new syncmljs.Context({
           storage: idb2,
-          prefix:  'memoryBasedServer.'
+          prefix:  'memoryBasedServer.',
+          config  : {trustDevInfo: true}
         });
 
         // validate that the adapter was stored correctly
