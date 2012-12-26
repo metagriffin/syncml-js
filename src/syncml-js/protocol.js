@@ -1500,19 +1500,22 @@ define([
           return cb(new common.ProtocolError('number-of-changes mismatch (received '
                                              + commands[0].data.length + ', expected '
                                              + noc + ')'));
-        if ( ! session.isServer )
+        if ( ds.action != 'error' )
         {
-          if ( ds.action != 'recv' )
-            return cb(new common.ProtocolError('unexpected sync state for URI "'
-                                               + uri + '": action=' + ds.action));
-          ds.action = 'done';
-        }
-        else
-        {
-          if ( ds.action != 'alert' )
-            return cb(new common.ProtocolError(
-              'unexpected sync state for URI "' + uri + '": action=' + ds.action));
-          ds.action = 'send';
+          if ( ! session.isServer )
+          {
+            if ( ds.action != 'recv' )
+              return cb(new common.ProtocolError('unexpected sync state for URI "'
+                                                 + uri + '": action=' + ds.action));
+            ds.action = 'done';
+          }
+          else
+          {
+            if ( ds.action != 'alert' )
+              return cb(new common.ProtocolError(
+                'unexpected sync state for URI "' + uri + '": action=' + ds.action));
+            ds.action = 'send';
+          }
         }
         return session.context.synchronizer.reactions(session, commands, cb);
       });
