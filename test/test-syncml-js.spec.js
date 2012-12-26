@@ -668,9 +668,6 @@ define([
         // add an extra store to server and c1 adapters, but the
         // server store always responds with an error
         function(cb) {
-
-          // sync.server.storage2 = new helpers.TestStorage({startID: 800});
-          sync.server.agent2   = null; //new helpers.TestAgent({storage: null});//sync.server.storage2});
           sync.c1.storage2     = new helpers.TestStorage({startID: 900});
           sync.c1.agent2       = new helpers.TestAgent({storage: sync.c1.storage2});
           sync.server.adapter.addStore({
@@ -678,7 +675,7 @@ define([
             displayName  : 'Server Note Store 2',
             maxGuidSize  : 32,
             maxObjSize   : 2147483647,
-            agent        : sync.server.agent2
+            agent        : null // purposeful: to cause this binding to error out
           }, function(err, store) {
             if ( err )
               cb(err);
