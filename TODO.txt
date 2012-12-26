@@ -23,3 +23,24 @@
 
 - both client & server modes should ensure that incoming sessionID, messageID
   and commandIDs are correct.
+
+- see how error nodes come back, and think about doing it the way that
+  funambol does:
+    <Status>
+      <CmdID>7</CmdID>
+      <MsgRef>3</MsgRef>
+      <CmdRef>20</CmdRef>
+      <Cmd>Sync</Cmd>
+      <TargetRef>mail</TargetRef>
+      <SourceRef>mail</SourceRef>
+      <Data>506</Data>
+      <Item>
+        <Data>Error setting preliminary info: Error: Account information not found!</Data>
+      </Item>
+    </Status>
+
+- when client is in paranoid devInfo mode (ie. context.config.trustDevInfo
+  is false), then it executes a potentially unnecessary extra
+  request/response phase to confirm that the devInfo has not changed... it
+  *could* instead issue the put/get as well as the alert, *assuming* that
+  no devInfo is going to change... but if it does, it can then react...
