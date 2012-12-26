@@ -56,6 +56,21 @@ define([
       expect(str.getData()).toEqual('hello there,\n>>for example.\n>>thats\n>>it, folks!');
     });
 
+    //-------------------------------------------------------------------------
+    it('cascades function calls', function(done) {
+      var steps = '';
+      common.cascade([
+        function(cb) { steps += '1'; cb(); },
+        function(cb) { steps += '2'; cb(); },
+        function(cb) { steps += '3'; cb(); }
+      ], function(cmd, cb) {
+        return cmd(cb);
+      }, function(cb) {
+        expect(steps).toEqual('123');
+        done();
+      });
+    });
+
   });
 });
 

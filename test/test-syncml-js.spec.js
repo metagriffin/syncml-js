@@ -289,7 +289,9 @@ define([
           //       no sync has happened yet...
           sync.c1.storage.add({body: 'some c1 data'}, function(err) {
             expect(err).ok();
-            sync.c2.storage.add({body: 'some c2 data'}, cb);
+            sync.c2.storage.add({body: 'some c2 data'}, function(err) {
+              return cb(err);
+            });
           });
         },
         // initial sync c1 with server

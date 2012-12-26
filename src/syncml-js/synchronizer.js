@@ -122,7 +122,7 @@ define([
             if ( err )
               return cb(err);
             _.each(cmds, function(cmd) { commands.push(cmd); });
-            return cb(null, commands);
+            return cb();
           });
         }catch(e){
           return cb(new common.InternalError(
@@ -614,7 +614,7 @@ define([
             if ( err )
               return cb(err);
             _.each(cmds, function(cmd) { ret.push(cmd); });
-            return cb(null, ret);
+            return cb();
           });
 
         }, function(err) {
