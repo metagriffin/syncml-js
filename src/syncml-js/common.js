@@ -195,11 +195,19 @@ define([
           if ( err )
             return cb(err);
           cur += 1;
-          return next();
+          var args = [];
+          for ( var idx=1 ; idx<arguments.length ; idx++ )
+            args.push(arguments[idx]);
+          return next.apply(null, args);
         };
+        var func = iterator || list[cur];
+        var args = [];
         if ( iterator )
-          return iterator(list[cur], curcb);
-        return list[cur](curcb);
+          args.push(list[cur]);
+        for ( var idx=0 ; idx<arguments.length ; idx++ )
+          args.push(arguments[idx]);
+        args.push(curcb);
+        return func.apply(null, args);
       };
       return next();
     },
