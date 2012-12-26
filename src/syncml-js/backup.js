@@ -506,16 +506,20 @@ define([
               adapter.sync(peer, constant.SYNCTYPE_REFRESH_FROM_SERVER, function(err, stats) {
                 if ( err )
                   return cb(err);
-                if ( ! self._opts.quiet )
-                {
-                  var s0 = new StdoutStream();
-                  state.describeStats(stats, s0, {
-                    title: 'SyncML Backup Tool Results'
-                  });
-                }
-                return cb();
+                return cb(null, stats);
               });
             });
+          },
+
+          // check the stats -- if any stores had errors, remove them from the set
+          function(stats, cb) {
+            if ( ! self._opts.quiet )
+            {
+              var s0 = new StdoutStream();
+              state.describeStats(stats, s0, {
+                title: 'SyncML Backup Tool Results'
+              });
+            }
           },
 
           // take a snapshot (so that change detection can happen)
