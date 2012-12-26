@@ -226,6 +226,8 @@ define([
       if ( _.isFunction(autoMapped) )
         // defaulting 'autoMapped' to false
         return this.setRoute(localUri, remoteUri, false, autoMapped);
+      log.debug('setting route from "%s" (here) to "%s" (peer) (autoMapped: %s)',
+                localUri, remoteUri, autoMapped ? 'yes' : 'no');
       var pmodel = this._getModel();
       if ( ! pmodel )
         return cb(new common.InternalError('could not locate this peer in local adapter'));
@@ -241,26 +243,33 @@ define([
       //       some point later since other valid bindings may now be
       //       possible...
       _.each(pmodel.stores, function(store) {
+        if ( store.uri != remoteUri
+             && ( ! store.binding || store.binding.uri != localUri ) )
+        {
+          log.debug('local store "%s" unaffected', store.uri);
+          return;
+        }
         if ( ! store.binding )
         {
-          if ( store.uri == remoteUri )
-            store.binding = {
-              uri          : localUri,
-              autoMapped   : autoMapped,
-              localAnchor  : null,
-              remoteAnchor : null
-            };
+          log.debug('added new binding for local store "%s"', store.uri);
+          store.binding = {
+            uri          : localUri,
+            autoMapped   : autoMapped,
+            localAnchor  : null,
+            remoteAnchor : null
+          };
           return;
         }
         if ( store.uri == remoteUri && store.binding.uri == localUri )
         {
+          log.debug('updating binding.autoMapped attribute for local store "%s"', store.uri);
           store.binding.autoMapped = store.binding.autoMapped && autoMapped;
           return;
         }
+        log.debug('pre-existing binding for local store "%s" conflicted - nullifying', store.uri);
         store.binding = null;
         return;
       });
-
       // TODO: this additional route may impact "smart routing" - recalculate?...
       // TODO: saving adapter from peer --- SHOULD IT BE DOING THIS?...
       // TODO: get transaction from a session!...

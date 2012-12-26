@@ -44,3 +44,9 @@
   request/response phase to confirm that the devInfo has not changed... it
   *could* instead issue the put/get as well as the alert, *assuming* that
   no devInfo is going to change... but if it does, it can then react...
+
+- not sure why, but when using sbt, funambol appears to be doing an extra
+  *unrequested* devinfo put... perhaps because sbt is responding with a
+  "Status" node for the *Result* node, not an explicit *Put*... that would
+  be strange/unexpected mode for the protocol...
+

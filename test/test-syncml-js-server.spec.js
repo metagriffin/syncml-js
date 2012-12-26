@@ -968,7 +968,7 @@ define([
         var ctxt2 = new syncmljs.Context({
           storage: idb2,
           prefix:  'memoryBasedServer.',
-          config  : {trustDevInfo: true}
+          config  : {trustDevInfo: true, exposeErrorTrace: true}
         });
 
         // validate that the adapter was stored correctly

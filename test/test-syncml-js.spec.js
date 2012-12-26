@@ -96,7 +96,8 @@ define([
 
       sync.server.context = new syncml.Context({
         storage: sync.server.idb,
-        prefix:  'memoryBasedServer.'
+        prefix:  'memoryBasedServer.',
+        config:  {exposeErrorTrace: true}
       });
 
       sync.c1.context = new syncml.Context({
@@ -211,6 +212,11 @@ define([
                 headers: { 'Content-Type': contentType},
                 body:    requestBody
               };
+
+              // console.log('>>>>>>>>>>>>>>>>>>>>>');
+              // console.log(request.body);
+              // console.log('---------------------');
+
               sync.server.adapter.handleRequest(request, session, authorize, collector.write, function(err) {
                 expect(err).ok();
                 expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
@@ -219,11 +225,16 @@ define([
                   headers: { 'Content-Type': collector.contentTypes[0]},
                   body:    collector.contents[0]
                 };
+
+                // console.log('<<<<<<<<<<<<<<<<<<<<<');
+                // console.log(response.body);
+                // console.log('---------------------');
+
                 cb(err, response);
               });
             }
           };
-          syncobj.sync = function(options, expectStats, cb) {
+          syncobj.dosync = function(options, expectStats, cb) {
             var mode = ( options ? options.mode : null ) || syncml.SYNCTYPE_AUTO;
             if ( expectStats && ! expectStats.mode )
               // todo: make this dependent on options.mode...
@@ -474,10 +485,10 @@ define([
         },
 
         // synchronize c1 with server
-        _.bind(sync.c1.sync, null, {}, {peerAdd: 1, peerDel: 1}),
+        _.bind(sync.c1.dosync, null, {}, {peerAdd: 1, peerDel: 1}),
 
         // synchronize c2 with server
-        _.bind(sync.c2.sync, null, {}, {hereAdd: 1, hereDel: 1}),
+        _.bind(sync.c2.dosync, null, {}, {hereAdd: 1, hereDel: 1}),
 
         // validate data
         function(cb) {
@@ -500,10 +511,10 @@ define([
         },
 
         // re-synchronize c1 with server, expect no changes
-        _.bind(sync.c1.sync, null, {}, {}),
+        _.bind(sync.c1.dosync, null, {}, {}),
 
         // re-synchronize c2 with server, expect no changes
-        _.bind(sync.c2.sync, null, {}, {}),
+        _.bind(sync.c2.dosync, null, {}, {}),
 
         // re-validate data, expect no changes
         function(cb) {
@@ -560,10 +571,10 @@ define([
         },
 
         // synchronize c1 with server
-        _.bind(sync.c1.sync, null, {}, {peerMod: 1}),
+        _.bind(sync.c1.dosync, null, {}, {peerMod: 1}),
 
         // synchronize c2 with server
-        _.bind(sync.c2.sync, null, {}, {hereMod: 1}),
+        _.bind(sync.c2.dosync, null, {}, {hereMod: 1}),
 
         // validate data
         function(cb) {
@@ -587,10 +598,10 @@ define([
         },
 
         // re-synchronize c1 with server, expect no changes
-        _.bind(sync.c1.sync, null, {}, {}),
+        _.bind(sync.c1.dosync, null, {}, {}),
 
         // re-synchronize c2 with server, expect no changes
-        _.bind(sync.c2.sync, null, {}, {}),
+        _.bind(sync.c2.dosync, null, {}, {}),
 
         // re-validate data, expect no changes
         function(cb) {
@@ -623,6 +634,118 @@ define([
         expect(err).ok();
         done(err);
       });
+
+    });
+
+    //-------------------------------------------------------------------------
+    it('reports errors on a per-store basis', function(done) {
+      common.cascade([
+
+        // initialize everything
+        _.bind(initialize_and_sync_all_peers, null),
+
+        // modify c2: add an item and modify an item
+        function(cb) {
+          var item = {id: '300', body: 'some *modified* c2 data'};
+          sync.c2.storage.replace(item, function(err) {
+            expect(err).ok();
+            sync.c2.store.registerChange(item.id, syncml.ITEM_MODIFIED, null, function(err) {
+              expect(err).ok();
+              sync.c2.storage.add({body: 'a new c2 data'}, function(err, item) {
+                expect(err).ok();
+                sync.c2.store.registerChange(item.id, syncml.ITEM_ADDED, null, function(err) {
+                  expect(err).ok();
+                  cb(err);
+                });
+              });
+            });
+          });
+        },
+
+        // sync c2 with server (so that there are pending changes)
+        _.bind(sync.c2.dosync, null, {}, {peerMod: 1, peerAdd: 1}),
+
+        // add an extra store to server and c1 adapters, but the
+        // server store always responds with an error
+        function(cb) {
+
+          // sync.server.storage2 = new helpers.TestStorage({startID: 800});
+          sync.server.agent2   = null; //new helpers.TestAgent({storage: null});//sync.server.storage2});
+          sync.c1.storage2     = new helpers.TestStorage({startID: 900});
+          sync.c1.agent2       = new helpers.TestAgent({storage: sync.c1.storage2});
+          sync.server.adapter.addStore({
+            uri          : 'srv_note_2',
+            displayName  : 'Server Note Store 2',
+            maxGuidSize  : 32,
+            maxObjSize   : 2147483647,
+            agent        : sync.server.agent2
+          }, function(err, store) {
+            if ( err )
+              cb(err);
+            sync.server.store2 = store;
+            sync.c1.adapter.addStore({
+              uri          : 'cli_memo_2',
+              displayName  : 'Memo Taker 2',
+              maxGuidSize  : 32,
+              maxObjSize   : 2147483647,
+              agent        : sync.c1.agent2
+            }, function(err, store) {
+              if ( err )
+                cb(err);
+              sync.c1.store2 = store;
+              sync.c1.peer.setRoute('cli_memo_2', 'srv_note_2', cb);
+            });
+          });
+        },
+
+        // sync server => c1, expecting an error with the second store
+        function(cb) {
+
+          sync.c1.session = null;
+          sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_TWO_WAY, function(err, stats) {
+            expect(err).ok();
+            expect(stats).toBeDefined();
+            if ( stats )
+            {
+              expect(stats['cli_memo']).toEqual(syncml.makeStats({
+                mode: syncml.SYNCTYPE_TWO_WAY, hereMod: 1, hereAdd: 1}));
+              expect(stats['cli_memo_2']).toEqual(syncml.makeStats({
+                mode: syncml.SYNCTYPE_SLOW_SYNC, peerErr: 1, error: {
+                  message: 'Sync agent for store "srv_note_2" not available',
+                  code:    'syncml-js.InternalError',
+                  trace:   undefined
+                }
+              }));
+            }
+            return cb(err);
+          });
+        },
+
+        // and check the data...
+        function(cb) {
+          expect(sync.server.storage._items).toEqual({
+            '100': {id: '100', body: 'some c1 data'},
+            '101': {id: '101', body: 'some *modified* c2 data'},
+            '102': {id: '102', body: 'a new c2 data'}
+          });
+          expect(sync.c1.storage._items).toEqual({
+            '200': {id: '200', body: 'some c1 data'},
+            '201': {id: '201', body: 'some *modified* c2 data'},
+            '202': {id: '202', body: 'a new c2 data'}
+          });
+          expect(sync.c2.storage._items).toEqual({
+            '300': {id: '300', body: 'some *modified* c2 data'},
+            '301': {id: '301', body: 'some c1 data'},
+            '302': {id: '302', body: 'a new c2 data'}
+          });
+          expect(sync.c3.storage._items).toEqual({
+            '400': {id: '400', body: 'some c1 data'},
+            '401': {id: '401', body: 'some c2 data'}
+          });
+          return cb();
+        }
+
+      ], done);
 
     });
 

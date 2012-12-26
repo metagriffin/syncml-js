@@ -338,6 +338,8 @@ define([
       _.each(_.values(session.info.dsstates), function(ds) {
         var stats = _.clone(ds.stats);
         stats.mode = common.alert2synctype(ds.mode);
+        if ( ds.action == 'error' && ds.error )
+          stats.error = ds.error;
         ret[ds.uri] = stats;
       });
       log.debug('session statistics: ' + common.j(ret));

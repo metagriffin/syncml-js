@@ -45,6 +45,36 @@ define([
   var exports = {};
 
   //---------------------------------------------------------------------------
+  var getError = function(xnode) {
+    var ret = {
+      message: xnode.findtext('Item/Data')
+    };
+    try{
+      var xerr  = xnode.find('Error');
+    }catch(e){
+      var xerr = null;
+    }
+    if ( ! xerr )
+    {
+      try{
+        var xerr  = xnode.find('Item/Error');
+      }catch(e){
+        var xerr = null;
+      }
+    }
+    if ( ! xerr )
+    {
+      if ( ! ret.message )
+        return null;
+      return ret;
+    }
+    ret.code    = xerr.findtext('Code');
+    ret.message = xerr.findtext('Message');
+    ret.trace   = xerr.findtext('Trace');
+    return ret;
+  }
+
+  //---------------------------------------------------------------------------
   var badStatus = function(xnode, kls) {
     if ( ! kls )
       kls = common.ProtocolError;
@@ -55,17 +85,19 @@ define([
       msg = 'unexpected status code ' + code + ' for command "' + cname + '"';
     else
       msg = 'received status code ' + code + ' for command "' + cname + '"';
-    try{
-      var xerr  = xnode.find('Error');
-    }catch(e){
-      var xerr = null;
+    var error = getError(xnode);
+    if ( error )
+    {
+      if ( error.code )
+        msg += ': [' + error.code + '] ' + error.message;
+      else
+        msg += ': ' + error.message;
     }
-    if ( xerr )
-      msg += ': [' + xerr.findtext('Code') + '] ' + xerr.findtext('Message');
     return new kls(msg)
   };
 
   //---------------------------------------------------------------------------
+  exports.getError  = getError;
   exports.badStatus = badStatus;
 
   //---------------------------------------------------------------------------
@@ -291,10 +323,14 @@ define([
         {
           log.debug('refreshing devinfo');
           putget = true;
-          session.info.gotinfo = true;
         }
         if ( putget )
         {
+          // todo: this flag is crap. instead, the local devInfo should have
+          //       a record of which sessionID lead to the recording, and
+          //       base it on that. maybe timestamp too... (but it must be
+          //       in the minutes, just in case...)
+          session.info.gotinfo = true;
           if ( ! session.discover )
           {
             commands.push(state.makeCommand({
@@ -314,6 +350,12 @@ define([
           }));
           return cb(null, commands);
         }
+
+        // NOTE: in the current handling of "trustDevInfo", i am doing a
+        //       potentially unnecessary extra request/response phase to
+        //       confirm that the devInfo has not changed... i *could*
+        //       issue the put/get as well as the alert, *assuming* that
+        //       no devInfo is going to change...
 
         log.debug('have peer.devinfo - not requesting from target');
         return session.context.synchronizer.actions(session, commands, cb);
@@ -447,9 +489,12 @@ define([
       if ( cmd.targetRef )
         ET.SubElement(xcmd, 'TargetRef').text = cmd.targetRef;
       ET.SubElement(xcmd, 'Data').text      = cmd.statusCode;
+      var xitem = null;
+      var xdata = null;
       if ( cmd.nextAnchor || cmd.lastAnchor )
       {
-        var xdata = ET.SubElement(ET.SubElement(xcmd, 'Item'), 'Data');
+        xitem = ET.SubElement(xcmd, 'Item');
+        xdata = ET.SubElement(xitem, 'Data');
         var xanch = ET.SubElement(xdata, 'Anchor', {'xmlns': constant.NAMESPACE_METINF});
         if ( cmd.lastAnchor )
           ET.SubElement(xanch, 'Last').text = cmd.lastAnchor;
@@ -459,12 +504,15 @@ define([
       // NOTE: this is NOT standard SyncML...
       if ( cmd.errorCode || cmd.errorMsg )
       {
-        var xerr = ET.SubElement(xcmd, 'Error');
+        xitem = xitem || ET.SubElement(xcmd, 'Item');
+        xdata = xdata || ET.SubElement(xitem, 'Data');
+        var xerr = ET.SubElement(xitem, 'Error');
+        xdata.text = cmd.errorMsg;
         if ( cmd.errorCode )
           ET.SubElement(xerr, 'Code').text = cmd.errorCode;
         if ( cmd.errorMsg )
           ET.SubElement(xerr, 'Message').text = cmd.errorMsg;
-        if ( cmd.errorTrace )
+        if ( session.context.config.exposeErrorTrace && cmd.errorTrace )
           ET.SubElement(xerr, 'Trace').text = cmd.errorTrace;
       }
     },
@@ -949,9 +997,19 @@ define([
             case constant.CMD_SYNC:
             {
               // todo: should this be moved into the synchronizer as a "settle" event?...
-              if ( code != constant.STATUS_OK )
-                return cb(badStatus(child));
               var ds = session.info.dsstates[session.adapter.normUri(chkcmd.source)]
+              if ( code != constant.STATUS_OK )
+              {
+                // check for server-side errors...
+                if ( code >= 500 && code < 600 && child.findtext('Item/Data') )
+                {
+                  ds.action = 'error';
+                  ds.error  = getError(child);
+                  ds.stats.peerErr += 1;
+                  return cb();
+                }
+                return cb(badStatus(child));
+              }
               if ( session.isServer )
               {
                 if ( ds.action == 'send' )

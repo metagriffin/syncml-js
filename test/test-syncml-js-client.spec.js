@@ -51,7 +51,7 @@ define([
       var context = new syncmljs.Context({
         storage : idb,
         prefix  : 'memoryBasedClient.',
-        config  : {trustDevInfo: true}
+        config  : {trustDevInfo: true, exposeErrorTrace: true}
       });
 
       context.getEasyClientAdapter({

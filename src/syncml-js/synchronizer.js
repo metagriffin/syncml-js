@@ -110,6 +110,9 @@ define([
         log.debug('generating synchronizer "%s" actions for store "%s"', ds.action, uri);
         if ( ds.action == 'done' )
           return cb();
+        // TODO: is this the right handling of an "error" dsstate?...
+        if ( ds.action == 'error' )
+          return cb();
         var func = self['_action_' + ds.action.toLowerCase()];
         if ( ! func )
           return cb(new common.InternalError(
@@ -202,14 +205,20 @@ define([
       {
         if ( dsstate.mode == constant.ALERT_REFRESH_FROM_CLIENT
              || dsstate.mode == constant.ALERT_ONE_WAY_FROM_CLIENT )
+        {
+          cmd.noc = 0;
           return cb(null, [cmd]);
+        }
       }
 
       if ( ! session.isServer )
       {
         if ( dsstate.mode == constant.ALERT_REFRESH_FROM_SERVER
              || dsstate.mode == constant.ALERT_ONE_WAY_FROM_SERVER )
+        {
+          cmd.noc = 0;
           return cb(null, [cmd]);
+        }
       }
 
       switch ( dsstate.mode )
@@ -501,7 +510,6 @@ define([
 
     //-------------------------------------------------------------------------
     _reaction_sync: function(session, command, cb) {
-
       var self = this;
       var ret  = [state.makeCommand({
         name       : constant.CMD_STATUS,
@@ -513,11 +521,30 @@ define([
         statusOf   : command.name,
         statusCode : constant.STATUS_OK
       })];
-
       var store = session.adapter.getStore(session.adapter.normUri(command.target));
+      var dsstate = session.info.dsstates[store.uri];
+
+      if ( ! store.agent )
+      {
+        // todo: this is a bit different handling than anywhere else...
+        //       should everywhere else be like here, or the other way
+        //       round?...
+        //       the "REAL BIG ISSUE" is that atomicity of the changes
+        //       is a little vague at this point...
+        dsstate.stats.hereErr += 1;
+        dsstate.action = 'error';
+        dsstate.error  = {
+          message:  'Sync agent for store "' + store.uri + '" not available',
+          code:     'syncml-js.InternalError'
+        };
+        ret[0].statusCode = constant.STATUS_SERVICE_UNAVAILABLE;
+        ret[0].errorMsg   = dsstate.error.message;
+        ret[0].errorCode  = dsstate.error.code;
+        return cb(null, ret);
+      }
+
       if ( store.agent.hierarchicalSync )
         session.hierlut = {};
-      var dsstate = session.info.dsstates[store.uri];
 
       var preprocess = common.noop;
 

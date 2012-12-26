@@ -57,7 +57,8 @@ define([
       this.protocol     = options.protocol || new protocol.Protocol();
       this.codec        = options.codec || constant.CODEC_XML;
       this.config       = _.defaults({}, options.config, {
-        trustDevInfo      : false
+        trustDevInfo      : false,
+        exposeErrorTrace  : false
       });
       this._db          = null;
       this._dbtxn       = null;
