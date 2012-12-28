@@ -696,6 +696,10 @@ define([
           });
         },
 
+        // save any changes to the adapter
+        // todo: shouldn't this be done automatically by adapter.sync()?...
+        function(cb) { adapter.save(cb); },
+
         // record the current state
         function(cb) {
           self._takeSnapshot(adapter, cb);
@@ -707,10 +711,64 @@ define([
     //-------------------------------------------------------------------------
     restore: function(cb) {
       var self = this;
-      return cb('TODO ::: "restore" not implemented');
+      var s0   = new StdoutStream();
+      // todo: should these be Tool member variables?...
+      var sdb  = new sqlite3.Database(self._opts.directory + '/.sync/syncml.db');
+      var idb  = new indexeddbjs.indexedDB('sqlite3', sdb);
+      var ctxt = new context.Context({storage: idb});
+      var adapter = null;
+      var peer    = null;
+      common.cascade([
 
-      // TODO: implement
+        // configure adapter
+        function(cb) {
+          ctxt.getAdapter(null, null, function(err, newAdapter) {
+            if ( err )
+              return cb(err);
+            var peers = newAdapter.getPeers();
+            if ( peers.length <= 0 )
+              return cb('cannot sync: no known peer recorded');
+            if ( peers.length != 1 )
+              return cb('cannot sync: multiple peers recorded');
+            self._makeAgents(newAdapter, peers[0], function(err) {
+              if ( err )
+                return cb(err);
+              adapter = newAdapter;
+              peer    = peers[0];
+              cb();
+            });
+          });
+        },
 
+        // TODO: put the stores in read-only state...
+
+        // execute the sync
+        function(cb) {
+          // todo: tell the adapter than no change in synctype will be tolerated
+          adapter.sync(peer, constant.SYNCTYPE_REFRESH_FROM_CLIENT, function(err, stats) {
+            if ( err )
+              return cb(err);
+            if ( ! self._opts.quiet )
+              state.describeStats(stats, s0, {
+                title: 'SyncML Backup Tool Results'
+              });
+            return cb();
+          });
+        },
+
+        // todo: if the stores are read-only, then no state change should be
+        //       possible...
+
+        // save any changes to the adapter
+        // todo: shouldn't this be done automatically by adapter.sync()?...
+        function(cb) { adapter.save(cb); },
+
+        // record the current state
+        function(cb) {
+          self._takeSnapshot(adapter, cb);
+        }
+
+      ], cb);
     },
 
     //-------------------------------------------------------------------------
@@ -744,7 +802,14 @@ define([
       var tool = new exports.Tool({args: args});
       tool.exec(cb || function(err) {
         if ( err )
-          util.error('[**] ERROR: ' + err);
+          util.error('[**] ERROR: '
+                     + ( err.message
+                         ? err.message
+                         : ( _.isObject(err)
+                             ? common.j(err)
+                             : err )));
+        if ( cb )
+          return cb();
       });
     }
 
