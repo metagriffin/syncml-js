@@ -179,6 +179,16 @@ define([
           return cb();
         }
       );
+    },
+
+    createStorage: function(cb) {
+      // todo: should i check to see if the dir exists first?
+      //       if so, check `force`? if `force`, clear out the dir?
+      common.makedirs(pathmod.join(this.rootdir, this.reldir), cb);
+    },
+
+    removeStorage: function(cb) {
+      common.rmfr(pathmod.join(this.rootdir, this.reldir), cb);
     }
 
   });
@@ -261,6 +271,10 @@ define([
       parser.addArgument(['-q', '--quiet'], {
         action   : 'storeTrue',
         help     : 'suppress transaction results display'
+      });
+      parser.addArgument(['-f', '--force'], {
+        action   : 'storeTrue',
+        help     : 'during backup, if the DIRECTORY already exists, overwrite the contents'
       });
       parser.addArgument(['-u', '--username'], {
         metavar  : 'USERNAME',
@@ -379,20 +393,34 @@ define([
     _prepDirectory: function(clear, cb) {
       var self = this;
       common.cascade([
-        _.bind(common.rmfr, null, self._opts.directory),
+        function(cb) {
+          if ( self._opts.force )
+            return common.rmfr(self._opts.directory, cb);
+          fs.stat(self._opts.directory, function(err, stat) {
+            if ( err && err.code == 'ENOENT' )
+              return cb();
+            if ( err )
+              return cb(err);
+            return cb('file or directory "' + self._opts.directory
+                      + '" already exists');
+          });
+        },
         _.bind(common.makedirs, null, self._opts.directory + '/.sync'),
         _.bind(common.makedirs, null, self._opts.directory + '/stores'),
-        function(cb) {
-          // TODO: i think the adapter already stores all of this... so is
-          //       there really a need to store it again?
-          var opts = _.pick(self._opts, 'server', 'username', 'password', 'stores', 'xstores');
-          opts = 
-          fs.writeFile(
-            self._opts.directory + '/.sync/options.json',
-            common.prettyJson(opts),
-            cb);
-        }
+        _.bind(self._saveOptions, self)
       ], cb);
+    },
+
+    //-------------------------------------------------------------------------
+    _saveOptions: function(cb) {
+      var self = this;
+      // TODO: i think the adapter already stores all of this... so is
+      //       there really a need to store it again?
+      var opts = _.pick(self._opts, 'server', 'username', 'password', 'stores', 'xstores');
+      fs.writeFile(
+        self._opts.directory + '/.sync/options.json',
+        common.prettyJson(opts),
+        cb);
     },
 
     //-------------------------------------------------------------------------
@@ -422,112 +450,147 @@ define([
     //-------------------------------------------------------------------------
     backup: function(cb) {
       var self = this;
-      self._discover(function(err, peer) {
+
+      // setup the storage directory structure
+      self._prepDirectory(true, function(err) {
         if ( err )
           return cb(err);
-        var uris = _.map(peer.getStores(), function(store) {
-          return store.uri;
-        })
-        log.debug('remote stores: ' + uris.join(', '));
-        uris = self._filterUris(uris);
-        log.debug('backing up stores: ' + uris.join(', '));
-        var stores  = [];
-        var routes  = [];
-        var adapter = null;
-        common.cascade([
 
-          // todo: really clear the directory?... what if i just want to do
-          //       a fresh backup from the same stored info?...
+        self._discover(function(err, peer) {
+          if ( err )
+            return cb(err);
+          var uris = _.map(peer.getStores(), function(store) {
+            return store.uri;
+          })
+          log.debug('remote stores: ' + uris.join(', '));
+          uris = self._filterUris(uris);
+          log.debug('backing up stores: ' + uris.join(', '));
+          var stores  = {};
+          var routes  = {};
+          var adapter = null;
+          common.cascade([
 
-          // TODO: at least warn the user if a current backup is being
-          //       destroyed...
+            // todo: really clear the directory?... what if i just want to do
+            //       a fresh backup from the same stored info?...
 
-          // setup the storage directory structure
-          _.bind(self._prepDirectory, self, true),
+            // TODO: at least warn the user if a current backup is being
+            //       destroyed...
 
-          // configure local stores and agents
-          function(cb) {
-            common.cascade(uris, function(uri, cb) {
-              log.debug('setting up local storage and agent for uri "%s"', uri);
-              var pstore = peer.getStore(uri);
-              var sdir   = self._opts.directory + '/stores/' + common.urlEncode(uri);
-              common.makedirs(sdir, function(err) {
-                if ( err )
-                  return cb(err);
+            // configure local stores and agents
+            function(cb) {
+              common.cascade(uris, function(uri, cb) {
+                log.debug('setting up local storage and agent for uri "%s"', uri);
+                var pstore = peer.getStore(uri);
                 var storage = new ItemStorage({
                   rootdir  : self._opts.directory,
                   reldir   : 'stores/' + common.urlEncode(uri),
                   label    : uri
                 });
-                var agent   = new Agent({
-                  storage      : storage,
-                  contentTypes : pstore.getContentTypes()
+                storage.createStorage(function(err) {
+                  if ( err )
+                    return cb(err);
+                  var agent   = new Agent({
+                    storage      : storage,
+                    contentTypes : pstore.getContentTypes()
+                  });
+                  stores[uri] = {
+                    uri          : uri,
+                    displayName  : 'sbt backup of "' + uri + '"',
+                    maxGuidSize  : common.platformBits(),
+                    // note: funambol chokes on this... why?
+                    // maxObjSize   : common.getMaxMemorySize(),
+                    agent        : agent
+                  };
+                  routes[uri] = uri;
+                  cb();
                 });
-                stores.push({
-                  uri          : uri,
-                  displayName  : 'sbt backup of "' + uri + '"',
-                  maxGuidSize  : common.platformBits(),
-                  // maxObjSize   : common.getMaxMemorySize(),
-                  agent        : agent
-                });
-                routes.push([uri, uri]);
-                cb();
-              });
-            }, cb);
-          },
+              }, cb);
+            },
 
-          // execute the sync
-          function(cb) {
-            // todo: should these be Tool member variables?...
-            var sdb     = new sqlite3.Database(self._opts.directory + '/.sync/syncml.db');
-            var idb     = new indexeddbjs.indexedDB('sqlite3', sdb);
-            var ctxt    = new context.Context({storage: idb});
-            ctxt.getEasyClientAdapter({
-              name: 'SyncML Backup Tool (syncml-js)',
-              devInfo: {
-                devID               : 'sbt.' + common.makeID(),
-                devType             : constant.DEVTYPE_WORKSTATION,
-                manufacturerName    : 'syncml-js',
-                modelName           : 'syncml-js.backup.tool',
-                hierarchicalSync    : false
-              },
-              stores: stores,
-              peer: {
-                url      : self._opts.server,
-                auth     : constant.NAMESPACE_AUTH_BASIC,
-                username : self._opts.username,
-                password : self._opts.password
-              },
-              routes: routes
-            }, function(err, newAdapter, stores, peer) {
-              if ( err )
-                return cb(err);
-              adapter = newAdapter;
-              adapter.sync(peer, constant.SYNCTYPE_REFRESH_FROM_SERVER, function(err, stats) {
+            // execute the sync
+            function(cb) {
+              // todo: should these be Tool member variables?...
+              var sdb     = new sqlite3.Database(self._opts.directory + '/.sync/syncml.db');
+              var idb     = new indexeddbjs.indexedDB('sqlite3', sdb);
+              var ctxt    = new context.Context({storage: idb});
+              ctxt.getEasyClientAdapter({
+                name: 'SyncML Backup Tool (syncml-js)',
+                devInfo: {
+                  devID               : 'sbt.' + common.makeID(),
+                  devType             : constant.DEVTYPE_WORKSTATION,
+                  manufacturerName    : 'syncml-js',
+                  modelName           : 'syncml-js.backup.tool',
+                  hierarchicalSync    : false
+                },
+                stores: _.values(stores),
+                peer: {
+                  url      : self._opts.server,
+                  auth     : constant.NAMESPACE_AUTH_BASIC,
+                  username : self._opts.username,
+                  password : self._opts.password
+                },
+                routes: _.map(_.keys(routes), function(uri) { return [uri, uri]; })
+              }, function(err, newAdapter, stores, peer) {
                 if ( err )
                   return cb(err);
-                return cb(null, stats);
+                adapter = newAdapter;
+                adapter.sync(peer, constant.SYNCTYPE_REFRESH_FROM_SERVER, function(err, stats) {
+                  if ( err )
+                    return cb(err);
+                  return cb(null, stats);
+                });
               });
-            });
-          },
+            },
 
-          // check the stats -- if any stores had errors, remove them from the set
-          function(stats, cb) {
-            if ( ! self._opts.quiet )
-            {
-              var s0 = new StdoutStream();
-              state.describeStats(stats, s0, {
-                title: 'SyncML Backup Tool Results'
-              });
+            // check the stats -- if any stores had errors, remove them from the set
+            function(stats, cb) {
+              if ( ! self._opts.quiet )
+              {
+                var s0 = new StdoutStream();
+                state.describeStats(stats, s0, {
+                  title: 'SyncML Backup Tool Results'
+                });
+              }
+              common.cascade(_.keys(stats), function(uri, cb) {
+                var stat = stats[uri];
+                if ( ! stat.error && stat.peerErr <= 0 && stat.hereErr <= 0 )
+                  return cb();
+                var msg = ( stat.error && stat.error.message )
+                  ? stat.error.message
+                  : common.j(stat.error || stat);
+                if ( ! self._opts.xstores )
+                  self._opts.xstores = [];
+                self._opts.xstores.push(uri);
+                var store = adapter.getStore(uri);
+                store.agent._storage.removeStorage(function(err) {
+                  if ( err )
+                    return cb(err);
+                  adapter.removeStore(uri, function(err) {
+                    if ( err )
+                      return cb(err);
+                    util.error('[**] ERROR: store "' + uri + '" failed:');
+                    util.error('[**]   ' + msg);
+                    util.error('[**] WARNING: store "' + uri
+                               + '" was removed from the backup set.');
+                  });
+                });
+                return cb();
+              }, cb);
+            },
+
+            // save options (in case there was a store error and xstores was updated)
+            _.bind(self._saveOptions, self),
+
+            // todo: is there a "non-private" method call?...
+            function(cb) { adapter.save(cb); },
+
+            // take a snapshot (so that change detection can happen)
+            function(cb) {
+              self._takeSnapshot(adapter, cb);
             }
-          },
 
-          // take a snapshot (so that change detection can happen)
-          function(cb) {
-            self._takeSnapshot(adapter, cb);
-          }
-
-        ], cb);
+          ], cb);
+        });
       });
     },
 
