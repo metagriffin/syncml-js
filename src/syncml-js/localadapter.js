@@ -170,6 +170,11 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    save: function(cb) {
+      this._save(this._c._dbtxn, cb);
+    },
+
+    //-------------------------------------------------------------------------
     _save: function(dbtxn, cb) {
       storage.put(dbtxn.objectStore('adapter'), this._model, cb);
     },
