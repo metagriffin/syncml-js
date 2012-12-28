@@ -91,6 +91,33 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    removeStore: function(uri, cb) {
+      var self = this;
+      if ( ! self.isLocal )
+        // todo: implement
+        return cb(new common.LogicalError(
+          'cannot remove remote store "' + uri + '": remote peer responsibility'));
+      if ( ! self._stores[uri] )
+        return cb(new common.InternalError(
+          'cannot remove store "' + uri + '": no such store'));
+      delete self._stores[uri];
+      var model = self._getModel();
+      model.stores = _.filter(model.stores, function(store) {
+        return store.uri != uri;
+      });
+      _.each(model.peers, function(peer) {
+        peer.routes = _.filter(peer.routes, function(route) {
+          return route.localUri != uri;
+        });
+        _.each(peer.stores, function(store) {
+          if ( store.binding && store.binding.uri == uri )
+            store.binding = null;
+        });
+      });
+      return cb();
+    },
+
+    //-------------------------------------------------------------------------
     describe: function(stream, cb) {
       var self = this;
       if ( self.url )
