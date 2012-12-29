@@ -21,8 +21,21 @@ define([
   '../src/syncml-js',
   '../src/syncml-js/common',
   '../src/syncml-js/codec',
+  '../src/syncml-js/storage',
   '../src/syncml-js/state'
-], function(_, ET, sqlite3, indexeddbjs, diff, helpers, syncmljs, common, codec, state) {
+], function(
+  _,
+  ET,
+  sqlite3,
+  indexeddbjs,
+  diff,
+  helpers,
+  syncmljs,
+  common,
+  codec,
+  storage,
+  state
+) {
 
   var exports = {};
 
@@ -195,6 +208,102 @@ define([
       cb();
     };
     return this;
+  };
+
+  //---------------------------------------------------------------------------
+  exports.getPendingChanges = function(context, cb) {
+
+    var changetab  = context._dbtxn.objectStore('change');
+    var adaptertab = context._dbtxn.objectStore('adapter');
+    storage.getAll(changetab, null, null, function(err, changes) {
+
+      var ret = [];
+
+      common.cascade(changes, function(change, cb) {
+
+        var peer  = null;
+        var store = null;
+
+
+        storage.getAll(adaptertab, null, null, function(err, adapters) {
+
+          if ( store )
+            return;
+
+          _.each(adapters, function(adapter) {
+            if ( store )
+              return;
+            _.each(adapter.stores, function(curstore) {
+              if ( store || curstore.id != change.store_id )
+                return;
+              peer  = adapter;
+              store = curstore;
+            });
+            if ( store )
+              return;
+            _.each(adapter.peers, function(curpeer) {
+              if ( store )
+                return;
+              _.each(curpeer.stores, function(curstore) {
+                if ( store || curstore.id != change.store_id )
+                  return;
+                peer  = curpeer;
+                store = curstore;
+              });
+            });
+          });
+
+          if ( store )
+          {
+            delete change.store_id;
+            change.devid = peer.devID;
+            change.uri   = store.uri;
+          }
+
+          ret.push(change);
+          cb();
+
+        });
+
+      // var storeMapping = self._a._c._dbtxn.objectStore('change').index('store_id');
+      // storage.getAll(storeMapping, self.id, null, function(err, changes) {
+      //   if ( err )
+      //     return cb(err);
+      //   var change = _.find(changes, function(change) {
+      //     return change.item_id == itemID;
+      //   });
+      //   return cb(null, change);
+      // });
+
+      // return cb(null, common.j(objects));
+
+      }, function(err) {
+        if ( err )
+          return cb(err);
+
+        var sort_changes = function(c1, c2) {
+          if ( c1.store_id && c2.store_id )
+            return common.cmp(c1.store_id, c2.store_id);
+          if ( c1.store_id || c2.store_id )
+            return c1.store_id ? 1 : -1;
+          var ret = common.cmp(c1.devid, c2.devid);
+          if ( ret != 0 )
+            return ret;
+          ret = common.cmp(c1.uri, c2.uri);
+          if ( ret != 0 )
+            return ret;
+          ret = common.cmp(c1.item_id, c2.item_id);
+          if ( ret != 0 )
+            return ret;
+          return common.cmp(c1.state, c2.state);
+        };
+
+        ret.sort(sort_changes);
+
+        return cb(null, ret);
+      });
+
+    });
   };
 
   return exports;
