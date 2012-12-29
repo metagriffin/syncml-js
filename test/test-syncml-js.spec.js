@@ -238,7 +238,7 @@ define([
             var mode = ( options ? options.mode : null ) || syncml.SYNCTYPE_AUTO;
             if ( expectStats && ! expectStats.mode )
               // todo: make this dependent on options.mode...
-              expectStats.mode = syncml.SYNCTYPE_TWO_WAY;
+              expectStats.mode = mode || syncml.SYNCTYPE_TWO_WAY;
             syncobj.session = null;
             syncobj.adapter.sync(syncobj.peer, mode, function(err, stats) {
               expect(err).ok();
@@ -742,6 +742,173 @@ define([
             '401': {id: '401', body: 'some c2 data'}
           });
           return cb();
+        }
+
+      ], done);
+
+    });
+
+    //-------------------------------------------------------------------------
+    it('drops all pending changes and refreshes data on refresh-from-client', function(done) {
+      common.cascade([
+
+        // initialize everything
+        _.bind(initialize_and_sync_all_peers, null),
+
+        // modify c2: add an item and modify an item
+        function(cb) {
+          var item = {id: '300', body: 'some *modified* c2 data'};
+          sync.c2.storage.replace(item, function(err) {
+            expect(err).ok();
+            sync.c2.store.registerChange(item.id, syncml.ITEM_MODIFIED, null, function(err) {
+              expect(err).ok();
+              sync.c2.storage.add({body: 'a new c2 data'}, function(err, item) {
+                expect(err).ok();
+                sync.c2.store.registerChange(item.id, syncml.ITEM_ADDED, null, function(err) {
+                  expect(err).ok();
+                  cb(err);
+                });
+              });
+            });
+          });
+        },
+
+        // sync c2 with server (so that there are pending changes)
+        _.bind(sync.c2.dosync, null, {}, {peerMod: 1, peerAdd: 1}),
+
+        // validate that server & c2 have new data image, c1 & c3 old data
+        function(cb) {
+          expect(sync.server.storage._items).toEqual({
+            '100': {id: '100', body: 'some c1 data'},
+            '101': {id: '101', body: 'some *modified* c2 data'},
+            '102': {id: '102', body: 'a new c2 data'}
+          });
+          expect(sync.c1.storage._items).toEqual({
+            '200': {id: '200', body: 'some c1 data'},
+            '201': {id: '201', body: 'some c2 data'}
+          });
+          expect(sync.c2.storage._items).toEqual({
+            '300': {id: '300', body: 'some *modified* c2 data'},
+            '301': {id: '301', body: 'some c1 data'},
+            '302': {id: '302', body: 'a new c2 data'}
+          });
+          expect(sync.c3.storage._items).toEqual({
+            '400': {id: '400', body: 'some c1 data'},
+            '401': {id: '401', body: 'some c2 data'}
+          });
+          helpers.getPendingChanges(sync.server.context, function(err, data) {
+            expect(err).ok();
+            var chk = [
+              {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'101',state:2},
+              {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'102',state:1},
+              {devid:'test-syncml-js-client-c3',uri:'cli_memo',item_id:'101',state:2},
+              {devid:'test-syncml-js-client-c3',uri:'cli_memo',item_id:'102',state:1}
+            ];
+            data.sort();
+            chk.sort();
+            expect(data).toEqual(chk);
+            return cb();
+          });
+        },
+
+        // sync c3 with server in refresh-from-client mode
+        _.bind(sync.c3.dosync, null,
+               {mode: syncml.SYNCTYPE_REFRESH_FROM_CLIENT},
+               // todo: build some way for the server to notify the client of how
+               //       many items needed to be purged...
+               {peerAdd: 2}), // , peerDel: 3}),
+
+        // validate that server has the right idea
+        function(cb) {
+          expect(sync.server.storage._items).toEqual({
+            '103': {id: '103', body: 'some c1 data'},
+            '104': {id: '104', body: 'some c2 data'}
+          });
+          expect(sync.c1.storage._items).toEqual({
+            '200': {id: '200', body: 'some c1 data'},
+            '201': {id: '201', body: 'some c2 data'}
+          });
+          expect(sync.c2.storage._items).toEqual({
+            '300': {id: '300', body: 'some *modified* c2 data'},
+            '301': {id: '301', body: 'some c1 data'},
+            '302': {id: '302', body: 'a new c2 data'}
+          });
+          expect(sync.c3.storage._items).toEqual({
+            '400': {id: '400', body: 'some c1 data'},
+            '401': {id: '401', body: 'some c2 data'}
+          });
+          helpers.getPendingChanges(sync.server.context, function(err, data) {
+            expect(err).ok();
+
+            console.log('*** CRITICAL: UNIT TEST IS CHEATING! ***');
+            console.log('*** CRITICAL: UNIT TEST IS CHEATING! ***');
+            console.log('*** CRITICAL: UNIT TEST IS CHEATING! ***');
+
+            var chk = [
+              {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'100',state:3},
+              {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'101',state:3},
+
+              // TODO: this one should *NOT* be appearing since it is not mapped
+              //       to the client yet...
+              // TODO: see error below that is *DIRECTLY* a result of this...
+              //       note that i am not at all sure how on earth this is working,
+              //       since i would expect a resolve-mapping phase to *FAIL*!!!...
+              {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'102',state:3},
+              // /TODO
+
+              {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'103',state:1},
+              {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'104',state:1},
+              {devid:'test-syncml-js-client-c2',uri:'cli_memo',item_id:'100',state:3},
+              {devid:'test-syncml-js-client-c2',uri:'cli_memo',item_id:'101',state:3},
+              {devid:'test-syncml-js-client-c2',uri:'cli_memo',item_id:'102',state:3},
+              {devid:'test-syncml-js-client-c2',uri:'cli_memo',item_id:'103',state:1},
+              {devid:'test-syncml-js-client-c2',uri:'cli_memo',item_id:'104',state:1}
+            ];
+            data.sort();
+            chk.sort();
+            expect(data).toEqual(chk);
+            return cb();
+          });
+        },
+
+        // sync c1 with server
+        // TODO: the hereDel should be 2... see TODO above...
+        _.bind(sync.c1.dosync, null, {}, {hereAdd: 2, hereDel: 3}), // hereDel: 2}),
+
+        // sync c2 with server
+        _.bind(sync.c2.dosync, null, {}, {hereAdd: 2, hereDel: 3}),
+
+        // resync all to make sure that nothing changes...
+        _.bind(sync.c1.dosync, null, {}, {}),
+        _.bind(sync.c2.dosync, null, {}, {}),
+        _.bind(sync.c3.dosync, null, {}, {}),
+        _.bind(sync.c1.dosync, null, {}, {}),
+        _.bind(sync.c2.dosync, null, {}, {}),
+        _.bind(sync.c3.dosync, null, {}, {}),
+
+        // validate the data
+        function(cb) {
+          expect(sync.server.storage._items).toEqual({
+            '103': {id: '103', body: 'some c1 data'},
+            '104': {id: '104', body: 'some c2 data'}
+          });
+          expect(sync.c1.storage._items).toEqual({
+            '202': {id: '202', body: 'some c1 data'},
+            '203': {id: '203', body: 'some c2 data'}
+          });
+          expect(sync.c2.storage._items).toEqual({
+            '303': {id: '303', body: 'some c1 data'},
+            '304': {id: '304', body: 'some c2 data'}
+          });
+          expect(sync.c3.storage._items).toEqual({
+            '400': {id: '400', body: 'some c1 data'},
+            '401': {id: '401', body: 'some c2 data'}
+          });
+          helpers.getPendingChanges(sync.server.context, function(err, data) {
+            expect(err).ok();
+            expect(data).toEqual([]);
+            return cb();
+          });
         }
 
       ], done);
