@@ -247,7 +247,22 @@ define([
   exports.Tool = common.Base.extend({
 
     constructor: function(options) {
+      this._opts = {};
+      // this._sdb     = null;
+      // this._idb     = null;
+      // this._context = null;
+      // this._adapter = null;
+      // this._peer    = null;
+    },
 
+    initialize: function(args, cb) {
+      this._init(args, null, cb);
+      return this;
+    },
+
+    //-------------------------------------------------------------------------
+    _init: function(args, storedOptions, cb) {
+      var self = this;
       var parser = new argparse.ArgumentParser({
         // TODO: figure out how to pull this dynamically from package.json...
         // version     : '0.0.6',
@@ -261,69 +276,84 @@ define([
           + '  restore               upload local data, overriding server data\n'
       });
       parser.addArgument(['--version'], {
-        action   : 'storeTrue',
-        help     : 'Show program\'s version number and exit.'
+        action       : 'storeTrue',
+        help         : 'Show program\'s version number and exit.'
       });
       parser.addArgument(['-v', '--verbose'], {
-        action   : 'count',
-        help     : 'increase verbosity of program output'
+        action       : 'count',
+        help         : 'increase verbosity of program output'
       });
       parser.addArgument(['-q', '--quiet'], {
-        action   : 'storeTrue',
-        help     : 'suppress transaction results display'
+        action       : 'storeTrue',
+        help         : 'suppress transaction results display'
       });
+      parser.addArgument(['-a', '--append-log'], {
+        dest         : 'appendLog',
+        defaultValue : storedOptions ? storedOptions.appendLog : false,
+        action       : 'storeTrue',
+        help         : 'append logs to previous logs instead of overwriting'
+      });
+
+      // backup-specific arguments:
       parser.addArgument(['-f', '--force'], {
-        action   : 'storeTrue',
-        help     : 'during backup, if the DIRECTORY already exists, overwrite the contents'
+        action       : 'storeTrue',
+        help         : 'during backup, if the DIRECTORY already exists, overwrite the contents'
       });
       parser.addArgument(['-u', '--username'], {
-        metavar  : 'USERNAME',
-        help     : 'set the username for remote authorization'
+        metavar      : 'USERNAME',
+        defaultValue : storedOptions ? storedOptions.username : null,
+        help         : 'set the username for remote authorization'
       });
       parser.addArgument(['-p', '--password'], {
-        metavar  : 'PASSWORD',
-        help     : 'set the password for the username specified with "--username"'
+        metavar      : 'PASSWORD',
+        defaultValue : storedOptions ? storedOptions.password : null,
+        help         : 'set the password for the username specified with "--username"'
       });
       parser.addArgument(['-s', '--server'], {
-        metavar  : 'URL',
-        help     : 'set the URL to the remote SyncML server'
+        metavar      : 'URL',
+        defaultValue : storedOptions ? storedOptions.server : null,
+        help         : 'set the URL to the remote SyncML server'
       });
       parser.addArgument(['-i', '--include-store'], {
-        metavar  : 'URI',
-        dest     : 'stores',
-        action   : 'append',
-        help     : 'restrict remote data stores that are operated on to this set (can be specified multiple times to select multiple stores)'
+        metavar      : 'URI',
+        dest         : 'stores',
+        defaultValue : storedOptions ? storedOptions.stores : null,
+        action       : 'append',
+        help         : 'restrict remote data stores that are operated on to this set (can be specified multiple times to select multiple stores)'
       });
       parser.addArgument(['-e', '--exclude-store'], {
-        metavar  : 'URI',
-        dest     : 'xstores',
-        action   : 'append',
-        help     : 'exclusive version of --include-store (ie. specifies the inverse set)'
+        metavar      : 'URI',
+        dest         : 'xstores',
+        defaultValue : storedOptions ? storedOptions.xstores : null,
+        action       : 'append',
+        help         : 'exclusive version of --include-store (ie. specifies the inverse set)'
       });
+
 
       // todo: ideally, i'd like to declare that sbt takes 2 positional
       //       parameters - regardless of where the options are. unfortunately,
       //       that does not seem to be possible with argparse?...
 
       parser.addArgument(['command'], {
-        choices  : ['discover', 'backup', 'sync', 'restore']
+        choices      : ['discover', 'backup', 'sync', 'restore']
       });
       parser.addArgument(['directory'], {
-        // dest     : 'directory',
-        // required : true,
-        metavar  : 'DIRECTORY',
-        help     : 'the directory to store all sync data'
+        // dest         : 'directory',
+        // required     : true,
+        metavar      : 'DIRECTORY',
+        help         : 'the directory to store all sync data'
       });
 
-      this._opts    = parser.parseArgs();
-      this._sdb     = null;
-      this._idb     = null;
-      this._context = null;
-      this._adapter = null;
-      this._peer    = null;
+      self._opts = parser.parseArgs(args);
 
-      // TODO: load this._opts.directory + '/.sync/options.json' ...
-      //       or do so first?...
+      if ( storedOptions || _.indexOf(['backup'], self._opts.command) >= 0 )
+        return cb();
+
+      fs.readFile(self._opts.directory + '/.sync/options.json', function(err, data) {
+        if ( err )
+          return cb(err);
+        return self._init(args, JSON.parse(data), cb);
+      });
     },
 
     //-------------------------------------------------------------------------
@@ -416,7 +446,11 @@ define([
       var self = this;
       // TODO: i think the adapter already stores all of this... so is
       //       there really a need to store it again?
-      var opts = _.pick(self._opts, 'server', 'username', 'password', 'stores', 'xstores');
+      var opts = _.pick(self._opts,
+                        'server', 'username', 'password',
+                        'stores', 'xstores',
+                        'appendLog'
+                       );
       fs.writeFile(
         self._opts.directory + '/.sync/options.json',
         common.prettyJson(opts),
@@ -798,18 +832,21 @@ define([
 
     //-------------------------------------------------------------------------
     main: function(args, cb) {
-      args = args || process.argv;
-      var tool = new exports.Tool({args: args});
-      tool.exec(cb || function(err) {
+      if ( ! cb )
+        cb = function(err) {
+          if ( err )
+            util.error('[**] ERROR: '
+                       + ( err.message
+                           ? err.message
+                           : ( _.isObject(err)
+                               ? common.j(err)
+                               : err )));
+        };
+      var tool = new exports.Tool();
+      tool.initialize(['restore', 'fn0'], function(err) {
         if ( err )
-          util.error('[**] ERROR: '
-                     + ( err.message
-                         ? err.message
-                         : ( _.isObject(err)
-                             ? common.j(err)
-                             : err )));
-        if ( cb )
-          return cb();
+          return cb(err);
+        tool.exec(cb);
       });
     }
 
