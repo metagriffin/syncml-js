@@ -1010,21 +1010,15 @@ define([
                 }
                 return cb(badStatus(child));
               }
-              if ( session.isServer )
+              if ( ds.action == 'send' )
               {
-                if ( ds.action == 'send' )
+                if ( session.isServer )
                 {
                   ds.action = 'save';
                   return cb();
                 }
-              }
-              else
-              {
-                if ( ds.action == 'send' )
-                {
-                  ds.action = 'recv';
-                  return cb();
-                }
+                ds.action = common.oneWayOut(session, ds.mode) ? 'done' : 'recv';
+                return cb();
               }
               return cb(new common.ProtocolError('unexpected sync state for action=' + ds.action));
             }
@@ -1380,7 +1374,7 @@ define([
           if ( ! ds )
             return cb(new common.ProtocolError('request for unreflected local datastore "'
                                                + uri + '"'));
-          ds.action = 'send'
+          ds.action = 'send';
           if ( code != ds.mode )
             log.info('server switched sync modes from %s to %s for datastore "%s"',
                      common.mode2string(ds.mode), common.mode2string(code), uri);
@@ -1514,7 +1508,7 @@ define([
             if ( ds.action != 'alert' )
               return cb(new common.ProtocolError(
                 'unexpected sync state for URI "' + uri + '": action=' + ds.action));
-            ds.action = 'send';
+            ds.action = common.oneWayIn(session, ds.mode) ? 'save' : 'send';
           }
         }
         return session.context.synchronizer.reactions(session, commands, cb);
