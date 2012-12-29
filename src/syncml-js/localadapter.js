@@ -354,14 +354,11 @@ define([
     //-------------------------------------------------------------------------
     _transmit: function(session, commands, cb) {
       var self = this;
-
       if ( session.info.msgID > 20 )
         return cb('too many client/server messages');
-
       session.context.protocol.negotiate(session, commands, function(err, commands) {
         if ( err )
           return cb(err);
-
         if ( session.context.protocol.isComplete(session, commands) )
         {
           // we're done! store all the anchors and session IDs and exit...
@@ -381,27 +378,22 @@ define([
                     + session.info.id + '.m' + session.info.lastMsgID + ')')
           return cb();
         }
-
         session.context.protocol.produce(session, commands, function(err, tree) {
           if ( err )
             return cb(err);
           codec.Codec.autoEncode(tree, session.info.codec, function(err, contentType, data) {
             if ( err )
               return cb(err);
-
             // update the session with the last request commands so
             // that when we receive the response package, it can be
             // compared against that.
-
             // TODO: should that only be done on successful transmit?...
-
             session.info.lastCommands = commands;
             session.send(contentType, data, function(err) {
               if ( err )
                 return cb(err);
               cb();
             });
-
           })
         });
       });
