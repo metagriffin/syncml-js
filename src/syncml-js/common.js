@@ -179,6 +179,74 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    oneWay: function(mode) {
+      switch ( mode )
+      {
+        case constant.ALERT_TWO_WAY:
+        case constant.ALERT_SLOW_SYNC:
+          return false;
+        case constant.ALERT_ONE_WAY_FROM_CLIENT:
+        case constant.ALERT_REFRESH_FROM_CLIENT:
+        case constant.ALERT_ONE_WAY_FROM_SERVER:
+        case constant.ALERT_REFRESH_FROM_SERVER:
+          return true;
+        // case constant.ALERT_TWO_WAY_BY_SERVER:
+        // case constant.ALERT_ONE_WAY_FROM_CLIENT_BY_SERVER:
+        // case constant.ALERT_REFRESH_FROM_CLIENT_BY_SERVER:
+        // case constant.ALERT_ONE_WAY_FROM_SERVER_BY_SERVER:
+        // case constant.ALERT_REFRESH_FROM_SERVER_BY_SERVER:
+        default:
+          throw new exports.InternalError('invalid mode "' + mode + '"');
+      }
+    },
+
+    //-------------------------------------------------------------------------
+    oneWayIn: function(session, mode) {
+      switch ( mode )
+      {
+        case constant.ALERT_TWO_WAY:
+        case constant.ALERT_SLOW_SYNC:
+          return false;
+        case constant.ALERT_ONE_WAY_FROM_CLIENT:
+        case constant.ALERT_REFRESH_FROM_CLIENT:
+          return !! session.isServer;
+        case constant.ALERT_ONE_WAY_FROM_SERVER:
+        case constant.ALERT_REFRESH_FROM_SERVER:
+          return ! session.isServer;
+        // case constant.ALERT_TWO_WAY_BY_SERVER:
+        // case constant.ALERT_ONE_WAY_FROM_CLIENT_BY_SERVER:
+        // case constant.ALERT_REFRESH_FROM_CLIENT_BY_SERVER:
+        // case constant.ALERT_ONE_WAY_FROM_SERVER_BY_SERVER:
+        // case constant.ALERT_REFRESH_FROM_SERVER_BY_SERVER:
+        default:
+          throw new exports.InternalError('invalid mode "' + mode + '"');
+      }
+    },
+
+    //-------------------------------------------------------------------------
+    oneWayOut: function(session, mode) {
+      switch ( mode )
+      {
+        case constant.ALERT_TWO_WAY:
+        case constant.ALERT_SLOW_SYNC:
+          return false;
+        case constant.ALERT_ONE_WAY_FROM_CLIENT:
+        case constant.ALERT_REFRESH_FROM_CLIENT:
+          return ! session.isServer;
+        case constant.ALERT_ONE_WAY_FROM_SERVER:
+        case constant.ALERT_REFRESH_FROM_SERVER:
+          return !! session.isServer;
+        // case constant.ALERT_TWO_WAY_BY_SERVER:
+        // case constant.ALERT_ONE_WAY_FROM_CLIENT_BY_SERVER:
+        // case constant.ALERT_REFRESH_FROM_CLIENT_BY_SERVER:
+        // case constant.ALERT_ONE_WAY_FROM_SERVER_BY_SERVER:
+        // case constant.ALERT_REFRESH_FROM_SERVER_BY_SERVER:
+        default:
+          throw new exports.InternalError('invalid mode "' + mode + '"');
+      }
+    },
+
+    //-------------------------------------------------------------------------
     cascade: function(list, iterator, cb) {
       if ( ! cb && iterator )
       {
@@ -286,6 +354,15 @@ define([
       if ( ! str )
         return defval;
       return parseInt(str, 10);
+    },
+
+    //-------------------------------------------------------------------------
+    cmp: function(a, b) {
+      if ( a < b )
+        return -1;
+      if ( a > b )
+        return 1;
+      return 0;
     },
 
     //-------------------------------------------------------------------------
