@@ -94,7 +94,7 @@ define([
     getEasyClientAdapter: function(options, cb) {
       // options should be:= {
       //   // devID,
-      //   // name,
+      //   // displayName,
       //   devInfo: {},
       //   stores: [],
       //   peer: {},

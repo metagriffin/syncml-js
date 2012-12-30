@@ -116,7 +116,9 @@ define([
       });
 
       var setup_server = function(cb) {
-        sync.server.context.getAdapter({name: 'In-Memory Test Server'}, null, function(err, adapter) {
+        sync.server.context.getAdapter({
+          displayName: 'In-Memory Test Server'
+        }, null, function(err, adapter) {
           expect(err).ok();
           sync.server.adapter = adapter;
           var setupDevInfo = function(cb) {
@@ -164,7 +166,7 @@ define([
 
       var setup_client = function(name, shortname, syncobj, cb) {
         syncobj.context.getEasyClientAdapter({
-          name: 'In-Memory Test ' + name,
+          displayName: 'In-Memory Test ' + name,
           devInfo: {
             devID               : 'test-syncml-js-client-' + shortname,
             devType             : syncml.DEVTYPE_WORKSTATION,

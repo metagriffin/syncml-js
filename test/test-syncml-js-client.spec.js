@@ -55,7 +55,7 @@ define([
       });
 
       context.getEasyClientAdapter({
-        name: 'In-Memory Test Client',
+        displayName: 'In-Memory Test Client',
         devInfo: {
           devID               : 'test-syncml-js-devid',
           devType             : syncmljs.DEVTYPE_WORKSTATION,

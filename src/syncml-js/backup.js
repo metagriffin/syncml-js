@@ -365,7 +365,7 @@ define([
       var idb     = new indexeddbjs.indexedDB('sqlite3', sdb);
       var ctxt    = new context.Context({storage: idb});
       ctxt.getEasyClientAdapter({
-        name: 'SyncML Backup Tool (syncml-js) [discover]',
+        displayName: 'SyncML Backup Tool (syncml-js) [discover]',
         devInfo: {
           devID               : 'sbt.discover.' + common.makeID(),
           devType             : constant.DEVTYPE_WORKSTATION,
@@ -548,7 +548,7 @@ define([
               var idb     = new indexeddbjs.indexedDB('sqlite3', sdb);
               var ctxt    = new context.Context({storage: idb});
               ctxt.getEasyClientAdapter({
-                name: 'SyncML Backup Tool (syncml-js)',
+                displayName: 'SyncML Backup Tool (syncml-js)',
                 devInfo: {
                   devID               : 'sbt.' + common.makeID(),
                   devType             : constant.DEVTYPE_WORKSTATION,

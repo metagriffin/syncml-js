@@ -52,7 +52,9 @@ define([
         config  : {trustDevInfo: true}
       });
 
-      sync.context.getAdapter({name: 'In-Memory Test Server'}, null, function(err, adapter) {
+      sync.context.getAdapter({
+        displayName: 'In-Memory Test Server'
+      }, null, function(err, adapter) {
         expect(err).toBeFalsy();
         sync.adapter = adapter;
         var setupDevInfo = function(cb) {
@@ -973,10 +975,10 @@ define([
 
         // validate that the adapter was stored correctly
         sync.context.getAdapter(null, null, function(err, adapter) {
-          expect(adapter.name).toEqual('In-Memory Test Server');
+          expect(adapter.displayName).toEqual('In-Memory Test Server');
           expect(adapter.getPeers().length).toEqual(1);
           var peer = adapter.getPeers()[0];
-          expect(peer.name).toEqual('test-client');
+          expect(peer.displayName).toEqual('test-client');
           expect(peer.devID).toEqual(clientID);
           expect(peer.maxMsgSize).toEqual(150000);
           expect(peer.maxObjSize).toEqual(4000000);

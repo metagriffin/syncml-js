@@ -183,7 +183,7 @@ define([
         cmdID       : 0,
         version     : constant.SYNCML_VERSION_1_2,
         source      : session.info.effectiveID || session.adapter.devID,
-        sourceName  : session.adapter.name,
+        sourceName  : session.adapter.displayName,
         respUri     : session.isServer ? session.info.returnUrl : null
       });
 
@@ -245,11 +245,11 @@ define([
         }
         log.debug('registering new peer "%s"', peerID);
         var peerInfo = {
-          devID:      peerID,
-          name:       xhdr.findtext('Source/LocName'),
-          isLocal:    false,
-          maxMsgSize: common.parseInt(xhdr.findtext('Meta/MaxMsgSize')),
-          maxObjSize: common.parseInt(xhdr.findtext('Meta/MaxObjSize'))
+          devID:        peerID,
+          displayName:  xhdr.findtext('Source/LocName'),
+          isLocal:      false,
+          maxMsgSize:   common.parseInt(xhdr.findtext('Meta/MaxMsgSize')),
+          maxObjSize:   common.parseInt(xhdr.findtext('Meta/MaxObjSize'))
         };
         session.adapter.addPeer(peerInfo, function(err, peer) {
           if ( err )
@@ -268,7 +268,7 @@ define([
         cmd.sessionID   = session.info.id;
         cmd.msgID       = session.info.msgID;
         cmd.target      = session.peer ? session.peer.devID || null : null;
-        cmd.targetName  = session.peer ? session.peer.name || null : null;
+        cmd.targetName  = session.peer ? session.peer.displayName || null : null;
         cmd.auth        = session.peer ? session.peer.auth : null;
 
         if ( err )
