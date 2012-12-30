@@ -1222,10 +1222,21 @@ define([
         if ( err )
           return cb(err);
 
-        // TODO: on the server-side, should a devInfo "PUT" really result
-        //       in a router recalculate and an initStoreSync?... after all,
-        //       it is completely up to the client which stores get sync'd
-        //       with which...
+        var okcmd = state.makeCommand({
+          name       : constant.CMD_STATUS,
+          cmdID      : session.nextCmdID(),
+          msgRef     : xsync.findtext('SyncHdr/MsgID'),
+          cmdRef     : xnode.findtext('CmdID'),
+          sourceRef  : xnode.findtext('Item/Source/LocURI'),
+          statusOf   : xnode.tag,
+          statusCode : constant.STATUS_OK
+        });
+
+        if ( session.isServer )
+          return cb(null, [okcmd]);
+
+        // TODO: this should only cause a `recalculate` if any
+        //       meta-information actually changed...
 
         session.context.router.recalculate(session.adapter, session.peer, function(err) {
           if ( err )
@@ -1244,15 +1255,7 @@ define([
             //   if ( err )
             //     return cb(err);
 
-            return cb(null, [state.makeCommand({
-              name       : constant.CMD_STATUS,
-              cmdID      : session.nextCmdID(),
-              msgRef     : xsync.findtext('SyncHdr/MsgID'),
-              cmdRef     : xnode.findtext('CmdID'),
-              sourceRef  : xnode.findtext('Item/Source/LocURI'),
-              statusOf   : xnode.tag,
-              statusCode : constant.STATUS_OK
-            })]);
+            return cb(null, [okcmd]);
 
             // });
 
