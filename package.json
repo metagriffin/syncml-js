@@ -22,13 +22,19 @@
     "sprintf":       ">=0.1.1",
     "stacktrace-js": ">=0.5.0",
     "argparse":      ">=0.1.8",
+    "request":       ">=2.12.0",
+    "stablematch":   ">=0.0.4",
+    "difflib":       ">=0.2.4",
+
     "indexeddb-js":  ">=0.0.9",
-    "sqlite3":       ">=2.1.1",
-    "request":       ">=2.12.0"
+    "sqlite3":       ">=2.1.1"
+
   },
   "devDependencies": {
     "jasmine-node":  ">=1.0.26",
-    "diff":          ">=1.0.4"
+    "diff":          ">=1.0.4",
+    "indexeddb-js":  ">=0.0.9",
+    "sqlite3":       ">=2.1.1"
   },
   "keywords": [
     "syncml",

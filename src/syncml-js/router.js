@@ -15,6 +15,7 @@ define([
   'underscore',
   'elementtree',
   'stacktrace-js',
+  'stablematch',
   './logging',
   './common',
   './constant',
@@ -25,6 +26,7 @@ define([
   _,
   ET,
   stacktrace,
+  stablematch,
   logging,
   common,
   constant,
@@ -64,16 +66,33 @@ define([
     //-------------------------------------------------------------------------
     recalculate: function(adapter, peer, cb) {
       // the non-"SmartRouter" only connects manually-configured routes...
+      var routes = _.filter(peer._getModel().routes,
+                            function(r) { return ! r.autoMapped; });
+      return this._setupRoutes(adapter, peer, routes, cb);
+    },
 
+    //-------------------------------------------------------------------------
+    _setupRoutes: function(adapter, peer, routes, cb) {
       // available local URIs
-      var lset = _.map(adapter._model.stores,
+      var lset = _.map(adapter._getModel().stores,
                        function(s) { return adapter.normUri(s.uri); });
       // available remote URIs
       var rset = _.map(peer._getModel().stores,
                        function(s) { return peer.normUri(s.uri); });
-      // manual routes
-      var routes = _.filter(peer._getModel().routes,
-                            function(r) { return ! r.autoMapped; });
+
+      // break all routes not listed
+      var ruris = _.map(routes, function(r) { return r.remoteUri; });
+      var xrset = _.filter(rset, function(uri) {
+        return _.indexOf(ruris, uri) < 0;
+      });
+      _.each(xrset, function(uri) {
+        var smodel = peer.getStore(uri)._getModel();
+        if ( ! smodel.binding )
+          return;
+        log.debug('breaking route "' + smodel.binding.uri + '" (here) to "'
+                  + uri + '" (peer): not routed anymore');
+        smodel.binding = null;
+      });
 
       var err = null;
       _.each(routes, function(route) {
@@ -87,8 +106,8 @@ define([
              || _.indexOf(lset, route.localUri) < 0 )
         {
           err = 'unable to route from "' + route.localUri
-            + '" to "' + route.remoteUri
-            + '": no such stores or already routed elsewhere';
+            + '" (here) to "' + route.remoteUri
+            + '" (peer): no such stores or already routed elsewhere';
           return;
         }
 
@@ -103,7 +122,7 @@ define([
           return;
         smodel.binding = {
           uri          : route.localUri,
-          autoMapped   : false,
+          autoMapped   : route.autoMapped,
           localAnchor  : null,
           remoteAnchor : null
         };
@@ -130,9 +149,71 @@ define([
     //-------------------------------------------------------------------------
     recalculate: function(adapter, peer, cb) {
 
-      log.critical('TODO ::: SmartRouter.recalculate() NOT IMPLEMENTED');
-      return exports.Router.prototype.recalculate.call(this, adapter, peer, cb);
+      // note: if you don't want smart routing, assign the non-SmartRouter
+      //       router (i.e. syncml-js.Router) to the loaded context
 
+      // available local URIs
+      var llut = _.object(
+        _.map(adapter._getModel().stores,
+              function(s) { return [adapter.normUri(s.uri), s]; }));
+      var lset = _.keys(llut);
+
+      // available remote URIs
+      var rlut = _.object(
+        _.map(peer._getModel().stores,
+              function(s) { return [adapter.normUri(s.uri), s]; }));
+      var rset = _.keys(rlut);
+
+      // TODO: i am directly touching the model here.
+      //       total i-rep violation.
+      //       i'm embarrassed.
+      //       fortunately, it's just between syncml-js classes...
+      //       but now you know, doh! please don't blackmail me!... ;-)
+
+      // manual routes
+      var pmodel = peer._getModel();
+      pmodel.routes = _.filter(pmodel.routes,
+                               function(r) { return ! r.autoMapped; });
+
+      // remove manual routes from available routes
+      var uris = _.map(pmodel.routes, function(r) { return r.localUri; });
+      lset = _.filter(lset, function(uri) {
+        return _.indexOf(uris, uri) < 0;
+      });
+      uris = _.map(pmodel.routes, function(r) { return r.remoteUri; });
+      rset = _.filter(rset, function(uri) {
+        return _.indexOf(uris, uri) < 0;
+      });
+
+      // match remaining stores
+      var rankL = function(luri) {
+        var ret = _.rest(rset, 0);
+        ret.sort(function(a, b) {
+          return matcher.cmpStore(llut[luri], rlut[a], rlut[b]);
+        });
+        return ret;
+      };
+      var rankR = function(ruri) {
+        var ret = _.rest(lset, 0);
+        ret.sort(function(a, b) {
+          return matcher.cmpStore(rlut[ruri], llut[a], llut[b]);
+        });
+        return ret;
+      };
+      var matches = stablematch.match(lset, rset, rankL, rankR);
+
+      // add them to the routes (as auto-routed)
+      for ( var idx=0 ; idx<matches.length ; idx++ )
+      {
+        var pair = matches[idx];
+        pmodel.routes.push({
+          localUri   : pair[0],
+          remoteUri  : pair[1],
+          autoMapped : true
+        });
+      }
+
+      return this._setupRoutes(adapter, peer, pmodel.routes, cb);
     },
 
   });

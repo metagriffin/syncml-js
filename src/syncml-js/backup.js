@@ -843,7 +843,7 @@ define([
                                : err )));
         };
       var tool = new exports.Tool();
-      tool.initialize(['restore', 'fn0'], function(err) {
+      tool.initialize(args, function(err) {
         if ( err )
           return cb(err);
         tool.exec(cb);
