@@ -64,7 +64,7 @@ define([
       this.isLocal = true;
 
       //: [read-only] human-facing name of this adapter
-      this.name = options.name || null;
+      this.displayName = options.displayName || null;
 
       //: [read-only] the adapter-wide default value of the maximum
       //: message size.
@@ -99,7 +99,7 @@ define([
       if ( this._model == undefined )
         this._model = {
           id              : this.id,
-          name            : this.name,
+          displayName     : this.displayName,
           maxMsgSize      : this.maxMsgSize,
           maxObjSize      : this.maxObjSize,
           conflictPolicy  : this.conflictPolicy,
@@ -176,7 +176,51 @@ define([
 
     //-------------------------------------------------------------------------
     _save: function(dbtxn, cb) {
-      storage.put(dbtxn.objectStore('adapter'), this._model, cb);
+      var self = this;
+      self._updateModel(function(err) {
+        if ( err )
+          return cb(err);
+        storage.put(dbtxn.objectStore('adapter'), self._model, cb);
+      });
+    },
+
+    //-------------------------------------------------------------------------
+    _updateModel: function(cb) {
+      var self = this;
+      var model = self._model;
+      model.displayName    = self.displayName;
+      model.devID          = self.devID;
+      model.maxMsgSize     = self.maxMsgSize;
+      model.maxObjSize     = self.maxObjSize;
+      model.conflictPolicy = self.conflictPolicy;
+      model.isLocal        = true;
+      common.cascade([
+        // update the devInfo model
+        function(cb) {
+          if ( ! self.devInfo )
+            return cb();
+          return self.devInfo._updateModel(cb);
+        },
+        // update the stores model
+        function(cb) {
+          model.stores = [];
+          common.cascade(_.values(self._stores), function(store, cb) {
+            store._updateModel(cb);
+          }, cb);
+        },
+
+        // update the peers model
+        function(cb) {
+          // NOTE: unlike stores, which can completely regenerate the
+          //       model based on the class, the peers store binding
+          //       and routing info only in the model, so cannot be
+          //       completely deleted...
+          common.cascade(self._peers, function(peer, cb) {
+            peer._updateModel(cb);
+          }, cb);
+        }
+
+      ], cb);
     },
 
     //-------------------------------------------------------------------------
@@ -205,66 +249,53 @@ define([
 
     //-------------------------------------------------------------------------
     _loadModel: function(model, cb) {
-
-      log.critical('TODO ::: new adapter settings are being overwritten');
-      log.critical('TODO :::   (because they were not saved)');
-
       var self = this;
       self._model         = model;
-      self.name           = model.name;
+      self.displayName    = model.displayName;
       self.devID          = model.devID;
       self.maxMsgSize     = model.maxMsgSize;
       self.maxObjSize     = model.maxObjSize;
       self.conflictPolicy = model.conflictPolicy;
-
-      var loadDevInfo = function(cb) {
-        var di = new devinfomod.DevInfo(self, self._model.devInfo);
-        di._load(function(err) {
-          if ( err )
-            return cb(err);
-          self.devInfo = di;
-          cb();
-        });
-      };
-
-      var loadStores = function(cb) {
-        common.cascade(model.stores, function(e, cb) {
-          var store = new storemod.Store(self, e);
-          store._load(function(err) {
+      common.cascade([
+        // load device info
+        function(cb) {
+          var di = new devinfomod.DevInfo(self, self._model.devInfo);
+          di._load(function(err) {
             if ( err )
               return cb(err);
-            self._stores[store.uri] = store;
-            return cb();
+            self.devInfo = di;
+            cb();
           });
-        }, cb);
-      };
-
-      var loadPeers = function(cb) {
-        var remotes = _.filter(model.peers, function(e) {
-          return ! e.isLocal;
-        });
-        self._peers = [];
-        common.cascade(remotes, function(e, cb) {
-          var peer = new remote.RemoteAdapter(self, e);
-          peer._load(function(err) {
-            if ( err )
-              return cb(err);
-            self._peers.push(peer);
-            return cb();
+        },
+        // load stores
+        function(cb) {
+          common.cascade(model.stores, function(e, cb) {
+            var store = new storemod.Store(self, e);
+            store._load(function(err) {
+              if ( err )
+                return cb(err);
+              self._stores[store.uri] = store;
+              return cb();
+            });
+          }, cb);
+        },
+        // load peers
+        function(cb) {
+          var remotes = _.filter(model.peers, function(e) {
+            return ! e.isLocal;
           });
-        }, cb);
-      };
-
-      loadDevInfo(function(err) {
-        if ( err )
-          return cb(err);
-        loadStores(function(err) {
-          if ( err )
-            return cb(err);
-          loadPeers(cb);
-        });
-      });
-
+          self._peers = [];
+          common.cascade(remotes, function(e, cb) {
+            var peer = new remote.RemoteAdapter(self, e);
+            peer._load(function(err) {
+              if ( err )
+                return cb(err);
+              self._peers.push(peer);
+              return cb();
+            });
+          }, cb);
+        }
+      ], cb);
     },
 
     //-------------------------------------------------------------------------

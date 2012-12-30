@@ -166,9 +166,6 @@ define([
 
     //-------------------------------------------------------------------------
     merge: function(store, cb) {
-
-      log.critical('TODO ::: ensure that an adapter._save (at session end) saves merged info');
-
       if ( this.uri != store.uri )
         return cb(new common.InternalError(
           'unexpected merging of stores with different URIs ("' + this.uri

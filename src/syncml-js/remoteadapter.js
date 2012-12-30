@@ -65,7 +65,7 @@ define([
       this.auth = options.auth || null;
 
       //: [read-only] the human-friendly display name of the remote peer.
-      this.name = options.name || null;
+      this.displayName = options.displayName || null;
 
       //: [read-only] the username to use during credential-based authentication.
       this.username = options.username || null;
@@ -104,8 +104,8 @@ define([
       var model = this._getModel();
 
       // todo: should this be loading these?...
-      // self.name    = model.name;
-      // self.devID   = model.devID;
+      // self.displayName = model.displayName;
+      // self.devID       = model.devID;
 
       var loadDevInfo = function(cb) {
         var di = new devinfomod.DevInfo(self, model.devInfo);
@@ -138,31 +138,71 @@ define([
 
     //-------------------------------------------------------------------------
     _updateModel: function(cb) {
+      var self = this;
       if ( ! this._a._model || ! this._a._model.peers )
-        return cb(new common.InternalError('store created on un-initialized adapter'));
-      // TODO: identifying peers by URL... is that really the right thing?...
-      // todo: perhaps a better way would be tu use this._getModel() and if
-      //       found, update, if not found, add?...
-      this._a._model.peers = _.filter(this._a._model.peers, function(e) {
-        if ( e.id != this.id )
-          return true;
-        return false;
-      }, this);
-      this._a._model.peers.push(_.defaults({
-        id              : this.id,
-        isLocal         : false,
-        isServer        : true,
-        url             : this.url,
-        devID           : this.devID,
-        name            : this.name,
-        devInfo         : null,
-        stores          : [],
-        auth            : this.auth,
-        username        : this.username,
-        password        : this.password,
-        lastSessionID   : this.lastSessionID
-      }, this._options));
-      cb();
+        return cb(new common.InternalError('peer created on un-initialized adapter'));
+      var model = self._getModel();
+      // todo: should this be in this._getModel()?...
+      if ( ! model )
+      {
+        model = {
+          id:       self.id,
+          devInfo:  null,
+          stores:   [],
+          routes:   []
+        };
+        self._a._model.peers.push(model);
+      }
+
+      model.isLocal         = false;
+      model.isServer        = true;
+      model.url             = self.url;
+      model.devID           = self.devID;
+      model.displayName     = self.displayName;
+      model.auth            = self.auth;
+      model.username        = self.username;
+      model.password        = self.password;
+      model.lastSessionID   = self.lastSessionID
+      model.maxMsgSize      = self.maxMsgSize;
+      model.maxObjSize      = self.maxObjSize;
+
+      common.cascade([
+
+        // update the devInfo model
+        function(cb) {
+          if ( ! self.devInfo )
+             return cb();
+          return self.devInfo._updateModel(cb);
+        },
+
+        // update the stores model
+        function(cb) {
+          // TODO: this should really be the responsibility of the Store class...
+          // NOTE: since bindings are not stored in Store, they need to be saved
+          //       and re-applied.
+          // TODO: or, perhaps better, i should purge all unwanted stores
+          //       instead of doing this brute-force method...
+          var bindings = _.object(_.map(model.stores, function(store) {
+            return [store.uri, store.binding];
+          }));
+          model.stores = [];
+          common.cascade(_.values(self._stores), function(store, cb) {
+            store._updateModel(cb);
+          }, function(err) {
+            if ( err )
+              return cb(err);
+            _.each(bindings, function(binding, uri) {
+              var store = _.find(model.stores, function(s) { return s.uri == uri; });
+              if ( ! store )
+                return;
+              store.binding = binding;
+            });
+            return cb();
+          });
+        },
+
+      ], cb);
+
     },
 
     //-------------------------------------------------------------------------
