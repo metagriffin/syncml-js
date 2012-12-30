@@ -132,9 +132,12 @@ define([
     constructor: function(options) {
       options = options || {};
       this._storage = options.storage || new exports.TestStorage(options);
+      this._contentTypes = options.contentTypes || null;
     },
 
     getContentTypes: function() {
+      if ( this._contentTypes )
+        return this._contentTypes;
       return [
         new syncmljs.ContentTypeInfo('text/x-s4j-sifn', '1.1', {preferred: true}),
         new syncmljs.ContentTypeInfo('text/x-s4j-sifn', '1.0'),
