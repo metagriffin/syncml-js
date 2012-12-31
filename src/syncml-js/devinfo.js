@@ -60,7 +60,7 @@ define([
     //-------------------------------------------------------------------------
     constructor: function(adapter, options) {
 
-      var options = _.defaults(options, {
+      var options = _.defaults({}, options, {
         devType           : constant.DEVTYPE_WORKSTATION,
         manufacturerName  : '-',
         modelName         : '-',
@@ -71,7 +71,8 @@ define([
         utc               : true,
         largeObjects      : true,
         hierarchicalSync  : true,
-        numberOfChanges   : true
+        numberOfChanges   : true,
+        extensions        : {}
       });
 
       // todo: is there anyway to mark attributes as read-only?...
@@ -89,9 +90,25 @@ define([
       this.largeObjects     = options.largeObjects;
       this.hierarchicalSync = options.hierarchicalSync;
       this.numberOfChanges  = options.numberOfChanges;
+      this.extensions       = options.extensions;
 
       // --- private attributes
       this._a       = adapter;
+    },
+
+    //-------------------------------------------------------------------------
+    setExtension: function(name, values) {
+      this.extensions[name] = _.isArray(values) ? values : [values];
+    },
+
+    //-------------------------------------------------------------------------
+    getExtensionKeys: function() {
+      return _.keys(this.extensions);
+    },
+
+    //-------------------------------------------------------------------------
+    getExtension: function(name) {
+      return this.extensions[name];
     },
 
     //-------------------------------------------------------------------------
@@ -115,7 +132,8 @@ define([
         utc              : this.utc,
         largeObjects     : this.largeObjects,
         hierarchicalSync : this.hierarchicalSync,
-        numberOfChanges  : this.numberOfChanges
+        numberOfChanges  : this.numberOfChanges,
+        extensions       : this.extensions
       };
       cb();
     },
@@ -140,8 +158,19 @@ define([
         if ( this[map[0]] )
           ET.SubElement(xret, map[1])
       }
-      for ( var idx=0 ; idx<stores.length ; idx++ )
-        xret.append(stores[idx].toSyncML());
+      if ( stores && stores.length > 0 )
+        for ( var idx=0 ; idx<stores.length ; idx++ )
+          xret.append(stores[idx].toSyncML());
+      var xext = null;
+      for ( var name in this.extensions )
+      {
+        if ( ! xext )
+          xext = ET.SubElement(xret, 'Ext');
+        ET.SubElement(xext, 'XNam').text = name;
+        var values = this.extensions[name];
+        for ( var idx=0 ; idx<values.length ; idx++ )
+          ET.SubElement(xext, 'XVal').text = '' + values[idx];
+      };
       return xret;
     },
 
@@ -166,9 +195,30 @@ define([
         options[map[0]] = xnode.find(map[1]) != undefined;
       }
       _.each(xnode.getchildren(), function(child) {
-        if ( child.tag != 'DataStore' )
+        if ( child.tag == 'DataStore' )
+          return stores.push(storemod.Store.fromSyncML(child));
+        if ( child.tag == 'Ext' )
+        {
+          options.extensions = {};
+          var elist = child.getchildren();
+          var ecur  = null;
+          for ( var idx=0 ; idx<elist.length ; idx++ )
+          {
+            var eitem = elist[idx];
+            if ( eitem.tag == 'XNam' )
+            {
+              ecur = eitem.text;
+              continue;
+            }
+            if ( ! ecur )
+              // paranoia...
+              continue;
+            if ( ! options.extensions[ecur] )
+              options.extensions[ecur] = [];
+            options.extensions[ecur].push(eitem.text);
+          }
           return;
-        stores.push(storemod.Store.fromSyncML(child));
+        }
       });
       return [new exports.DevInfo(null, options), stores];
     }

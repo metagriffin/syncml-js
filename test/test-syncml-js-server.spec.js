@@ -763,6 +763,131 @@ define([
     });
 
     //-------------------------------------------------------------------------
+    it('supports setting extension info', function(done) {
+      var clientID  = 'test-syncml-js-server.client.' + (new Date()).getTime();
+      var serverID  = 'https://example.com/sync';
+      var returnUrl = serverID + ';s=a139bb50047b45ca9820fe53f5161e55';
+      var request   = makeRequest_init(serverID, clientID, {
+        putDevInfo    : false,
+        getDevInfo    : false,
+        sendAlert     : false
+      });
+      var session   = syncmljs.makeSessionInfo({returnUrl: returnUrl, effectiveID: serverID});
+      var collector = new helpers.ResponseCollector();
+      var authorize = function(uri, data, cb) {
+        expect(uri).toBeNull();
+        expect(data).toEqual({
+          auth:     'syncml:auth-basic',
+          username: 'guest',
+          password: 'guest'
+        });
+        return cb();
+      };
+      sync.adapter.devInfo.setExtension('x-syncml-engine', 'syncml-js/' + syncmljs.version);
+      sync.adapter.handleRequest(request, session, authorize, collector.write, function(err, stats) {
+        expect(err).ok();
+        expect(stats).toEqual({});
+        var engine = helpers.findXml(collector.contents[0], './SyncBody/Put/Item/Data/DevInf/Ext/XVal');
+        expect(engine).toMatch(/^syncml-js\/\d+\.\d+\.\d+$/);
+
+        var chk = ''
+          + '<SyncML>'
+          + ' <SyncHdr>'
+          + '  <VerDTD>1.2</VerDTD>'
+          + '  <VerProto>SyncML/1.2</VerProto>'
+          + '  <SessionID>1</SessionID>'
+          + '  <MsgID>1</MsgID>'
+          + '  <Source>'
+          + '   <LocURI>' + serverID + '</LocURI>'
+          + '   <LocName>In-Memory Test Server</LocName>'
+          + '  </Source>'
+          + '  <Target>'
+          + '   <LocURI>' + clientID + '</LocURI>'
+          + '   <LocName>test-client</LocName>'
+          + '  </Target>'
+          + '  <RespURI>' + returnUrl + '</RespURI>'
+          + '  <Meta>'
+          + '   <MaxMsgSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxMsgSize>'
+          + '   <MaxObjSize xmlns="syncml:metinf">' + helpers.getMaxMemorySize() + '</MaxObjSize>'
+          + '  </Meta>'
+          + ' </SyncHdr>'
+          + ' <SyncBody>'
+          + '  <Status>'
+          + '   <CmdID>1</CmdID>'
+          + '   <MsgRef>1</MsgRef>'
+          + '   <CmdRef>0</CmdRef>'
+          + '   <Cmd>SyncHdr</Cmd>'
+          + '   <SourceRef>' + clientID + '</SourceRef>'
+          + '   <TargetRef>' + serverID + '</TargetRef>'
+          + '   <Data>212</Data>'
+          + '  </Status>'
+          + '  <Put>'
+          + '   <CmdID>2</CmdID>'
+          + '   <Meta><Type xmlns="syncml:metinf">application/vnd.syncml-devinf+xml</Type></Meta>'
+          + '   <Item>'
+          + '    <Source><LocURI>./devinf12</LocURI><LocName>./devinf12</LocName></Source>'
+          + '    <Data>'
+          + '     <DevInf xmlns="syncml:devinf">'
+          + '      <VerDTD>1.2</VerDTD>'
+          + '      <Man>syncml-js</Man>'
+          + '      <Mod>testserver</Mod>'
+          + '      <OEM>-</OEM>'
+          + '      <FwV>-</FwV>'
+          + '      <SwV>-</SwV>'
+          + '      <HwV>-</HwV>'
+          + '      <DevID>test-syncml-js-server-devid</DevID>'
+          + '      <DevTyp>server</DevTyp>'
+          + '      <UTC/>'
+          + '      <SupportLargeObjs/>'
+          + '      <SupportNumberOfChanges/>'
+          + '      <DataStore>'
+          + '       <SourceRef>srv_note</SourceRef>'
+          + '       <DisplayName>Server Note Store</DisplayName>'
+          + '       <MaxGUIDSize>' + helpers.getAddressSize() + '</MaxGUIDSize>'
+          + '       <MaxObjSize>' + helpers.getMaxMemorySize() + '</MaxObjSize>'
+          + '       <Rx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Rx-Pref>'
+          + '       <Rx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Rx>'
+          + '       <Rx><CTType>text/plain</CTType><VerCT>1.1</VerCT></Rx>'
+          + '       <Rx><CTType>text/plain</CTType><VerCT>1.0</VerCT></Rx>'
+          + '       <Tx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Tx-Pref>'
+          + '       <Tx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Tx>'
+          + '       <Tx><CTType>text/plain</CTType><VerCT>1.1</VerCT></Tx>'
+          + '       <Tx><CTType>text/plain</CTType><VerCT>1.0</VerCT></Tx>'
+          + '       <SyncCap>'
+          + '        <SyncType>1</SyncType>'
+          + '        <SyncType>2</SyncType>'
+          + '        <SyncType>3</SyncType>'
+          + '        <SyncType>4</SyncType>'
+          + '        <SyncType>5</SyncType>'
+          + '        <SyncType>6</SyncType>'
+          + '        <SyncType>7</SyncType>'
+          + '       </SyncCap>'
+          + '      </DataStore>'
+          + '      <Ext><XNam>x-syncml-engine</XNam><XVal>' + engine + '</XVal></Ext>'
+          + '     </DevInf>'
+          + '    </Data>'
+          + '   </Item>'
+          + '  </Put>'
+          + '  <Get>'
+          + '   <CmdID>3</CmdID>'
+          + '   <Meta><Type xmlns="syncml:metinf">application/vnd.syncml-devinf+xml</Type></Meta>'
+          + '   <Item>'
+          + '    <Target><LocURI>./devinf12</LocURI><LocName>./devinf12</LocName></Target>'
+          + '   </Item>'
+          + '  </Get>'
+          + '  <Final/>'
+          + ' </SyncBody>'
+          + '</SyncML>'
+        ;
+
+        expect(collector.contentTypes).toEqual(['application/vnd.syncml+xml; charset=UTF-8']);
+        expect(collector.contents.length).toEqual(1);
+        expect(collector.contents[0]).toEqualXml(chk);
+        done();
+      });
+    });
+
+    //-------------------------------------------------------------------------
     it('creates a new peer store binding on-demand', function(done) {
 
       var clientID   = 'test-syncml-js-server.client.' + (new Date()).getTime();

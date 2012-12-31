@@ -34,7 +34,7 @@ define([
     it('declares a version', function() {
       expect(syncml.version).not.toBeUndefined();
       expect(syncml.version).not.toBeNull();
-      expect(syncml.version).toMatch(/^\d+\.\d+\.\d$/);
+      expect(syncml.version).toMatch(/^\d+\.\d+\.\d+$/);
     });
 
     var sync = {};

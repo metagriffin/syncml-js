@@ -22,7 +22,8 @@ define([
   './syncml-js/agent',
   './syncml-js/router',
   './syncml-js/synchronizer',
-  './syncml-js/protocol'
+  './syncml-js/protocol',
+  './syncml-js/logging'
 ], function(
   _,
   constant,
@@ -34,17 +35,12 @@ define([
   agent,
   router,
   synchronizer,
-  protocol
+  protocol,
+  logging
 ) {
 
   return _.extend(
-    // TODO: figure out how to pull this dynamically from package.json...
-    {version: '0.0.8'},
     constant,
-    {
-      platformBits: common.platformBits,
-      getMaxMemorySize: common.getMaxMemorySize
-    },
     codec,
     state,
     context,
@@ -52,7 +48,15 @@ define([
     agent,
     router,
     synchronizer,
-    protocol
+    protocol,
+    {
+      // TODO: figure out how to pull this dynamically from package.json...
+      version:           '0.0.10',
+      platformBits:      common.platformBits,
+      getMaxMemorySize:  common.getMaxMemorySize,
+      common:            common,
+      logging:           logging
+    }
   );
 
 });
