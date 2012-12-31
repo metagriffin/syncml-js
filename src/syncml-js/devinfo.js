@@ -59,7 +59,7 @@ define([
 
     //-------------------------------------------------------------------------
     constructor: function(adapter, options) {
-
+      var self = this;
       var options = _.defaults({}, options, {
         devType           : constant.DEVTYPE_WORKSTATION,
         manufacturerName  : '-',
@@ -90,7 +90,11 @@ define([
       this.largeObjects     = options.largeObjects;
       this.hierarchicalSync = options.hierarchicalSync;
       this.numberOfChanges  = options.numberOfChanges;
-      this.extensions       = options.extensions;
+      this.extensions       = {};
+
+      _.each(options.extensions, function(values, name) {
+        self.setExtension(name, values);
+      });
 
       // --- private attributes
       this._a       = adapter;

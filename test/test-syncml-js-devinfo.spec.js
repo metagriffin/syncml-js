@@ -66,6 +66,45 @@ define([
     });
 
     //-------------------------------------------------------------------------
+    it('accepts constructor extensions with arrays and non-arrays', function(done) {
+      var di = new devinfo.DevInfo(null, {
+        devID      : 'this-globally-unique-id',
+        extensions : {
+          'foo'     : 'bar',
+          'x-array' : ['x-item-1', 'x-item-2']
+        }
+      });
+      di.setExtension('x-array', ['x-item-1', 'x-item-2']);
+      var out = ET.tostring(di.toSyncML())
+      var chk = ''
+        + '<DevInf xmlns="syncml:devinf">'
+        + ' <VerDTD>1.2</VerDTD>'
+        + ' <Man>-</Man>'
+        + ' <Mod>-</Mod>'
+        + ' <OEM>-</OEM>'
+        + ' <FwV>-</FwV>'
+        + ' <SwV>-</SwV>'
+        + ' <HwV>-</HwV>'
+        + ' <DevID>this-globally-unique-id</DevID>'
+        + ' <DevTyp>workstation</DevTyp>'
+        + ' <UTC/>'
+        + ' <SupportLargeObjs/>'
+        + ' <SupportHierarchicalSync/>'
+        + ' <SupportNumberOfChanges/>'
+        + ' <Ext>'
+        + '  <XNam>foo</XNam>'
+        + '  <XVal>bar</XVal>'
+        + '  <XNam>x-array</XNam>'
+        + '  <XVal>x-item-1</XVal>'
+        + '  <XVal>x-item-2</XVal>'
+        + ' </Ext>'
+        + '</DevInf>'
+      ;
+      expect(out).toEqualXml(chk);
+      done();
+    });
+
+    //-------------------------------------------------------------------------
     it('parses extensions from XML', function(done) {
       var xml  = ''
         + '<DevInf xmlns="syncml:devinf">'
