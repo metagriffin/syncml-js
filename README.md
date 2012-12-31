@@ -81,7 +81,7 @@ define(['syncml-js', 'underscore', 'cascade'], function(syncml, _, cascade) {
 
     dumpsItem: function(item, contentType, version, cb) {
       // serialize the item
-      return cb(null, CONVERT-ITEM-TO-DATA);
+      return cb(null, CONVERT-ITEM-TO-DATA [, CONTENT-TYPE [, VERSION ] ]);
     },
 
     loadsItem: function(data, contentType, version, cb) {

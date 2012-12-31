@@ -22,8 +22,7 @@ define([
   './syncml-js/agent',
   './syncml-js/router',
   './syncml-js/synchronizer',
-  './syncml-js/protocol',
-  './syncml-js/backup'
+  './syncml-js/protocol'
 ], function(
   _,
   constant,
@@ -35,13 +34,12 @@ define([
   agent,
   router,
   synchronizer,
-  protocol,
-  backup
+  protocol
 ) {
 
   return _.extend(
     // TODO: figure out how to pull this dynamically from package.json...
-    {version: '0.0.7'},
+    {version: '0.0.8'},
     constant,
     {
       platformBits: common.platformBits,
@@ -54,10 +52,7 @@ define([
     agent,
     router,
     synchronizer,
-    protocol,
-    {
-      backup: backup
-    }
+    protocol
   );
 
 });
