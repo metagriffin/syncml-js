@@ -54,6 +54,10 @@ define([
       version:           '0.0.11',
       platformBits:      common.platformBits,
       getMaxMemorySize:  common.getMaxMemorySize,
+
+      // TODO: these should not be here, but are being used by other packages
+      //       and therefore should be moved out to a separate package. or
+      //       at least parts thereof.
       common:            common,
       logging:           logging
     }
