@@ -1,0 +1,79 @@
+The syncml-js database structure of an adapter is:
+
+{
+  id:                   UUID,
+  displayName:          STRING,
+  devID:                STRING,
+  maxMsgSize:           INT,
+  maxObjSize:           INT,
+  conflictPolicy:       INT,
+  isLocal:              BOOL,
+
+  devInfo: {
+    devID:              STRING,
+    devType:            STRING,
+    manufacturerName:   STRING,
+    modelName:          STRING,
+    oem:                STRING,
+    hardwareVersion:    STRING,
+    firmwareVersion:    STRING,
+    softwareVersion:    STRING,
+    utc:                BOOL,
+    largeObjects:       BOOL,
+    hierarchicalSync:   BOOL,
+    numberOfChanges:    BOOL,
+    extensions: {
+      STRING: LIST(STRING)
+    }
+  },
+
+  stores: [
+    {
+      id:               UUID,
+      uri:              STRING,
+      displayName:      STRING,
+      syncTypes:        LIST(INT),
+      maxGuidSize:      INT,
+      maxObjSize:       INT,
+      conflictPolicy:   INT,
+      contentTypes:     [
+        {
+          ctype:        STRING,
+          versions:     LIST(STRING),
+          preferred:    BOOL,
+          transmit:     BOOL,
+          receive:      BOOL
+        }
+      ],
+
+      // in the case of PEERs only:
+      binding: {
+        uri:            STRING,
+        localAnchor:    STRING,
+        remoteAnchor:   STRING,
+        autoMapped:     BOOL
+      }
+    }
+  ],
+
+  peers: [
+    {
+      // same as ADAPTER, plus:
+      isServer:         BOOL,
+      url:              STRING,
+      auth:             STRING,
+      username:         STRING,
+      password:         STRING,
+      lastSessionID:    STRING,
+      maxMsgSize:       INT,
+      maxObjSize:       INT,
+      routes: [
+        {
+          localUri:     STRING,
+          remoteUri:    STRING,
+          autoMapped:   BOOL
+        }
+      ]
+    }
+  ]
+}
