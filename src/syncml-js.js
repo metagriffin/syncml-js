@@ -41,7 +41,7 @@ define([
 
   return _.extend(
     // TODO: figure out how to pull this dynamically from package.json...
-    {version: '0.0.6'},
+    {version: '0.0.7'},
     constant,
     {
       platformBits: common.platformBits,
