@@ -33,6 +33,7 @@ define([
     //-------------------------------------------------------------------------
     beforeEach(function() {
       logging.level = logging.WARNING;
+      logging.getLogger().addHandler(new logging.ConsoleHandler());
       this.addMatchers(helpers.matchers);
     });
 

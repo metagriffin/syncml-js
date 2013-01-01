@@ -14,9 +14,18 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  '../src/syncml-js/common'
-], function(_, ET, common) {
+  '../src/syncml-js/common',
+  '../src/syncml-js/logging',
+  './helpers'
+], function(_, ET, common, logging, helpers) {
+
   describe('syncml-js/common', function() {
+
+    beforeEach(function () {
+      logging.level = logging.WARNING;
+      logging.getLogger().addHandler(new logging.ConsoleHandler());
+      this.addMatchers(helpers.matchers);
+    });
 
     //-------------------------------------------------------------------------
     it('makeID creates unique values', function() {

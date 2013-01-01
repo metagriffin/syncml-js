@@ -16,9 +16,18 @@ define([
   'elementtree',
   '../src/syncml-js/constant',
   '../src/syncml-js/common',
-  '../src/syncml-js/ctype'
-], function(_, ET, constant, common, ctype) {
+  '../src/syncml-js/ctype',
+  '../src/syncml-js/logging',
+  './helpers'
+], function(_, ET, constant, common, ctype, logging, helpers) {
+
   describe('syncml-js/ctype', function() {
+
+    beforeEach(function () {
+      logging.level = logging.WARNING;
+      logging.getLogger().addHandler(new logging.ConsoleHandler());
+      this.addMatchers(helpers.matchers);
+    });
 
     it('generates single version XML', function() {
       var ct = new ctype.ContentTypeInfo('text/plain', '1.0', {preferred: true});

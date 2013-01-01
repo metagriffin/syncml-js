@@ -17,9 +17,17 @@ define([
   '../src/syncml-js/constant',
   '../src/syncml-js/common',
   '../src/syncml-js/state',
+  '../src/syncml-js/logging',
   './helpers'
-], function(_, ET, constant, common, state, helpers) {
+], function(_, ET, constant, common, state, logging, helpers) {
+
   describe('syncml-js/state', function() {
+
+    beforeEach(function () {
+      logging.level = logging.WARNING;
+      logging.getLogger().addHandler(new logging.ConsoleHandler());
+      this.addMatchers(helpers.matchers);
+    });
 
     it('isolates Stats member variables', function() {
       var s1 = state.makeStats();

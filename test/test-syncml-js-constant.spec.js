@@ -14,9 +14,18 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  '../src/syncml-js/constant'
-], function(_, ET, constant) {
+  '../src/syncml-js/constant',
+  '../src/syncml-js/logging',
+  './helpers'
+], function(_, ET, constant, logging, helpers) {
+
   describe('syncml-js/constant', function() {
+
+    beforeEach(function () {
+      logging.level = logging.WARNING;
+      logging.getLogger().addHandler(new logging.ConsoleHandler());
+      this.addMatchers(helpers.matchers);
+    });
 
     it('creates the correct SyncTypeToAlert lookup table', function() {
       expect(constant.SyncTypeToAlert[1]).toEqual(200);
@@ -29,6 +38,7 @@ define([
     });
 
   });
+
 });
 
 //-----------------------------------------------------------------------------

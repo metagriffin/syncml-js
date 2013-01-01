@@ -15,9 +15,18 @@ define([
   'underscore',
   'elementtree',
   '../src/syncml-js/constant',
-  '../src/syncml-js/codec'
-], function(_, ET, constant, codec) {
+  '../src/syncml-js/codec',
+  '../src/syncml-js/logging',
+  './helpers'
+], function(_, ET, constant, codec, logging, helpers) {
+
   describe('syncml-js/codec', function() {
+
+    beforeEach(function () {
+      logging.level = logging.WARNING;
+      logging.getLogger().addHandler(new logging.ConsoleHandler());
+      this.addMatchers(helpers.matchers);
+    });
 
     //-------------------------------------------------------------------------
     it('throws an exception for unknown codecs', function() {
