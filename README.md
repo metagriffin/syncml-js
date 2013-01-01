@@ -38,11 +38,12 @@ steps:
    stored and formatted, and the mechanisms that users use to interact
    and manipulate it.
 
-2. Create an "Adapter", which is responsible for actually
-   communicating with a SyncML peer.
+2. Create an "Agent" class, which implements an API that forms the
+   bridge between your data layer and the SyncML adapter.
 
-3. Create an "Agent", which implements an API that forms the bridge
-   between your data layer and the SyncML adapter.
+3. Instantiate a "Context" and an "Adapter", classes provided by this
+   package, which are responsible for actually communicating with a
+   SyncML peer.
 
 4. Ensure that changes made to the data layer are registered to the
    SyncML library.
@@ -52,7 +53,10 @@ steps:
    server-side request handling.
 
 Here is a quick example of such a client, which assumes that the first
-step, the local data layer, is implemented elsewhere.
+step, the local data layer, is implemented elsewhere. It uses the
+`amdefine` package to handle dependencies, `underscore` for general
+utilities, and `cascade` for taking some of the pain out of
+callback-hell:
 
 ``` js
 
@@ -68,11 +72,11 @@ define(['syncml-js', 'underscore', 'cascade'], function(syncml, _, cascade) {
   var MyAgent = syncmljs.Agent.extend({
 
     constructor: function(options) {
-      // constructor items
+      // TODO: constructor items
     },
 
     getContentTypes: function() {
-      // returns the content-types that your agent supports
+      // TODO: returns the content-types that your agent supports
       return [
         new syncmljs.ContentTypeInfo('text/calendar', '2.0', {preferred: true}),
         new syncmljs.ContentTypeInfo('text/x-vcalendar', ['1.0', '1.1'])
@@ -80,43 +84,43 @@ define(['syncml-js', 'underscore', 'cascade'], function(syncml, _, cascade) {
     },
 
     dumpsItem: function(item, contentType, version, cb) {
-      // serialize the item
+      // TODO: serialize the item
       return cb(null, CONVERT-ITEM-TO-DATA [, CONTENT-TYPE [, VERSION ] ]);
     },
 
     loadsItem: function(data, contentType, version, cb) {
-      // de-serialize an item
+      // TODO: de-serialize an item
       var item = CONVERT-DATA-TO-ITEM;
       return cb(null, item);
     },
 
     getAllItems: function(cb) {
-      // supplies a list of all existing items
+      // TODO: supplies a list of all existing items
       return cb(null, LIST);
     },
 
     addItem: function(item, cb) {
-      // adds the new item to local storage -- it MUST also set
-      // the `id` attribute of the new item
+      // TODO: adds the new item to local storage -- it MUST also set
+      //       the `id` attribute of the new item
       return cb(null, ITEM-WITH-NEW-ID);
     },
 
     getItem: function(itemID, cb) {
-      // fetches the item with the specified `itemID`
+      // TODO: fetches the item with the specified `itemID`
       return cb(null, ITEM);
     },
 
     replaceItem: function(item, reportChanges, cb) {
-      // updates the local storage with the new item, replacing the
-      // existing item with ID ``item.id``. if this agent is acting
-      // as the server (usually `reportChanges` is then true), the
-      // agent should provide a changeSpec string.
+      // TODO: updates the local storage with the new item, replacing the
+      //       existing item with ID ``item.id``. if `reportChanges` is
+      //       true (usually when this agent is acting as the server), the
+      //       agent should provide a changeSpec string.
       return cb(null, CHANGESPEC);
     },
 
     deleteItem: function(itemID, cb) {
-      // removes the item with the specified ID `itemID` from the
-      // local storage.
+      // TODO: removes the item with the specified ID `itemID` from the
+      //       local storage.
       return cb(null);
     }
 
@@ -160,7 +164,7 @@ define(['syncml-js', 'underscore', 'cascade'], function(syncml, _, cascade) {
         displayName  : 'Remote Calendar',
         maxGuidSize  : 32,
         maxObjSize   : 2147483647,
-        agent        : new MyAgent(),
+        agent        : new MyAgent()
       }
     ],
     peer: {
@@ -168,14 +172,14 @@ define(['syncml-js', 'underscore', 'cascade'], function(syncml, _, cascade) {
       auth     : syncml.NAMESPACE_AUTH_BASIC,
       username : 'guest',
       password : 'guest'
-    },
+    }
     // you can either specify how to bind local stores to the stores
     // on the server, or you can let syncml-js apply its best guess.
     // here, an example of how to bind the local "cal" datastore to
     // the server's "calendar" datastore:
     //
     //   routes: [
-    //     [ 'cal', 'calendar' ],
+    //     [ 'cal', 'calendar' ]
     //   ]
   }, function(err, adapter, stores, peer) {
     if ( err )
