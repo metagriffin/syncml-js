@@ -1379,8 +1379,20 @@ define([
                                                + uri + '"'));
           ds.action = 'send';
           if ( code != ds.mode )
+          {
+            if ( session.context.listener )
+              session.context.listener({
+                type      : 'synctype.change',
+                adapter   : session.adapter,
+                peer      : session.peer,
+                uri       : uri,
+                peerUri   : ruri,
+                modePrev  : ds.mode,
+                mode      : code
+              });
             log.info('server switched sync modes from %s to %s for datastore "%s"',
                      common.mode2string(ds.mode), common.mode2string(code), uri);
+          }
           return cb(null, ds);
         }
       };
