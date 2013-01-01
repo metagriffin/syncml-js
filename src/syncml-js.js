@@ -51,7 +51,7 @@ define([
     protocol,
     {
       // TODO: figure out how to pull this dynamically from package.json...
-      version:           '0.0.12',
+      version:           '0.0.13',
       platformBits:      common.platformBits,
       getMaxMemorySize:  common.getMaxMemorySize,
 

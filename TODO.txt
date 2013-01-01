@@ -1,5 +1,9 @@
-- remove "indexeddb-js" and "sqlite3" from dependency list in "package.json"
-  when sbt is split out into it's own package.
+- improve context.listener so that it can be callback-based, ie so that it
+  can make the following decisions:
+    - should it allow server-initiated changes in synctype
+    - should it engage in slow-sync, refresh-from-client or
+      refresh-from-server upon receiving a 508
+      (508's occur when anchors get out of sync)
 
 - there are *way* too many calls to normUri()... this should be called once
   when the uri is handed to the library and never again.

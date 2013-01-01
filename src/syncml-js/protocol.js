@@ -1383,11 +1383,12 @@ define([
             if ( session.context.listener )
               session.context.listener({
                 type      : 'synctype.change',
+                context   : session.context,
                 adapter   : session.adapter,
                 peer      : session.peer,
                 uri       : uri,
                 peerUri   : ruri,
-                modePrev  : ds.mode,
+                modeReq   : ds.mode,
                 mode      : code
               });
             log.info('server switched sync modes from %s to %s for datastore "%s"',
