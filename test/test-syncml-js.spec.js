@@ -245,8 +245,13 @@ define([
             syncobj.session = null;
             syncobj.adapter.sync(syncobj.peer, mode, function(err, stats) {
               expect(err).ok();
-              expect(stats).toEqual({cli_memo: syncml.makeStats(expectStats)});
-              cb(err);
+              if ( err )
+                return cb(err);
+              var exp = {cli_memo: syncml.makeStats(expectStats)};
+              expect(stats).toEqualDict(exp);
+              if ( ! _.isEqual(stats, exp) )
+                return cb('expected stats != received stats');
+              return cb();
             });
           };
           cb(null);
@@ -301,7 +306,7 @@ define([
         function(cb) {
           sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
-            expect(stats).toEqual({cli_memo: syncml.makeStats({
+            expect(stats).toEqualDict({cli_memo: syncml.makeStats({
               mode:    syncml.SYNCTYPE_SLOW_SYNC,
               peerAdd: 1,
               hereAdd: 0
@@ -313,7 +318,7 @@ define([
         function(cb) {
           sync.c2.adapter.sync(sync.c2.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
-            expect(stats).toEqual({cli_memo: syncml.makeStats({
+            expect(stats).toEqualDict({cli_memo: syncml.makeStats({
               mode:    syncml.SYNCTYPE_SLOW_SYNC,
               peerAdd: 1,
               hereAdd: 1
@@ -325,7 +330,7 @@ define([
         function(cb) {
           sync.c3.adapter.sync(sync.c3.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
-            expect(stats).toEqual({cli_memo: syncml.makeStats({
+            expect(stats).toEqualDict({cli_memo: syncml.makeStats({
               mode:    syncml.SYNCTYPE_SLOW_SYNC,
               peerAdd: 0,
               hereAdd: 2
@@ -335,19 +340,19 @@ define([
         },
         // validate data
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             // note: c1 was sync'd before c2, so will not have c2 data
             '200': {id: '200', body: 'some c1 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '300': {id: '300', body: 'some c2 data'},
             '301': {id: '301', body: 'some c1 data'}
           });
-          expect(sync.c3.storage._items).toEqual({
+          expect(sync.c3.storage._items).toEqualDict({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -358,7 +363,7 @@ define([
           sync.c1.session = null;
           sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
-            expect(stats).toEqual({cli_memo: syncml.makeStats({
+            expect(stats).toEqualDict({cli_memo: syncml.makeStats({
               mode:    syncml.SYNCTYPE_TWO_WAY,
               peerAdd: 0,
               hereAdd: 1
@@ -371,15 +376,15 @@ define([
           sync.c1.session = null;
           sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
             expect(err).ok();
-            expect(stats).toEqual({cli_memo: syncml.makeStats({mode: syncml.SYNCTYPE_TWO_WAY})});
+            expect(stats).toEqualDict({cli_memo: syncml.makeStats({mode: syncml.SYNCTYPE_TWO_WAY})});
             sync.c2.session = null;
             sync.c2.adapter.sync(sync.c2.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
               expect(err).ok();
-              expect(stats).toEqual({cli_memo: syncml.makeStats({mode: syncml.SYNCTYPE_TWO_WAY})});
+              expect(stats).toEqualDict({cli_memo: syncml.makeStats({mode: syncml.SYNCTYPE_TWO_WAY})});
               sync.c3.session = null;
               sync.c3.adapter.sync(sync.c3.peer, syncml.SYNCTYPE_AUTO, function(err, stats) {
                 expect(err).ok();
-                expect(stats).toEqual({cli_memo: syncml.makeStats({mode: syncml.SYNCTYPE_TWO_WAY})});
+                expect(stats).toEqualDict({cli_memo: syncml.makeStats({mode: syncml.SYNCTYPE_TWO_WAY})});
                 cb();
               });
             });
@@ -387,19 +392,19 @@ define([
         },
         // and validate data again
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             '200': {id: '200', body: 'some c1 data'},
             '201': {id: '201', body: 'some c2 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '300': {id: '300', body: 'some c2 data'},
             '301': {id: '301', body: 'some c1 data'}
           });
-          expect(sync.c3.storage._items).toEqual({
+          expect(sync.c3.storage._items).toEqualDict({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -497,17 +502,17 @@ define([
 
         // validate data
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             // '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'},
             '102': {id: '102', body: 'a new c1 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             // '200': {id: '200', body: 'some c1 data'},
             '201': {id: '201', body: 'some c2 data'},
             '202': {id: '202', body: 'a new c1 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '300': {id: '300', body: 'some c2 data'},
             // '301': {id: '301', body: 'some c1 data'},
             '302': {id: '302', body: 'a new c1 data'}
@@ -523,17 +528,17 @@ define([
 
         // re-validate data, expect no changes
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             // '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some c2 data'},
             '102': {id: '102', body: 'a new c1 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             // '200': {id: '200', body: 'some c1 data'},
             '201': {id: '201', body: 'some c2 data'},
             '202': {id: '202', body: 'a new c1 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '300': {id: '300', body: 'some c2 data'},
             // '301': {id: '301', body: 'some c1 data'},
             '302': {id: '302', body: 'a new c1 data'}
@@ -583,19 +588,19 @@ define([
 
         // validate data
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             '100': {id: '100', body: 'some *modified* c1 data'},
             '101': {id: '101', body: 'some c2 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             '200': {id: '200', body: 'some *modified* c1 data'},
             '201': {id: '201', body: 'some c2 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '300': {id: '300', body: 'some c2 data'},
             '301': {id: '301', body: 'some *modified* c1 data'}
           });
-          expect(sync.c3.storage._items).toEqual({
+          expect(sync.c3.storage._items).toEqualDict({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -610,19 +615,19 @@ define([
 
         // re-validate data, expect no changes
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             '100': {id: '100', body: 'some *modified* c1 data'},
             '101': {id: '101', body: 'some c2 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             '200': {id: '200', body: 'some *modified* c1 data'},
             '201': {id: '201', body: 'some c2 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '300': {id: '300', body: 'some c2 data'},
             '301': {id: '301', body: 'some *modified* c1 data'}
           });
-          expect(sync.c3.storage._items).toEqual({
+          expect(sync.c3.storage._items).toEqualDict({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -709,9 +714,9 @@ define([
             expect(stats).toBeDefined();
             if ( stats )
             {
-              expect(stats['cli_memo']).toEqual(syncml.makeStats({
+              expect(stats['cli_memo']).toEqualDict(syncml.makeStats({
                 mode: syncml.SYNCTYPE_TWO_WAY, hereMod: 1, hereAdd: 1}));
-              expect(stats['cli_memo_2']).toEqual(syncml.makeStats({
+              expect(stats['cli_memo_2']).toEqualDict(syncml.makeStats({
                 mode: syncml.SYNCTYPE_SLOW_SYNC, peerErr: 1, error: {
                   message: 'Sync agent for store "srv_note_2" not available',
                   code:    'syncml-js.InternalError',
@@ -725,22 +730,22 @@ define([
 
         // and check the data...
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some *modified* c2 data'},
             '102': {id: '102', body: 'a new c2 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             '200': {id: '200', body: 'some c1 data'},
             '201': {id: '201', body: 'some *modified* c2 data'},
             '202': {id: '202', body: 'a new c2 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '300': {id: '300', body: 'some *modified* c2 data'},
             '301': {id: '301', body: 'some c1 data'},
             '302': {id: '302', body: 'a new c2 data'}
           });
-          expect(sync.c3.storage._items).toEqual({
+          expect(sync.c3.storage._items).toEqualDict({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -781,21 +786,21 @@ define([
 
         // validate that server & c2 have new data image, c1 & c3 old data
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             '100': {id: '100', body: 'some c1 data'},
             '101': {id: '101', body: 'some *modified* c2 data'},
             '102': {id: '102', body: 'a new c2 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             '200': {id: '200', body: 'some c1 data'},
             '201': {id: '201', body: 'some c2 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '300': {id: '300', body: 'some *modified* c2 data'},
             '301': {id: '301', body: 'some c1 data'},
             '302': {id: '302', body: 'a new c2 data'}
           });
-          expect(sync.c3.storage._items).toEqual({
+          expect(sync.c3.storage._items).toEqualDict({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -823,20 +828,20 @@ define([
 
         // validate that server has the right idea
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             '103': {id: '103', body: 'some c1 data'},
             '104': {id: '104', body: 'some c2 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             '200': {id: '200', body: 'some c1 data'},
             '201': {id: '201', body: 'some c2 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '300': {id: '300', body: 'some *modified* c2 data'},
             '301': {id: '301', body: 'some c1 data'},
             '302': {id: '302', body: 'a new c2 data'}
           });
-          expect(sync.c3.storage._items).toEqual({
+          expect(sync.c3.storage._items).toEqualDict({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
@@ -877,6 +882,7 @@ define([
         // sync c1 with server
         // TODO: the hereDel should be 2... see TODO above...
         _.bind(sync.c1.dosync, null, {}, {hereAdd: 2, hereDel: 3}), // hereDel: 2}),
+        // _.bind(sync.c1.dosync, null, {}, {hereAdd: 2, hereDel: 2}),
 
         // sync c2 with server
         _.bind(sync.c2.dosync, null, {}, {hereAdd: 2, hereDel: 3}),
@@ -891,19 +897,19 @@ define([
 
         // validate the data
         function(cb) {
-          expect(sync.server.storage._items).toEqual({
+          expect(sync.server.storage._items).toEqualDict({
             '103': {id: '103', body: 'some c1 data'},
             '104': {id: '104', body: 'some c2 data'}
           });
-          expect(sync.c1.storage._items).toEqual({
+          expect(sync.c1.storage._items).toEqualDict({
             '202': {id: '202', body: 'some c1 data'},
             '203': {id: '203', body: 'some c2 data'}
           });
-          expect(sync.c2.storage._items).toEqual({
+          expect(sync.c2.storage._items).toEqualDict({
             '303': {id: '303', body: 'some c1 data'},
             '304': {id: '304', body: 'some c2 data'}
           });
-          expect(sync.c3.storage._items).toEqual({
+          expect(sync.c3.storage._items).toEqualDict({
             '400': {id: '400', body: 'some c1 data'},
             '401': {id: '401', body: 'some c2 data'}
           });
