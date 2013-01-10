@@ -6,3 +6,5 @@ tests:
 serve:
 	python -m SimpleHTTPServer 9000
 
+bump:
+	python bin/bumpversion.py
