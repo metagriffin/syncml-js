@@ -59,7 +59,6 @@ The syncml-js database structure of an adapter is:
   peers: [
     {
       // same as ADAPTER, plus:
-      isServer:         BOOL,
       url:              STRING,
       auth:             STRING,
       username:         STRING,

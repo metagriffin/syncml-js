@@ -9,9 +9,16 @@
   when the uri is handed to the library and never again.
 
 - implement the extensions:
+    x-server-push: sse:URL
+      # the server is capable of pushing events via server sent events.
     x-server-changes: notify
+      # should the server send back local stats? ie. during a refresh-from-client,
+      # the client has no way of knowing how many remote items were deleted...
     x-single-session-device: true
+      # is this a "discover" ping? ie. can the device be safely removed after
+      # a sync completion?
     X-funambol-smartslow
+      # find out what the funambol "smartslow" protocol is and support it...
 
 - currently, to make things work, external libraries *must* be
   amdefine-compatible... for example, underscore.js needs be wrapped with:
@@ -65,3 +72,6 @@
   "Status" node for the *Result* node, not an explicit *Put*... that would
   be strange/unexpected mode for the protocol...
 
+- when one client does a refresh-from-client, the server should probably execute
+  a refresh-from-server to the other clients for optimization reasons (instead
+  of recording a delete event for each item.
