@@ -461,8 +461,10 @@ define([
         //       could call synchronizer.actions() to cause action_save's to occur
         //       *AND* verify that synchronizer.actions() does not return anything...
         return cb(new common.InternalError(
-          'unexpected sync situation (action="' + dsstate.action
-            + '", isServer=1)'));
+          'unexpected sync save situation (action=' + dsstate.action
+            + ', mode=' + common.mode2string(dsstate.mode)
+            + ', isServer=' + ( session.isServer ? '1' : '0' ) + ')'));
+
       log.debug('storing anchors: peer="' + session.peer.devID
                 + '"; local="' + dsstate.uri + '/' + dsstate.nextAnchor
                 + '"; remote="' + dsstate.peerUri + '/' + dsstate.peerNextAnchor
