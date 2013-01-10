@@ -155,7 +155,6 @@ define([
       }
 
       model.isLocal         = false;
-      model.isServer        = true;
       model.url             = self.url;
       model.devID           = self.devID;
       model.displayName     = self.displayName;
