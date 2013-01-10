@@ -179,6 +179,19 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    state2string: function(state) {
+      switch ( state )
+      {
+        case constant.ITEM_OK:           return 'ok';
+        case constant.ITEM_ADDED:        return 'added';
+        case constant.ITEM_MODIFIED:     return 'modified';
+        case constant.ITEM_DELETED:      return 'deleted';
+        case constant.ITEM_SOFTDELETED:  return 'soft-deleted';
+        default: return 'UNKNOWN';
+      }
+    },
+
+    //-------------------------------------------------------------------------
     oneWay: function(mode) {
       switch ( mode )
       {
