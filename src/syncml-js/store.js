@@ -223,8 +223,8 @@ define([
       // todo: there must be a way to use IndexedDB since i have everything
       //       needed to generate the keyPath!... eg:
       //         objectStore.get({store_id:X,guid:Y})?...
-      var storeMapping = this._a._c._dbtxn.objectStore('mapping').index('store_id');
-      storage.getAll(storeMapping, this.id, null, function(err, list) {
+      var mapdb = this._a._c._dbtxn.objectStore('mapping').index('store_id');
+      storage.getAll(mapdb, this.id, null, function(err, list) {
         if ( err )
           return cb(err);
         var item = _.find(list, function(item) {
@@ -242,8 +242,8 @@ define([
       // todo: there must be a way to use IndexedDB since i have everything
       //       needed to generate the keyPath!... eg:
       //         objectStore.get({store_id:X,guid:Y})?...
-      var storeMapping = this._a._c._dbtxn.objectStore('mapping').index('store_id');
-      storage.getAll(storeMapping, this.id, null, function(err, list) {
+      var mapdb = this._a._c._dbtxn.objectStore('mapping').index('store_id');
+      storage.getAll(mapdb, this.id, null, function(err, list) {
         if ( err )
           return cb(err);
         var item = _.find(list, function(item) {
@@ -256,7 +256,7 @@ define([
     //-------------------------------------------------------------------------
     registerChange: function(itemID, state, options, cb) {
       // options can include:
-      //   - changeSpec (bool)
+      //   - changeSpec (string)
       //   - excludePeerID (string)
       options = options || {};
       var self = this;
@@ -280,25 +280,31 @@ define([
       }
 
       itemID = '' + itemID;
-      var change = null;
+      var handled = false;
+
+      // paranoia
+      if ( state == constant.ITEM_DELETED && options.changeSpec )
+      {
+        log.warning('received an unexpected changeSpec with a delete event');
+        options.changeSpec = null;
+      }
 
       var update_change = ( ! options.changeSpec ) ? common.noop : function(cb) {
-        // todo: there must be a way to use IndexedDB since i have everything
-        //       needed to generate the keyPath!... eg:
-        //         objectStore.get({store_id:X,guid:Y})?...
-        // todo: perhaps switch to using self._getChange() ?...
-        var storeMapping = self._a._c._dbtxn.objectStore('change').index('store_id');
-        storage.getAll(storeMapping, self.id, null, function(err, changes) {
+        self._getChange(itemID, function(err, change) {
           if ( err )
             return cb(err);
-          change = _.find(changes, function(change) {
-            return change.item_id == itemID;
-          });
           if ( ! change)
             return cb();
-          change.state = state;
+          if ( change.state != constant.ITEM_ADDED && change.state != state )
+            return cb(new common.LogicalError(
+              'received "' + common.state2string(state)
+                + '" change event after "' + common.state2string(change.state)
+                + '" for item ID "' + itemID + '"'));
+          if ( change.state != constant.ITEM_ADDED )
+            change.state = state;
           if ( change.changeSpec )
             change.changeSpec += ';' + options.changeSpec;
+          handled = true;
           storage.put(
             self._a._c._dbtxn.objectStore('change'),
             change,
@@ -306,20 +312,51 @@ define([
         });
       };
 
+      var check_mapping = ( self._a._isMapper() || state == constant.ITEM_ADDED )
+        ? common.noop
+        : function(cb) {
+          // doing a `_getMapping` for non-add events to make sure that
+          // the remote peer actually has this object before we tell it
+          // to modify or delete an item...
+          self._getMapping(itemID, function(err, luid) {
+            if ( err )
+              return cb(err);
+            if ( luid )
+              return cb();
+            // this item does not exist as (or has not been mapped to) an
+            // item on the remote peer and is not an `ADD` event, so can
+            // therefore be ignored - mark it as "handled".
+            handled = true;
+            return cb();
+          });
+        };
+
       update_change(function(err) {
         if ( err )
           return cb(err);
-        if ( change )
+        if ( handled )
           return cb();
-        // todo: is this deleteAll really necessary?... paranoia rules!
-        var changeTab = self._a._c._dbtxn.objectStore('change');
-        change = {store_id: self.id, item_id: itemID};
-        storage.deleteAll(changeTab, change, function(err) {
+        check_mapping(function(err) {
           if ( err )
             return cb(err);
-          change.state = state;
-          change.changeSpec = options.changeSpec;
-          storage.put(changeTab, change, cb);
+          if ( handled && state != constant.ITEM_DELETED )
+            return cb();
+          // note: if it is a delete event, and it has not been mapped
+          // yet, so does not yet exist on the peer, therefore
+          // propagate nothing -- continuing just to execute the
+          // deleteAll().
+          var changeTab = self._a._c._dbtxn.objectStore('change');
+          change = {store_id: self.id, item_id: itemID};
+          // todo: is this deleteAll really necessary?... paranoia rules!
+          storage.deleteAll(changeTab, change, function(err) {
+            if ( err )
+              return cb(err);
+            if ( handled )
+              return cb();
+            change.state = state;
+            change.changeSpec = options.changeSpec;
+            storage.put(changeTab, change, cb);
+          });
         });
       });
     },
@@ -328,9 +365,13 @@ define([
     _getChange: function(itemID, cb) {
       // returns cb(null, CHANGE)
       // change ::= { store_id: ID, item_id: GUID, state: STATE, changeSpec: SPEC }
+      itemID = '' + itemID;
       var self = this;
-      var storeMapping = self._a._c._dbtxn.objectStore('change').index('store_id');
-      storage.getAll(storeMapping, self.id, null, function(err, changes) {
+      // todo: there must be a way to use IndexedDB since i have everything
+      //       needed to generate the keyPath!... eg:
+      //         objectStore.get({store_id:X,guid:Y})?...
+      var changedb = self._a._c._dbtxn.objectStore('change').index('store_id');
+      storage.getAll(changedb, self.id, null, function(err, changes) {
         if ( err )
           return cb(err);
         var change = _.find(changes, function(change) {
