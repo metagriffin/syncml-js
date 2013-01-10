@@ -41,6 +41,7 @@ define([
 
   //---------------------------------------------------------------------------
   exports.matchers = {
+
     ok: function(expected) {
       var isOK = this.actual ? false : true;
       this.message = function () {
@@ -54,13 +55,13 @@ define([
       };
       return isOK;
     },
-    toEqualXml: function (expected) {
+
+    toEqualXml: function(expected) {
       var notText  = this.isNot ? ' not' : '';
       var difftext = '.';
       var act      = exports.normXml(this.actual);
       var exp      = exports.normXml(expected);
       var isEqual  = act == exp;
-
       if ( ! isEqual )
       {
         if ( act && exp )
@@ -78,14 +79,47 @@ define([
           difftext = ', differences:\n' + difftext;
         }
       }
-
       this.message = function () {
         return 'Expected "' + this.actual + '"' + notText + ' to be "' + expected + '"' + difftext;
       };
-
       return isEqual;
+    },
 
+    toEqualDict: function(expected) {
+      // todo: extend this to support arrays too...
+      var isEqual  = _.isEqual(this.actual, expected);
+      this.message = function () {
+        var notText  = this.isNot ? ' not' : '';
+        var act      = this.actual;
+        var exp      = expected;
+        if ( ! this.isNot && _.isObject(act) && _.isObject(exp) )
+        {
+          act = _.clone(act);
+          exp = _.clone(exp);
+          var filter_equal_keys = function(a, b) {
+            for ( var key in a )
+            {
+              if ( _.isObject(a[key]) && _.isObject(b[key]) )
+              {
+                filter_equal_keys(a[key], b[key]);
+                continue;
+              }
+              if ( _.isEqual(a[key], b[key]) )
+              {
+                delete a[key];
+                delete b[key];
+                continue;
+              }
+            }
+          };
+          filter_equal_keys(act, exp);
+        } 
+        return 'Expected dictionary parts "' + common.j(act) + '"'
+          + notText + ' to equal "' + common.j(exp) + '"';
+      };
+      return isEqual;
     }
+
   };
 
   //---------------------------------------------------------------------------
@@ -120,6 +154,8 @@ define([
     },
 
     delete: function(itemID, cb) {
+      if ( ! this._items['' + itemID] )
+        return cb('no such item to delete: "' + itemID + '"');
       delete this._items['' + itemID];
       return cb();
     }
