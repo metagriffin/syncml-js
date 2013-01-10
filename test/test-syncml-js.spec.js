@@ -707,7 +707,6 @@ define([
 
         // sync server => c1, expecting an error with the second store
         function(cb) {
-
           sync.c1.session = null;
           sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_TWO_WAY, function(err, stats) {
             expect(err).ok();
@@ -847,23 +846,9 @@ define([
           });
           helpers.getPendingChanges(sync.server.context, function(err, data) {
             expect(err).ok();
-
-            console.log('*** CRITICAL: UNIT TEST IS CHEATING! ***');
-            console.log('*** CRITICAL: UNIT TEST IS CHEATING! ***');
-            console.log('*** CRITICAL: UNIT TEST IS CHEATING! ***');
-
             var chk = [
               {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'100',state:3},
               {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'101',state:3},
-
-              // TODO: this one should *NOT* be appearing since it is not mapped
-              //       to the client yet...
-              // TODO: see error below that is *DIRECTLY* a result of this...
-              //       note that i am not at all sure how on earth this is working,
-              //       since i would expect a resolve-mapping phase to *FAIL*!!!...
-              {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'102',state:3},
-              // /TODO
-
               {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'103',state:1},
               {devid:'test-syncml-js-client-c1',uri:'cli_memo',item_id:'104',state:1},
               {devid:'test-syncml-js-client-c2',uri:'cli_memo',item_id:'100',state:3},
@@ -880,9 +865,7 @@ define([
         },
 
         // sync c1 with server
-        // TODO: the hereDel should be 2... see TODO above...
-        _.bind(sync.c1.dosync, null, {}, {hereAdd: 2, hereDel: 3}), // hereDel: 2}),
-        // _.bind(sync.c1.dosync, null, {}, {hereAdd: 2, hereDel: 2}),
+        _.bind(sync.c1.dosync, null, {}, {hereAdd: 2, hereDel: 2}),
 
         // sync c2 with server
         _.bind(sync.c2.dosync, null, {}, {hereAdd: 2, hereDel: 3}),
