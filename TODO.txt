@@ -1,3 +1,6 @@
+- make it possible to disable caching of username/passwords in storage
+  via a context option.
+
 - improve context.listener so that it can be callback-based, ie so that it
   can make the following decisions:
     - should it allow server-initiated changes in synctype
@@ -20,7 +23,7 @@
     X-funambol-smartslow
       # find out what the funambol "smartslow" protocol is and support it...
 
-- currently, to make things work, external libraries *must* be
+- currently, to make things work in a browser, external libraries *must* be
   amdefine-compatible... for example, underscore.js needs be wrapped with:
 
     if (typeof define !== 'function')
@@ -39,9 +42,6 @@
 - look into:
     - https://github.com/larrymyers/jasmine-reporters
     - http://rockycode.com/blog/phantomjs-meets-jasmine/
-
-- rename adapter.name and remote.name to *.displayName to be more
-  consistent with `store`...
 
 - both client & server modes should ensure that incoming sessionID, messageID
   and commandIDs are correct.
@@ -75,3 +75,6 @@
 - when one client does a refresh-from-client, the server should probably execute
   a refresh-from-server to the other clients for optimization reasons (instead
   of recording a delete event for each item.
+  THEN AGAIN, MAYBE NOT: what if the other client has added a new item between
+  last sync and when a refresh-from-client occurred... 
+
