@@ -154,7 +154,7 @@ define([
         self._a._model.peers.push(model);
       }
 
-      model.isLocal         = false;
+      model.isLocal         = 0;
       model.url             = self.url;
       model.devID           = self.devID;
       model.displayName     = self.displayName;
