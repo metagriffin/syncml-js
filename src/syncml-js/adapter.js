@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 //-----------------------------------------------------------------------------
 // file: $Id$
-// lib:  syncml-js.localadapter
+// lib:  syncml-js.adapter
 // auth: griffin <griffin@uberdev.org>
 // date: 2012/10/22
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
@@ -19,24 +19,14 @@ define([
   './logging',
   './common',
   './constant',
-  './codec',
-  './storage',
-  './remoteadapter',
-  './store',
-  './devinfo',
-  './state'
+  './store'
 ], function(
   _,
   ET,
   logging,
   common,
   constant,
-  codec,
-  storage,
-  remote,
-  storemod,
-  devinfomod,
-  state
+  storemod
 ) {
 
   var log = logging.getLogger('syncml-js.adapter');
