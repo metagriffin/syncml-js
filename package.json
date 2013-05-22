@@ -25,7 +25,7 @@
   "devDependencies": {
     "jasmine-node":  ">=1.0.26",
     "diff":          ">=1.0.4",
-    "indexeddb-js":  ">=0.0.9",
+    "indexeddb-js":  ">=0.0.11",
     "sqlite3":       ">=2.1.1"
   },
   "keywords": [
