@@ -154,7 +154,7 @@ define([
       for ( var key in constant.SyncTypeToAlert )
       {
         if ( constant.SyncTypeToAlert[key] == alert )
-          return exports.parseInt(key);
+          return exports.int(key);
       }
       return null;
     },
@@ -363,7 +363,7 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    parseInt: function(str, defval) {
+    int: function(str, defval) {
       if ( ! str )
         return defval;
       return parseInt(str, 10);

@@ -192,10 +192,10 @@ define([
           return cb();
         var xhdr = xtree.find('SyncHdr');
         // todo: check peer id...
-        if ( session.info.id != common.parseInt(xhdr.findtext('SessionID')) )
+        if ( session.info.id != common.int(xhdr.findtext('SessionID')) )
         {
           log.error('session ID mismatch "%d" (expected "%d")',
-                    common.parseInt(xhdr.findtext('SessionID')),
+                    common.int(xhdr.findtext('SessionID')),
                     session.info.id);
           return cb(new common.ProtocolError('session ID mismatch "'
                                              + xhdr.findtext('SessionID')
@@ -219,17 +219,17 @@ define([
         session.info.peerID = peerID;
         // check that no session swapping occurred
         if ( session.info.id != undefined
-             && session.info.id != common.parseInt(xhdr.findtext('SessionID')) )
+             && session.info.id != common.int(xhdr.findtext('SessionID')) )
         {
           log.error('session ID mismatch "%d" (expected "%d")',
-                    common.parseInt(xhdr.findtext('SessionID')),
+                    common.int(xhdr.findtext('SessionID')),
                     session.info.id);
           return cb(new common.ProtocolError('session ID mismatch "'
                                              + xhdr.findtext('SessionID')
                                              + '" (expected: ' + session.info.id + ')'));
         }
-        session.info.id     = common.parseInt(xhdr.findtext('SessionID'));
-        session.info.msgID  = common.parseInt(xhdr.findtext('MsgID'));
+        session.info.id     = common.int(xhdr.findtext('SessionID'));
+        session.info.msgID  = common.int(xhdr.findtext('MsgID'));
         if ( session.peer && session.peer.devID == peerID )
           return cb();
         // TODO: i should delete unused peers here... ie. anything that
@@ -247,9 +247,8 @@ define([
         var peerInfo = {
           devID:        peerID,
           displayName:  xhdr.findtext('Source/LocName'),
-          isLocal:      false,
-          maxMsgSize:   common.parseInt(xhdr.findtext('Meta/MaxMsgSize')),
-          maxObjSize:   common.parseInt(xhdr.findtext('Meta/MaxObjSize'))
+          maxMsgSize:   common.int(xhdr.findtext('Meta/MaxMsgSize')),
+          maxObjSize:   common.int(xhdr.findtext('Meta/MaxObjSize'))
         };
         session.adapter.addPeer(peerInfo, function(err, peer) {
           if ( err )
@@ -902,7 +901,7 @@ define([
 
           // TODO: check for unknown elements...
 
-          var code = common.parseInt(child.findtext('Data'));
+          var code = common.int(child.findtext('Data'));
 
           if ( code == constant.STATUS_MISSING_CREDENTIALS )
             return cb(badStatus(child, common.CredentialsRequired));
@@ -1278,7 +1277,7 @@ define([
 
     //-------------------------------------------------------------------------
     _consume_node_alert: function(session, lastcmds, xsync, xnode, cb) {
-      var code = common.parseInt(xnode.findtext('Data'));
+      var code = common.int(xnode.findtext('Data'));
       var statusCode = constant.STATUS_OK
       switch ( code )
       {
@@ -1473,7 +1472,7 @@ define([
         target      : uri,
         data        : [],
       })];
-      var noc = common.parseInt(xnode.findtext('NumberOfChanges'));
+      var noc = common.int(xnode.findtext('NumberOfChanges'));
       common.cascade(xnode.getchildren(), function(child, cb) {
         switch ( child.tag )
         {
