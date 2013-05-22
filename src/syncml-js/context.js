@@ -14,7 +14,17 @@ if ( typeof(define) !== 'function')
 // todo: is this the right place to put this?...
 //       the reason that i did not put it in the `define` call is
 //       because it needs access to `this.indexedDB`...
-var idxdb = ( typeof(window) != 'undefined' && window.indexedDB ) || this.indexedDB;
+var idxdb = {};
+if ( typeof(window) != 'undefined' && window.indexedDB )
+{
+  idxdb.indexedDB   = window.indexedDB;
+  idxdb.IDBKeyRange = window.IDBKeyRange;
+}
+else
+{
+  idxdb.indexedDB   = this.indexedDB;
+  idxdb.IDBKeyRange = this.IDBKeyRange;
+}
 
 define([
   'underscore',
@@ -48,6 +58,9 @@ define([
 
     //-------------------------------------------------------------------------
     constructor: function(options) {
+      // options.storage expects the following properties:
+      //   - indexedDB
+      //   - IDBKeyRange
       options = options || {};
       this.storage      = options.storage || idxdb;
       this.dbname       = ( options.prefix || '' ) + 'syncml-js';
@@ -74,13 +87,14 @@ define([
         storage.openDatabase(this, function(err, db) {
           if ( err )
             return cb(err);
+          log.debug('storage database opened: ' + db);
           self._db = db;
           self._db.onerror = function(event) {
             // todo: remove this?...
             log.error('syncml-js.context.db request failed with: '
-                      + event.target.error);
+                      + storage.errstr(event.target));
           };
-          self._dbtxn = self._db.transaction(null, 'readwrite');
+          self._dbtxn = storage.getTransaction(self._db, null, 'readwrite');
           self.getAdapter(options, devInfo, cb);
         });
       }
@@ -93,6 +107,15 @@ define([
 
     //-------------------------------------------------------------------------
     getEasyClientAdapter: function(options, cb) {
+      try{
+        this._getEasyClientAdapter(options, cb);
+      }catch(e){
+        cb(e);
+      }
+    },
+
+    //-------------------------------------------------------------------------
+    _getEasyClientAdapter: function(options, cb) {
       // options should be:= {
       //   // devID,
       //   // displayName,
