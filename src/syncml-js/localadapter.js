@@ -106,7 +106,7 @@ define([
           devInfo         : null,
           stores          : [],
           peers           : [],
-          isLocal         : true
+          isLocal         : 1
         };
 
       var di = new devinfomod.DevInfo(this, devInfo);
@@ -193,7 +193,7 @@ define([
       model.maxMsgSize     = self.maxMsgSize;
       model.maxObjSize     = self.maxObjSize;
       model.conflictPolicy = self.conflictPolicy;
-      model.isLocal        = true;
+      model.isLocal        = 1;
       common.cascade([
         // update the devInfo model
         function(cb) {
@@ -213,7 +213,7 @@ define([
         function(cb) {
           // NOTE: unlike stores, which can completely regenerate the
           //       model based on the class, the peers store binding
-          //       and routing info only in the model, so cannot be
+          //       and routing info is only in the model, so cannot be
           //       completely deleted...
           common.cascade(self._peers, function(peer, cb) {
             peer._updateModel(cb);
@@ -230,8 +230,9 @@ define([
       // TODO: if options specifies a devID/name/etc, use that...
 
       storage.getAll(
+        this._c,
         this._c._dbtxn.objectStore('adapter').index('isLocal'),
-        true, null,
+        {only: 1},
         function(err, adapters) {
           if ( err )
             return cb(err);
