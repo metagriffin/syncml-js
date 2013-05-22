@@ -13,14 +13,12 @@ if ( typeof(define) !== 'function' )
 
 define([
   'underscore',
-  'sqlite3',
-  'indexeddb-js',
   '../src/syncml-js',
   '../src/syncml-js/logging',
   '../src/syncml-js/common',
   '../src/syncml-js/storage',
   './helpers.js'
-], function(_, sqlite3, indexeddbjs, syncml, logging, common, storage, helpers) {
+], function(_, syncml, logging, common, storage, helpers) {
 
   describe('syncml-js', function() {
 
@@ -45,8 +43,6 @@ define([
 
       sync = {
         server:  {
-          // sdb:     new sqlite3.Database('./test-server.db'),
-          sdb:     new sqlite3.Database(':memory:'),
           context: null,
           adapter: null,
           store:   null,
@@ -54,8 +50,6 @@ define([
           agent:   null
         },
         c1: {
-          // sdb:     new sqlite3.Database('./test-client1.db'),
-          sdb:     new sqlite3.Database(':memory:'),
           context: null,
           adapter: null,
           store:   null,
@@ -64,8 +58,6 @@ define([
           agent:   null
         },
         c2: {
-          // sdb:     new sqlite3.Database('./test-client2.db'),
-          sdb:     new sqlite3.Database(':memory:'),
           context: null,
           adapter: null,
           store:   null,
@@ -74,8 +66,6 @@ define([
           agent:   null
         },
         c3: {
-          // sdb:     new sqlite3.Database('./test-client3.db'),
-          sdb:     new sqlite3.Database(':memory:'),
           context: null,
           adapter: null,
           store:   null,
@@ -85,10 +75,10 @@ define([
         }
       };
 
-      sync.server.idb = new indexeddbjs.indexedDB('sqlite3', sync.server.sdb);
-      sync.c1.idb = new indexeddbjs.indexedDB('sqlite3', sync.c1.sdb);
-      sync.c2.idb = new indexeddbjs.indexedDB('sqlite3', sync.c2.sdb);
-      sync.c3.idb = new indexeddbjs.indexedDB('sqlite3', sync.c3.sdb);
+      sync.server.idb = helpers.getIndexedDB(':memory:');
+      sync.c1.idb     = helpers.getIndexedDB(':memory:');
+      sync.c2.idb     = helpers.getIndexedDB(':memory:');
+      sync.c3.idb     = helpers.getIndexedDB(':memory:');
 
       sync.server.agent = new helpers.TestAgent({storage: sync.server.storage});
       sync.c1.agent = new helpers.TestAgent({storage: sync.c1.storage});

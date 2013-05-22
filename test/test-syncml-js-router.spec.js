@@ -13,14 +13,12 @@ if ( typeof(define) !== 'function' )
 
 define([
   'underscore',
-  'sqlite3',
-  'indexeddb-js',
   '../src/syncml-js',
   '../src/syncml-js/logging',
   '../src/syncml-js/common',
   '../src/syncml-js/storage',
   './helpers.js'
-], function(_, sqlite3, indexeddbjs, syncml, logging, common, storage, helpers) {
+], function(_, syncml, logging, common, storage, helpers) {
 
   describe('syncml-js/router', function() {
 
@@ -38,8 +36,6 @@ define([
 
       sync = {
         server:  {
-          // sdb:     new sqlite3.Database('./test-server.db'),
-          sdb:     new sqlite3.Database(':memory:'),
           context: null,
           adapter: null,
           store:   null,
@@ -47,8 +43,6 @@ define([
           agent:   null
         },
         client: {
-          // sdb:     new sqlite3.Database('./test-client1.db'),
-          sdb:     new sqlite3.Database(':memory:'),
           context: null,
           adapter: null,
           store:   null,
@@ -58,8 +52,8 @@ define([
         }
       };
 
-      sync.server.idb = new indexeddbjs.indexedDB('sqlite3', sync.server.sdb);
-      sync.client.idb = new indexeddbjs.indexedDB('sqlite3', sync.client.sdb);
+      sync.server.idb = helpers.getIndexedDB(':memory:');
+      sync.client.idb = helpers.getIndexedDB(':memory:');
 
       sync.server.agent = new helpers.TestAgent({storage: sync.server.storage});
       sync.client.agent = new helpers.TestAgent({storage: sync.client.storage});

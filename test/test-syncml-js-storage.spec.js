@@ -14,15 +14,13 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  'sqlite3',
-  'indexeddb-js',
   './helpers.js',
   '../src/syncml-js/logging',
   '../src/syncml-js/constant',
   '../src/syncml-js/common',
   '../src/syncml-js/storage',
   '../src/syncml-js'
-], function(_, ET, sqlite3, indexeddbjs, helpers, logging, constant, common, storage, syncmljs) {
+], function(_, ET, helpers, logging, constant, common, storage, syncmljs) {
   describe('syncml-js/storage', function() {
 
     var sdb     = null;
@@ -39,11 +37,8 @@ define([
 
     //-------------------------------------------------------------------------
     beforeEach(function(callback) {
-      sdb = new sqlite3.Database(':memory:');
-      // sdb = new sqlite3.Database('./test.db');
-      idb = new indexeddbjs.indexedDB('sqlite3', sdb);
-      var context = new syncmljs.Context({
-        storage: idb,
+      context = new syncmljs.Context({
+        storage: helpers.getIndexedDB(':memory:'),
         prefix:  'memoryBasedClient.'
       });
       storage.openDatabase(context, function(err, newdb) {
@@ -71,7 +66,7 @@ define([
           expect(err).ok();
           storage.put(store, {store_id: '2', guid: '10', luid: '300'}, function(err) {
             expect(err).ok();
-            storage.getAll(store, null, null, function(err, list) {
+            storage.getAll(context, store, {}, function(err, list) {
               expect(err).ok();
               var luids = _.map(list, function(item) { return item.luid; }).join(',');
               expect(luids).toEqual('100,300');
@@ -92,13 +87,13 @@ define([
           expect(err).ok();
           storage.put(store, {store_id: '2', guid: '10', luid: '300'}, function(err) {
             expect(err).ok();
-            storage.getAll(store, null, null, function(err, list) {
+            storage.getAll(context, store, {}, function(err, list) {
               expect(err).ok();
               var luids = _.map(list, function(item) { return item.luid; }).join(',');
               expect(luids).toEqual('100,300');
               storage.deleteAll(store, {store_id: '2'}, function(err) {
                 expect(err).ok();
-                storage.getAll(store, null, null, function(err, list) {
+                storage.getAll(context, store, {}, function(err, list) {
                   expect(err).ok();
                   var new_luids = _.map(list, function(item) { return item.luid; }).join(',');
                   expect(new_luids).toEqual('100');

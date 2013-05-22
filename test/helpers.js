@@ -14,11 +14,8 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  'sqlite3',
-  'indexeddb-js',
   'diff',
-  './helpers.js',
-  '../src/syncml-js',
+  '../src/syncml-js.js',
   '../src/syncml-js/common',
   '../src/syncml-js/codec',
   '../src/syncml-js/storage',
@@ -26,10 +23,7 @@ define([
 ], function(
   _,
   ET,
-  sqlite3,
-  indexeddbjs,
   diff,
-  helpers,
   syncmljs,
   common,
   codec,
@@ -38,6 +32,15 @@ define([
 ) {
 
   var exports = {};
+
+  //---------------------------------------------------------------------------
+  exports.getIndexedDB = function (url) {
+    var sqlite3 = require('sqlite3');
+    var indexeddbjs = require('indexeddb-js');
+    var sdb = new sqlite3.Database(url);
+    var idb = indexeddbjs.makeScope('sqlite3', sdb);
+    return idb;
+  };
 
   //---------------------------------------------------------------------------
   exports.matchers = {
@@ -254,7 +257,7 @@ define([
 
     var changetab  = context._dbtxn.objectStore('change');
     var adaptertab = context._dbtxn.objectStore('adapter');
-    storage.getAll(changetab, null, null, function(err, changes) {
+    storage.getAll(context, changetab, {}, function(err, changes) {
 
       var ret = [];
 
@@ -264,7 +267,7 @@ define([
         var store = null;
 
 
-        storage.getAll(adaptertab, null, null, function(err, adapters) {
+        storage.getAll(context, adaptertab, {}, function(err, adapters) {
 
           if ( store )
             return;
@@ -305,7 +308,7 @@ define([
         });
 
       // var storeMapping = self._a._c._dbtxn.objectStore('change').index('store_id');
-      // storage.getAll(storeMapping, self.id, null, function(err, changes) {
+      // storage.getAll(context, storeMapping, {only: self.id}, function(err, changes) {
       //   if ( err )
       //     return cb(err);
       //   var change = _.find(changes, function(change) {
@@ -352,3 +355,4 @@ define([
 //-----------------------------------------------------------------------------
 // end of $Id$
 //-----------------------------------------------------------------------------
+

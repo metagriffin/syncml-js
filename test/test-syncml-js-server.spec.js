@@ -14,8 +14,6 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  'sqlite3',
-  'indexeddb-js',
   'diff',
   './helpers.js',
   '../src/syncml-js',
@@ -23,7 +21,7 @@ define([
   '../src/syncml-js/common',
   '../src/syncml-js/state',
   '../src/syncml-js/storage'
-], function(_, ET, sqlite3, indexeddbjs, diff, helpers, syncmljs, logging, common, state, storage) {
+], function(_, ET, diff, helpers, syncmljs, logging, common, state, storage) {
 
   describe('syncml-js/server', function() {
 
@@ -40,15 +38,11 @@ define([
         context: null,
         adapter: null,
         store:   null,
-        agent:   new helpers.TestAgent(),
-        sdb:     new sqlite3.Database(':memory:')
-        // sdb:     new sqlite3.Database('./test.db')
+        agent:   new helpers.TestAgent()
       };
 
-      var idb = new indexeddbjs.indexedDB('sqlite3', sync.sdb);
-
       sync.context = new syncmljs.Context({
-        storage: idb,
+        storage: helpers.getIndexedDB(':memory:'),
         prefix:  'memoryBasedServer.',
         config  : {trustDevInfo: true}
       });
@@ -1091,10 +1085,8 @@ define([
           pendingMsgID   : 1
         });
 
-        var idb2 = new indexeddbjs.indexedDB('sqlite3', sync.sdb);
-
         var ctxt2 = new syncmljs.Context({
-          storage: idb2,
+          storage: helpers.getIndexedDB(':memory:'),
           prefix:  'memoryBasedServer.',
           config  : {trustDevInfo: true, exposeErrorTrace: true}
         });
@@ -1503,7 +1495,7 @@ define([
       // step 4: check the server data...
       var verify_data = function(cb) {
         var txn = sync.context._db.transaction();
-        storage.getAll(txn.objectStore('mapping'), null, null, function(err, list) {
+        storage.getAll(sync.context, txn.objectStore('mapping'), {}, function(err, list) {
           if ( err )
             return cb(err);
           list = _.map(list, function(item) {

@@ -14,15 +14,13 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  'sqlite3',
-  'indexeddb-js',
   'diff',
   './helpers.js',
   '../src/syncml-js',
   '../src/syncml-js/logging',
   '../src/syncml-js/common',
   '../src/syncml-js/state'
-], function(_, ET, sqlite3, indexeddbjs, diff, helpers, syncmljs, logging, common, state) {
+], function(_, ET, diff, helpers, syncmljs, logging, common, state) {
 
   describe('syncml-js/client', function() {
 
@@ -45,12 +43,8 @@ define([
         agent:   new helpers.TestAgent()
       };
 
-      var sdb = new sqlite3.Database(':memory:');
-      // var sdb = new sqlite3.Database('./test.db');
-      var idb = new indexeddbjs.indexedDB('sqlite3', sdb);
-
       var context = new syncmljs.Context({
-        storage : idb,
+        storage : helpers.getIndexedDB(':memory:'),
         prefix  : 'memoryBasedClient.',
         config  : {trustDevInfo: true, exposeErrorTrace: true}
       });

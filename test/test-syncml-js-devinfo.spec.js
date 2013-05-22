@@ -14,14 +14,12 @@ if ( typeof(define) !== 'function' )
 define([
   'underscore',
   'elementtree',
-  'sqlite3',
-  'indexeddb-js',
   '../src/syncml-js',
   '../src/syncml-js/logging',
   '../src/syncml-js/common',
   '../src/syncml-js/devinfo',
   './helpers.js'
-], function(_, ET, sqlite3, indexeddbjs, syncml, logging, common, devinfo, helpers) {
+], function(_, ET, syncml, logging, common, devinfo, helpers) {
 
   describe('syncml-js/devinfo', function() {
 
