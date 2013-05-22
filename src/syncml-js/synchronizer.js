@@ -231,9 +231,9 @@ define([
           // send local changes
 
           storage.getAll(
+            session.context,
             session.dbtxn.objectStore('change').index('store_id'),
-            peerStore.id,
-            null,
+            {only: peerStore.id},
             function(err, changes) {
               if ( err )
                 return cb(err);
@@ -1182,14 +1182,27 @@ define([
 
     //-------------------------------------------------------------------------
     _settle_add: function(session, cmd, chkcmd, xnode, cb) {
-
-      if ( cmd.data != constant.STATUS_OK
-           && cmd.data != constant.STATUS_ITEM_ADDED
-           && cmd.data != constant.STATUS_ALREADY_EXISTS )
-        return cb(badStatus(xnode));
-
-      if ( cmd.data != constant.STATUS_ALREADY_EXISTS )
-        session.info.dsstates[chkcmd.uri].stats.peerAdd += 1;
+      switch ( cmd.data )
+      {
+        default:
+        {
+          return cb(badStatus(xnode));
+        }
+        case constant.STATUS_OK:
+        case constant.STATUS_ITEM_ADDED:
+        case constant.STATUS_CONFLICT_RESOLVED_DUPLICATE:
+        {
+          session.info.dsstates[chkcmd.uri].stats.peerAdd += 1;
+          break;
+        }
+        case constant.STATUS_ALREADY_EXISTS:
+        case constant.STATUS_CONFLICT_RESOLVED_MERGE:
+        case constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA:
+        {
+          session.info.dsstates[chkcmd.uri].stats.merged += 1;
+          break;
+        }
+      }
 
       var peerStore = session.peer.getStore(
         session.context.router.getTargetUri(
