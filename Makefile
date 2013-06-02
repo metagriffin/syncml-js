@@ -18,6 +18,8 @@ bump:
 #   MOZOBJDIR  the compiled objectdir, eg path-to-mozdir/obj-x86_64-unknown-linux-gnu/mozilla
 #   MOZDEVDIR  the uncompiled mozilla dir, eg path-to-mozdir/mozilla
 #   SYNCMLDIR  here
+# incidentally, the unit tests are based on mozilla unit tests found in:
+#   path-to-mozdir/mozilla/_tests/xpcshell/dom/indexedDB/test/unit/test_put_get_values.js
 
 MOZOBJDIR?=../thunderbird/obj-x86_64-unknown-linux-gnu/mozilla
 MOZDEVDIR?=../thunderbird/mozilla

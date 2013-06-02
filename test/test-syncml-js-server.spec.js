@@ -42,8 +42,8 @@ define([
       };
 
       sync.context = new syncmljs.Context({
-        storage: helpers.getIndexedDB(':memory:'),
-        prefix:  'memoryBasedServer.',
+        storage: helpers.getIndexedDBScope(':memory:'),
+        prefix:  'syncml-js.test.server.' + common.makeID() + '.',
         config  : {trustDevInfo: true}
       });
 
@@ -1086,8 +1086,8 @@ define([
         });
 
         var ctxt2 = new syncmljs.Context({
-          storage: helpers.getIndexedDB(':memory:'),
-          prefix:  'memoryBasedServer.',
+          storage: helpers.getIndexedDBScope(':memory:'),
+          prefix:  'syncml-js.test.server.' + common.makeID() + '.',
           config  : {trustDevInfo: true, exposeErrorTrace: true}
         });
 
@@ -1494,7 +1494,7 @@ define([
 
       // step 4: check the server data...
       var verify_data = function(cb) {
-        var txn = sync.context._db.transaction();
+        var txn = sync.context._db.transaction(['mapping']);
         storage.getAll(sync.context, txn.objectStore('mapping'), {}, function(err, list) {
           if ( err )
             return cb(err);

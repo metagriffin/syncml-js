@@ -33,13 +33,25 @@ define([
 
   var exports = {};
 
+  if ( this.indexedDB )
+    exports._indexedDB = this.indexedDB;
+
   //---------------------------------------------------------------------------
-  exports.getIndexedDB = function (url) {
-    var sqlite3 = require('sqlite3');
-    var indexeddbjs = require('indexeddb-js');
-    var sdb = new sqlite3.Database(url);
-    var idb = indexeddbjs.makeScope('sqlite3', sdb);
-    return idb;
+  exports.getIndexedDBScope = function (url) {
+
+    if ( typeof(require) == 'function' )
+    {
+      // unittest: nodejs + jasmine
+      var sqlite3 = require('sqlite3');
+      var indexeddbjs = require('indexeddb-js');
+      var sdb = new sqlite3.Database(url);
+      var idb = indexeddbjs.makeScope('sqlite3', sdb);
+      return idb;
+    }
+
+    // unittest: xpcshell
+    var scope = {};
+    return this.initIndexedDBScope(scope);
   };
 
   //---------------------------------------------------------------------------
@@ -57,6 +69,17 @@ define([
         return msg + '.';
       };
       return isOK;
+    },
+
+    toBeNear: function(expected, plusminus) {
+      var notText = this.isNot ? ' not' : '';
+      var isNear  = this.actual >= ( expected - plusminus )
+        && this.actual <= ( expected + plusminus );
+      this.message = function () {
+        return 'Expected "' + this.actual + '"' + notText + ' to be near "'
+          + expected + '" (+/- ' + plusminus + ').';
+      };
+      return isNear;
     },
 
     toEqualXml: function(expected) {
@@ -255,8 +278,8 @@ define([
   //---------------------------------------------------------------------------
   exports.getPendingChanges = function(context, cb) {
 
-    var changetab  = context._dbtxn.objectStore('change');
-    var adaptertab = context._dbtxn.objectStore('adapter');
+    var changetab  = context._txn().objectStore('change');
+    var adaptertab = context._txn().objectStore('adapter');
     storage.getAll(context, changetab, {}, function(err, changes) {
 
       var ret = [];

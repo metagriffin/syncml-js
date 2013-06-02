@@ -19,8 +19,9 @@ define([
   '../src/syncml-js',
   '../src/syncml-js/logging',
   '../src/syncml-js/common',
-  '../src/syncml-js/state'
-], function(_, ET, diff, helpers, syncmljs, logging, common, state) {
+  '../src/syncml-js/state',
+  '../src/syncml-js/storage'
+], function(_, ET, diff, helpers, syncmljs, logging, common, state, storage) {
 
   describe('syncml-js/client', function() {
 
@@ -35,21 +36,11 @@ define([
 
     //-------------------------------------------------------------------------
     var setupAdapter = function(callback) {
+    };
 
-      var sync = {
-        adapter: null,
-        store:   null,
-        peer:    null,
-        agent:   new helpers.TestAgent()
-      };
-
-      var context = new syncmljs.Context({
-        storage : helpers.getIndexedDB(':memory:'),
-        prefix  : 'memoryBasedClient.',
-        config  : {trustDevInfo: true, exposeErrorTrace: true}
-      });
-
-      context.getEasyClientAdapter({
+    //-------------------------------------------------------------------------
+    var initAdapter = function(sync, callback) {
+      sync.context.getEasyClientAdapter({
         displayName: 'In-Memory Test Client',
         devInfo: {
           devID               : 'test-syncml-js-devid',
@@ -88,7 +79,6 @@ define([
         sync.peer    = peer;
         callback(null, sync);
       });
-
     };
 
     //-------------------------------------------------------------------------
@@ -306,7 +296,7 @@ define([
             seenRequests += '2';
             var nextAnchor = ET.parse(requestBody)
               .getroot().findtext('SyncBody/Alert/Item/Meta/Anchor/Next');
-            expect(parseInt(nextAnchor, 10)).toBeCloseTo((new Date()).getTime()/1000, -2);
+            expect(parseInt(nextAnchor, 10)).toBeNear(helpers.now(), 2);
             var chk =
               '<SyncML>'
               + ' <SyncHdr>'
@@ -429,7 +419,7 @@ define([
             seenRequests += '3';
             var nextAnchor = ET.parse(requestBody)
               .getroot().findtext('SyncBody/Status/Item/Data/Anchor/Next');
-            expect(parseInt(nextAnchor, 10)).toBeCloseTo((new Date()).getTime()/1000, -2);
+            expect(parseInt(nextAnchor, 10)).toBeNear(helpers.now(), 2);
 
             var chk =
               '<SyncML>'
@@ -710,11 +700,19 @@ define([
 
     //-------------------------------------------------------------------------
     beforeEach(function(callback) {
-      setupAdapter(function(err, ret) {
-        expect(err).toBeFalsy();
-        sync = ret;
-        callback();
+      sync = {
+        context: null,
+        adapter: null,
+        store:   null,
+        peer:    null,
+        agent:   new helpers.TestAgent()
+      };
+      sync.context = new syncmljs.Context({
+        storage : helpers.getIndexedDBScope(':memory:'),
+        prefix  : 'syncml-js.test.client.' + common.makeID() + '.',
+        config  : {trustDevInfo: true, exposeErrorTrace: true}
       });
+      return initAdapter(sync, callback);
     });
 
     //-------------------------------------------------------------------------
@@ -731,15 +729,18 @@ define([
         expect(sync.adapter._model.peers[0].stores.length).toEqual(1);
         var store = sync.adapter._model.peers[0].stores[0];
         var now   = helpers.now();
-        expect(store.binding.localAnchor).toBeCloseTo(now, -1);
-        expect(store.binding.remoteAnchor).toBeCloseTo(now, -1);
+        expect(store.binding.localAnchor).toBeNear(now, 2);
+        expect(store.binding.remoteAnchor).toBeNear(now, 2);
         expect(store.binding).toEqual({
           uri          : "cli_memo",
           autoMapped   : false,
           localAnchor  : store.binding.localAnchor,
           remoteAnchor : store.binding.remoteAnchor
         });
-        done();
+        sync.context.close(function(err) {
+          expect(err).ok();
+          done();
+        });
       });
     });
 

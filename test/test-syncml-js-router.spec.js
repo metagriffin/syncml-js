@@ -52,21 +52,21 @@ define([
         }
       };
 
-      sync.server.idb = helpers.getIndexedDB(':memory:');
-      sync.client.idb = helpers.getIndexedDB(':memory:');
+      sync.server.idb = helpers.getIndexedDBScope(':memory:');
+      sync.client.idb = helpers.getIndexedDBScope(':memory:');
 
       sync.server.agent = new helpers.TestAgent({storage: sync.server.storage});
       sync.client.agent = new helpers.TestAgent({storage: sync.client.storage});
 
       sync.server.context = new syncml.Context({
         storage: sync.server.idb,
-        prefix:  'memoryBasedServer.',
+        prefix:  'syncml-js.test.router.' + common.makeID() + '.',
         config:  {exposeErrorTrace: true}
       });
 
       sync.client.context = new syncml.Context({
         storage: sync.client.idb,
-        prefix:  'memoryBasedClient.'
+        prefix:  'syncml-js.test.router.' + common.makeID() + '.'
       });
 
       var setup_server = function(cb) {

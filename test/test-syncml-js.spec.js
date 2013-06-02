@@ -13,12 +13,13 @@ if ( typeof(define) !== 'function' )
 
 define([
   'underscore',
+  'async',
   '../src/syncml-js',
   '../src/syncml-js/logging',
   '../src/syncml-js/common',
   '../src/syncml-js/storage',
   './helpers.js'
-], function(_, syncml, logging, common, storage, helpers) {
+], function(_, async, syncml, logging, common, storage, helpers) {
 
   describe('syncml-js', function() {
 
@@ -75,10 +76,10 @@ define([
         }
       };
 
-      sync.server.idb = helpers.getIndexedDB(':memory:');
-      sync.c1.idb     = helpers.getIndexedDB(':memory:');
-      sync.c2.idb     = helpers.getIndexedDB(':memory:');
-      sync.c3.idb     = helpers.getIndexedDB(':memory:');
+      sync.server.idb = helpers.getIndexedDBScope(':memory:');
+      sync.c1.idb     = helpers.getIndexedDBScope(':memory:');
+      sync.c2.idb     = helpers.getIndexedDBScope(':memory:');
+      sync.c3.idb     = helpers.getIndexedDBScope(':memory:');
 
       sync.server.agent = new helpers.TestAgent({storage: sync.server.storage});
       sync.c1.agent = new helpers.TestAgent({storage: sync.c1.storage});
@@ -87,23 +88,23 @@ define([
 
       sync.server.context = new syncml.Context({
         storage: sync.server.idb,
-        prefix:  'memoryBasedServer.',
+        prefix:  'syncml-js.test.base.server.' + common.makeID() + '.',
         config:  {exposeErrorTrace: true}
       });
 
       sync.c1.context = new syncml.Context({
         storage: sync.c1.idb,
-        prefix:  'memoryBasedClient1.'
+        prefix:  'syncml-js.test.base.client1.' + common.makeID() + '.'
       });
 
       sync.c2.context = new syncml.Context({
         storage: sync.c2.idb,
-        prefix:  'memoryBasedClient2.'
+        prefix:  'syncml-js.test.base.client2.' + common.makeID() + '.'
       });
 
       sync.c3.context = new syncml.Context({
         storage: sync.c3.idb,
-        prefix:  'memoryBasedClient3.'
+        prefix:  'syncml-js.test.base.client3.' + common.makeID() + '.'
       });
 
       var setup_server = function(cb) {
@@ -274,8 +275,12 @@ define([
 
     //-------------------------------------------------------------------------
     afterEach(function(callback) {
-      sync = {};
-      callback();
+      async.map(_.keys(sync), function(key, cb) {
+        sync[key].context.close(cb);
+      }, function() {
+        sync = {};
+        callback();
+      });
     });
 
     //-------------------------------------------------------------------------
