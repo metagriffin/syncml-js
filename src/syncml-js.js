@@ -51,10 +51,9 @@ define([
     protocol,
     {
       // TODO: figure out how to pull this dynamically from package.json...
-      version:           '0.0.14',
+      version:           '0.0.15',
       platformBits:      common.platformBits,
       getMaxMemorySize:  common.getMaxMemorySize,
-
       // TODO: these should not be here, but are being used by other packages
       //       and therefore should be moved out to a separate package. or
       //       at least parts thereof.
