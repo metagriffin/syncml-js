@@ -1,11 +1,9 @@
-syncml-js
-=========
+# syncml-js
 
 A pure javascript implementation of the SyncML adapter framework and
 protocol.
 
-Status
-======
+## Status
 
 The ``syncml-js`` package is in "beta". That means that everything is
 fully functional, however it has not had much real-world experience,
@@ -14,8 +12,7 @@ with caution, and *always* backup your data before doing anything (see
 [sbt](https://npmjs.org/package/sbt) for a convenient backup tool that
 uses this SyncML implementation).
 
-Installation
-============
+## Installation
 
 This is the easy part, provided you have ``npm`` installed:
 
@@ -25,8 +22,7 @@ Note that ``syncml-js`` does not provide any command-line tools, so
 you typically would list it in your package.json's "dependencies"
 attribute and use it in your application.
 
-Usage
-=====
+## Usage
 
 For in-depth discussion on how to use a SyncML protocol library,
 please take a look at [pysyncml](http://pysyncml.org/): despite being
