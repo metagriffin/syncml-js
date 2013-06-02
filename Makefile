@@ -25,9 +25,6 @@ MOZOBJDIR?=../thunderbird/obj-x86_64-unknown-linux-gnu/mozilla
 MOZDEVDIR?=../thunderbird/mozilla
 SYNCMLDIR?=.
 
-print:
-	echo "SYNCMLDIR = $(SYNCMLDIR)"
-
 xpc-ini:
 	cat test/xpcshell.ini.IN > test/xpcshell.ini
 	find test -iname 'test-*.spec.js' | cut -f2 -d/ \
