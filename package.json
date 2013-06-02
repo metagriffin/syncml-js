@@ -1,7 +1,7 @@
 {
   "name":           "syncml-js",
   "description":    "A pure javascript implementation of the SyncML adapter framework and protocol.",
-  "version":        "0.0.14",
+  "version":        "0.0.15",
   "main":           "src/syncml-js.js",
   "author":         "metagriffin <mg.npmjs@uberdev.org>",
   "homepage":       "http://jssyncml.org",
@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "amdefine":      ">=0.0.4",
+    "async":         ">=0.2.8",
     "elementtree":   ">=0.1.5",
     "underscore":    ">=1.4.2",
     "sprintf":       ">=0.1.1",
@@ -25,7 +26,7 @@
   "devDependencies": {
     "jasmine-node":  ">=1.0.26",
     "diff":          ">=1.0.4",
-    "indexeddb-js":  ">=0.0.11",
+    "indexeddb-js":  ">=0.0.12",
     "sqlite3":       ">=2.1.1"
   },
   "keywords": [
