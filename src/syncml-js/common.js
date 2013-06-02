@@ -133,7 +133,7 @@ define([
 
     //---------------------------------------------------------------------------
     // UUID generation
-    makeID:                function() {
+    makeID: function() {
       // shamelessly scrubbed from:
       //   http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/2117523#2117523
       // (adjusted to remove the dashes)
