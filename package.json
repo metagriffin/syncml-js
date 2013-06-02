@@ -27,7 +27,8 @@
     "jasmine-node":  ">=1.0.26",
     "diff":          ">=1.0.4",
     "indexeddb-js":  ">=0.0.12",
-    "sqlite3":       ">=2.1.1"
+    "sqlite3":       ">=2.1.1",
+    "nodejs4xpcom":  ">=0.0.2"
   },
   "keywords": [
     "syncml",
