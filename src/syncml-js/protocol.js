@@ -1250,7 +1250,7 @@ define([
             //       or Adapter.handleRequest() appropriately causes
             //       objects to save themselves to the model...
 
-            // session.adapter._save(session.dbtxn, function(err) {
+            // session.adapter._save(session.txn(), function(err) {
             //   if ( err )
             //     return cb(err);
 

@@ -106,6 +106,19 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    _txn: function() {
+      try {
+        // this is a work-around for XPC-based syncml... try to open
+        // a store, if it fails, we need a new transaction.
+        var store = this._dbtxn.objectStore('mapping');
+        return this._dbtxn;
+      } catch ( exc ) {
+        this._dbtxn = storage.getTransaction(this._db, null, 'readwrite');
+        return this._dbtxn;
+      }
+    },
+
+    //-------------------------------------------------------------------------
     getEasyClientAdapter: function(options, cb) {
       try{
         this._getEasyClientAdapter(options, cb);
@@ -200,6 +213,14 @@ define([
         });
       });
     },
+
+    //-------------------------------------------------------------------------
+    close: function(cb) {
+      if ( this._db )
+        this._db.close();
+      this._db = null;
+      cb(null);
+    }
 
   });
 

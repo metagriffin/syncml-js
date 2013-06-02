@@ -191,7 +191,7 @@ define([
       if ( this._a.isLocal )
         return cb(new common.InternalError(
           'unexpected mapping request for local store'));
-      var mapping = this._a._c._dbtxn.objectStore('mapping');
+      var mapping = this._a._c._txn().objectStore('mapping');
       storage.deleteAll(mapping, {store_id: this.id}, cb);
     },
 
@@ -203,7 +203,7 @@ define([
           'unexpected mapping request for local store'));
       // delete all previous mappings for this guid/store (there should
       // be at most one)... but paranoia rules.
-      var mapping = this._a._c._dbtxn.objectStore('mapping');
+      var mapping = this._a._c._txn().objectStore('mapping');
       storage.deleteAll(mapping, {store_id: this.id, guid: guid}, function(err) {
         if ( err )
           return cb(err);
@@ -223,8 +223,8 @@ define([
       // todo: there must be a way to use IndexedDB since i have everything
       //       needed to generate the keyPath!... eg:
       //         objectStore.get({store_id:X,guid:Y})?...
-      var mapdb = this._a._c._dbtxn.objectStore('mapping').index('store_id');
-      storage.getAll(mapdb, this.id, null, function(err, list) {
+      var mapdb = this._a._c._txn().objectStore('mapping').index('store_id');
+      storage.getAll(this._a._c, mapdb, {only: this.id}, function(err, list) {
         if ( err )
           return cb(err);
         var item = _.find(list, function(item) {
@@ -242,8 +242,8 @@ define([
       // todo: there must be a way to use IndexedDB since i have everything
       //       needed to generate the keyPath!... eg:
       //         objectStore.get({store_id:X,guid:Y})?...
-      var mapdb = this._a._c._dbtxn.objectStore('mapping').index('store_id');
-      storage.getAll(mapdb, this.id, null, function(err, list) {
+      var mapdb = this._a._c._txn().objectStore('mapping').index('store_id');
+      storage.getAll(this._a._c, mapdb, {only: this.id}, function(err, list) {
         if ( err )
           return cb(err);
         var item = _.find(list, function(item) {
@@ -306,7 +306,7 @@ define([
             change.changeSpec += ';' + options.changeSpec;
           handled = true;
           storage.put(
-            self._a._c._dbtxn.objectStore('change'),
+            self._a._c._txn().objectStore('change'),
             change,
             cb);
         });
@@ -345,7 +345,7 @@ define([
           // yet, so does not yet exist on the peer, therefore
           // propagate nothing -- continuing just to execute the
           // deleteAll().
-          var changeTab = self._a._c._dbtxn.objectStore('change');
+          var changeTab = self._a._c._txn().objectStore('change');
           change = {store_id: self.id, item_id: itemID};
           // todo: is this deleteAll really necessary?... paranoia rules!
           storage.deleteAll(changeTab, change, function(err) {
@@ -370,8 +370,8 @@ define([
       // todo: there must be a way to use IndexedDB since i have everything
       //       needed to generate the keyPath!... eg:
       //         objectStore.get({store_id:X,guid:Y})?...
-      var changedb = self._a._c._dbtxn.objectStore('change').index('store_id');
-      storage.getAll(changedb, self.id, null, function(err, changes) {
+      var changedb = self._a._c._txn().objectStore('change').index('store_id');
+      storage.getAll(self._a._c, changedb, {only: self.id}, function(err, changes) {
         if ( err )
           return cb(err);
         var change = _.find(changes, function(change) {
@@ -393,7 +393,7 @@ define([
       // //         a) never updating a Change record (only deleting and replacing)
       // //         b) deleting Change records by ID instead of by store/item/state...
 
-      // var objstore = session.context._dbtxn.objectStore('change');
+      // var objstore = session.context._txn().objectStore('change');
       // storage.iterateCursor(
       //   objstore.index('store_id').openCursor(peerStore.id),
       //   function(value, key, cb) {
@@ -402,7 +402,7 @@ define([
       //     storage.delete(objstore, key, cb);
       //   }, cb);
 
-      var dbstore = this._a._c._dbtxn.objectStore('change');
+      var dbstore = this._a._c._txn().objectStore('change');
       var matches = {store_id: this.id};
       if ( options.itemID )
         matches.item_id = options.itemID;
@@ -513,11 +513,11 @@ define([
       var options = {
         uri          : xnode.findtext('SourceRef'),
         displayName  : xnode.findtext('DisplayName'),
-        maxGuidSize  : common.parseInt(xnode.findtext('MaxGUIDSize')),
-        maxObjSize   : common.parseInt(xnode.findtext('MaxObjSize')),
+        maxGuidSize  : common.int(xnode.findtext('MaxGUIDSize')),
+        maxObjSize   : common.int(xnode.findtext('MaxObjSize')),
         contentTypes : [],
         syncTypes    : _.map(xnode.findall('SyncCap/SyncType'), function(e) {
-          return common.parseInt(e.text);
+          return common.int(e.text);
         })
       };
       _.each(xnode.getchildren(), function(child) {

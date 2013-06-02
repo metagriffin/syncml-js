@@ -232,7 +232,7 @@ define([
 
           storage.getAll(
             session.context,
-            session.dbtxn.objectStore('change').index('store_id'),
+            session.txn().objectStore('change').index('store_id'),
             {only: peerStore.id},
             function(err, changes) {
               if ( err )

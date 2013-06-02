@@ -7,7 +7,7 @@
 // copy: (C) CopyLoose 2012 UberDev <hardcore@uberdev.org>, No Rights Reserved.
 //-----------------------------------------------------------------------------
 
-// TODO: update all this._c._dbtxn references...
+// TODO: update all this._c._txn references...
 
 // for node compatibility...
 if ( typeof(define) !== 'function')
@@ -72,7 +72,7 @@ define([
         if ( ! self.isLocal )
           return cb();
 
-        self._save(self._c._dbtxn, function(err) {
+        self._save(self._c._txn(), function(err) {
           if ( err )
             return cb(err);
           cb(null, store);
