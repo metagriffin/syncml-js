@@ -249,6 +249,38 @@ define([
         });
       };
 
+      var add_helper_methods = function(device) {
+        var storage = sync[device].storage;
+        var store   = sync[device].store;
+        sync[device].item_add = function(item, cb) {
+          storage.add(item, function(err, new_item) {
+            if ( err )
+              return cb(err);
+            store.registerChange(new_item.id, syncml.ITEM_ADDED, null, function(err) {
+              return cb(err, new_item);
+            });
+          });
+        };
+        sync[device].item_replace = function(item, cb) {
+          storage.replace(item, function(err) {
+            if ( err )
+              return cb(err);
+            sync.c1.store.registerChange(item.id, syncml.ITEM_MODIFIED, null, function(err) {
+              return cb(err);
+            });
+          });
+        };
+        sync[device].item_delete = function(itemID, cb) {
+          storage.delete(itemID, function(err) {
+            if ( err )
+              return cb(err);
+            store.registerChange(itemID, syncml.ITEM_DELETED, null, function(err) {
+              return cb(err);
+            });
+          });
+        };
+      };
+
       setup_server(function(err) {
         expect(err).ok();
         if ( err )
@@ -265,6 +297,10 @@ define([
               expect(err).ok();
               if ( err )
                 return callback(err);
+
+              for ( var device in sync )
+                add_helper_methods(device);
+
               callback();
             });
           });
@@ -647,7 +683,7 @@ define([
       common.cascade([
 
         // initialize everything
-        _.bind(initialize_and_sync_all_peers, null),
+        initialize_and_sync_all_peers,
 
         // modify c2: add an item and modify an item
         function(cb) {
@@ -755,7 +791,7 @@ define([
       common.cascade([
 
         // initialize everything
-        _.bind(initialize_and_sync_all_peers, null),
+        initialize_and_sync_all_peers,
 
         // modify c2: add an item and modify an item
         function(cb) {
@@ -900,6 +936,70 @@ define([
 
       ], done);
 
+    });
+ 
+    //-------------------------------------------------------------------------
+    it('maintains change state ADD for ADD + MODIFY', function(done) {
+
+      var new_cid = null;
+
+      common.cascade([
+
+        // initialize everything
+        initialize_and_sync_all_peers,
+
+        // ensure no pending changes on c1
+        function(cb) {
+          helpers.getPendingChanges(sync.c1.context, function(err, data) {
+            expect(err).ok();
+            expect(data).toEqual([]);
+            return cb();
+          });
+        },
+
+        // register an 'ADD' event
+        function(cb) {
+          sync.c1.item_add({body: 'a new c1 item'}, function(err, item) {
+            expect(err).ok();
+            if ( err )
+              return cb(err);
+            new_cid = item.id;
+            return cb(err);
+          });
+        },
+
+        // check pending state as 'ADD'
+        function(cb) {
+          helpers.getPendingChanges(sync.c1.context, function(err, data) {
+            expect(err).ok();
+            expect(data).toEqual([
+              {devid: 'https://example.com/sync', uri: 'srv_note', item_id: new_cid, state: 1}
+            ]);
+            return cb();
+          });
+        },
+
+        // register a 'MODIFY' event for the UN-synchronized 'ADD' item
+        function(cb) {
+          var item = {id: new_cid, body: 'the new c1 item *modified*'};
+          sync.c1.item_replace(item, function(err) {
+            expect(err).ok();
+            return cb(err);
+          });
+        },
+
+        // check that the pending state remains 'ADD'
+        function(cb) {
+          helpers.getPendingChanges(sync.c1.context, function(err, data) {
+            expect(err).ok();
+            expect(data).toEqual([
+              {devid: 'https://example.com/sync', uri: 'srv_note', item_id: new_cid, state: 1}
+            ]);
+            return cb();
+          });
+        }
+
+      ], done);
     });
 
   });

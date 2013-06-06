@@ -600,17 +600,24 @@ define([
               + '")'));
 
         common.cascade(command.data, function(cmd, cb) {
-          // paranoia: non-'add' sync commands should only be received in non-refresh modes
-          if ( cmd.name != constant.CMD_ADD
-               && _.indexOf([constant.ALERT_TWO_WAY,
-                             constant.ALERT_ONE_WAY_FROM_SERVER,
-                             constant.ALERT_ONE_WAY_FROM_CLIENT], dsstate.mode) < 0 )
-            return cb(new common.ProtocolError(
-              'unexpected non-add sync command (role="'
-                + ( session.isServer ? 'server' : 'client' )
-                + '", mode="' + common.mode2string(dsstate.mode)
-                + '", command="' + cmd.name
-                + '")'));
+
+          // NOTE: commented this paranoia setting out, since the server
+          //       *may* decide to update/delete a client item...
+          //       e.g. conflict-resolved-merge (207)
+          // TODO: perhaps i should only allow non-ADDs for those items
+          //       that i received a conflict-resolved-merge (207) for?...
+
+          // // paranoia: non-'add' sync commands should only be received in non-refresh modes
+          // if ( cmd.name != constant.CMD_ADD
+          //      && _.indexOf([constant.ALERT_TWO_WAY,
+          //                    constant.ALERT_ONE_WAY_FROM_SERVER,
+          //                    constant.ALERT_ONE_WAY_FROM_CLIENT], dsstate.mode) < 0 )
+          //   return cb(new common.ProtocolError(
+          //     'unexpected non-add sync command (role="'
+          //       + ( session.isServer ? 'server' : 'client' )
+          //       + '", mode="' + common.mode2string(dsstate.mode)
+          //       + '", command="' + cmd.name
+          //       + '")'));
 
           self._reaction_syncdispatch(session, cmd, store, dsstate, function(err, cmds) {
             if ( err )
@@ -1197,6 +1204,9 @@ define([
         }
         case constant.STATUS_ALREADY_EXISTS:
         case constant.STATUS_CONFLICT_RESOLVED_MERGE:
+        // todo: should this conflict-resolved-merge status be stored so
+        //       that only this item can have a non-"ADD" during initial
+        //       sync?...
         case constant.STATUS_CONFLICT_RESOLVED_CLIENT_DATA:
         {
           session.info.dsstates[chkcmd.uri].stats.merged += 1;

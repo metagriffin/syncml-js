@@ -258,6 +258,12 @@ define([
       // options can include:
       //   - changeSpec (string)
       //   - excludePeerID (string)
+
+      if ( ! _.contains([constant.ITEM_ADDED, constant.ITEM_MODIFIED,
+                         constant.ITEM_DELETED], state) )
+        return cb(new common.TypeError(
+          'registerChange: invalid state "' + state + '"'));
+
       options = options || {};
       var self = this;
       if ( self._a.isLocal )
@@ -279,33 +285,103 @@ define([
         return;
       }
 
+      // todo: a non-ADD change event for an ID that has never been
+      // seen does not create an error... should it??? that would mean
+      // that syncml-js needs to track that. not a good idea.
+
       itemID = '' + itemID;
       var handled = false;
 
       // paranoia
-      if ( state == constant.ITEM_DELETED && options.changeSpec )
+      if ( options.changeSpec && state != constant.ITEM_MODIFIED )
       {
-        log.warning('received an unexpected changeSpec with a delete event');
+        log.warning('unexpected changeSpec with "%s" event for item ID "%s"',
+                    common.state2string(state), itemID);
         options.changeSpec = null;
       }
 
-      var update_change = ( ! options.changeSpec ) ? common.noop : function(cb) {
+      var check_update = function(cb) {
         self._getChange(itemID, function(err, change) {
           if ( err )
             return cb(err);
           if ( ! change)
             return cb();
-          if ( change.state != constant.ITEM_ADDED && change.state != state )
-            return cb(new common.LogicalError(
-              'received "' + common.state2string(state)
-                + '" change event after "' + common.state2string(change.state)
-                + '" for item ID "' + itemID + '"'));
-          if ( change.state != constant.ITEM_ADDED )
-            change.state = state;
-          if ( change.changeSpec )
-            change.changeSpec += ';' + options.changeSpec;
+          var badstate = function(action) {
+            log.warning(
+              'bad state change (%s + %s) for item "%s"%s',
+              common.state2string(change.state), common.state2string(state),
+              itemID, action ? ' - ' + action : '');
+          };
+          // note: many of the following change.state / state combinations
+          // should never occur. the following tries to recover gracefully.
+          // todo: should i raise an error for "illogical" conditions?
+          switch ( change.state )
+          {
+            case constant.ITEM_ADDED:
+            {
+              if ( state != constant.ITEM_DELETED )
+              {
+                // ADD + anything except DELETE stays ADD
+                handled = true;
+                return cb();
+              }
+              // ADD + DELETE cancels out
+              handled = true;
+              var changeTab = self._a._c._txn().objectStore('change');
+              storage.deleteAll(changeTab, change, function(err) {
+                if ( err )
+                  return cb(err);
+                return cb();
+              });
+              return;
+            }
+            case constant.ITEM_MODIFIED:
+            {
+              if ( state == constant.ITEM_ADDED )
+              {
+                badstate('squelching changeSpec');
+                delete change.changeSpec;
+                break;
+              }
+              if ( state == constant.ITEM_DELETED )
+              {
+                change.state = state;
+                delete change.changeSpec;
+                break;
+              }
+              if ( change.changeSpec )
+              {
+                if ( options.changeSpec )
+                  change.changeSpec += ';' + options.changeSpec;
+                else
+                  delete change.changeSpec;
+              }
+              break;
+            }
+            case constant.ITEM_DELETED:
+            {
+              if ( state == constant.ITEM_DELETED )
+              {
+                badstate('ignoring');
+                handled = true;
+                return cb();
+              }
+              badstate('reverting to modified');
+              change.state = constant.ITEM_MODIFIED;
+              delete change.changeSpec;
+              break;
+            }
+            default:
+            {
+              return cb(new common.InternalError(
+                'unexpected recorded change state "' + change.state
+                  + '" for item ID "' + itemID + '"'));
+            }
+          }
+          // update the change
+          // todo: do i need to delete it first?
           handled = true;
-          storage.put(
+          return storage.put(
             self._a._c._txn().objectStore('change'),
             change,
             cb);
@@ -331,7 +407,12 @@ define([
           });
         };
 
-      update_change(function(err) {
+      // todo: there is a weirdness here wrt `handled` in the case
+      //       of check_mapping and deletes... ie. there is a bit of
+      //       a responsibility violation (handled does not actually
+      //       mean handled...)
+
+      check_update(function(err) {
         if ( err )
           return cb(err);
         if ( handled )
