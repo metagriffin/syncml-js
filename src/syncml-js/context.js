@@ -70,6 +70,7 @@ define([
       this.protocol     = options.protocol || new protocol.Protocol();
       this.codec        = options.codec || constant.CODEC_XML;
       this.listener     = options.listener;
+      this.ua           = options.ua;
       this.config       = _.defaults({}, options.config, {
         trustDevInfo      : false,
         exposeErrorTrace  : false

@@ -25,7 +25,8 @@ define([
   './store',
   './devinfo',
   './adapter',
-  './state'
+  './state',
+  './useragent'
 ], function(
   _,
   ET,
@@ -38,7 +39,8 @@ define([
   storemod,
   devinfomod,
   adapter,
-  state
+  state,
+  useragent
 ) {
 
   var log = logging.getLogger('syncml-js.localadapter');
@@ -300,10 +302,19 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    sync: function(peer, mode, cb) {
+    sync: function(peer, mode, options, cb) {
+      // `options` is optional and can have the following properties:
+      //   * `ua`
 
       // TODO: initialize a new context transaction?...
       // todo: or perhaps add a new session.txn?...
+
+      if ( cb == undefined && _.isFunction(options) )
+      {
+        cb = options;
+        options = {};
+      }
+      options = options || {};
 
       var self = this;
       var discover = ( mode == constant.SYNCTYPE_DISCOVER );
@@ -312,7 +323,7 @@ define([
 
       if ( ! _.find(self._peers, function(p) { return p === peer; }) )
         return cb(new common.InvalidAdapter('invalid peer for adapter'));
-      if ( mode != undefined )
+      if ( mode != constant.SYNCTYPE_AUTO )
       {
         mode = common.synctype2alert(mode);
         if ( ! mode )
@@ -323,6 +334,7 @@ define([
 
       var session = state.makeSession({
         context  : self._c,
+        ua       : new useragent.UserAgentMultiplexer([options.ua, self._c.ua]),
         txn      : _.bind(self._c._txn, self._c),
         adapter  : self,
         peer     : peer,
@@ -454,14 +466,22 @@ define([
     },
 
     //-------------------------------------------------------------------------
-    handleRequest: function(request, sessionInfo, authorize, response, cb) {
+    handleRequest: function(request, sessionInfo, authorize, response, options, cb) {
 
       // TODO: initialize a new context transaction?...
       // todo: or perhaps add a new session.txn?...
 
+      if ( cb == undefined && _.isFunction(options) )
+      {
+        cb = options;
+        options = {};
+      }
+      options = options || {};
+
       var self = this;
       var session = state.makeSession({
         context  : self._c,
+        ua       : new useragent.UserAgentMultiplexer([options.ua, self._c.ua]),
         txn      : _.bind(self._c._txn, self._c),
         adapter  : self,
         peer     : null,

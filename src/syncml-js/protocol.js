@@ -304,6 +304,32 @@ define([
         // commands.push(state.makeCommand({name: constant.CMD_FINAL}));
         return cb(null, commands);
 
+      var createDevInfoCommands = function(commands, cb) {
+        // todo: this flag is crap. instead, the local devInfo should have
+        //       a record of which sessionID lead to the recording, and
+        //       base it on that. maybe timestamp too... (but it must be
+        //       in the minutes, just in case...)
+        session.info.gotinfo = true;
+        if ( ! session.discover )
+        {
+          commands.push(state.makeCommand({
+            name       : constant.CMD_PUT,
+            cmdID      : session.nextCmdID(),
+            type       : constant.TYPE_SYNCML_DEVICE_INFO + '+' + session.info.codec,
+            source     : './' + constant.URI_DEVINFO_1_2,
+            data       : session.adapter.devInfo.toSyncML(constant.SYNCML_DTD_VERSION_1_2,
+                                                          _.values(session.adapter._stores))
+          }));
+        }
+        commands.push(state.makeCommand({
+          name     : constant.CMD_GET,
+          cmdID    : session.nextCmdID(),
+          type     : constant.TYPE_SYNCML_DEVICE_INFO + '+' + session.info.codec,
+          target   : './' + constant.URI_DEVINFO_1_2
+        }));
+        return cb(null, commands);
+      };
+
       var createCommands = function(commands, cb) {
         // request the remote device info if not currently available or
         // in discover mode or explicitly re-exchanging it (paranoid mode)
@@ -311,56 +337,37 @@ define([
         if ( !! session.discover )
         {
           log.debug('discover mode - submitting and requesting devinfo');
-          putget = true;
+          return createDevInfoCommands(commands, cb);
         }
-        else if ( ! session.peer.devInfo )
+        if ( ! session.peer.devInfo )
         {
-          log.debug('no peer devinfo - submitting and requesting devinfo');
-          putget = true;
+          log.info('no peer devinfo - need to swap devinfo');
+          var uaEvent = {session: session};
+          return session.ua.acceptDevInfoSwap(uaEvent, function(err) {
+            if ( err )
+            {
+              log.info('user-agent refused devinfo swap - aborting');
+              return cb(err);
+            }
+            log.info('user-agent accepted devinfo swap');
+            return createDevInfoCommands(commands, cb);
+          });
         }
-        else if ( ! session.context.config.trustDevInfo && ! session.info.gotinfo )
+        if ( ! session.context.config.trustDevInfo && ! session.info.gotinfo )
         {
           log.debug('refreshing devinfo');
-          putget = true;
+          return createDevInfoCommands(commands, cb);
         }
-        if ( putget )
-        {
-          // todo: this flag is crap. instead, the local devInfo should have
-          //       a record of which sessionID lead to the recording, and
-          //       base it on that. maybe timestamp too... (but it must be
-          //       in the minutes, just in case...)
-          session.info.gotinfo = true;
-          if ( ! session.discover )
-          {
-            commands.push(state.makeCommand({
-              name       : constant.CMD_PUT,
-              cmdID      : session.nextCmdID(),
-              type       : constant.TYPE_SYNCML_DEVICE_INFO + '+' + session.info.codec,
-              source     : './' + constant.URI_DEVINFO_1_2,
-              data       : session.adapter.devInfo.toSyncML(constant.SYNCML_DTD_VERSION_1_2,
-                                                            _.values(session.adapter._stores))
-            }));
-          }
-          commands.push(state.makeCommand({
-            name     : constant.CMD_GET,
-            cmdID    : session.nextCmdID(),
-            type     : constant.TYPE_SYNCML_DEVICE_INFO + '+' + session.info.codec,
-            target   : './' + constant.URI_DEVINFO_1_2
-          }));
-          return cb(null, commands);
-        }
-
         // NOTE: in the current handling of "trustDevInfo", i am doing a
         //       potentially unnecessary extra request/response phase to
         //       confirm that the devInfo has not changed... i *could*
         //       issue the put/get as well as the alert, *assuming* that
         //       no devInfo is going to change...
-
         log.debug('have peer.devinfo - not requesting from target');
         return session.context.synchronizer.actions(session, commands, cb);
       };
 
-      createCommands(commands, function(err, commands) {
+      return createCommands(commands, function(err, commands) {
         if ( err )
           return cb(err);
         commands.push(state.makeCommand({name: constant.CMD_FINAL}));
@@ -677,7 +684,7 @@ define([
         var hdrcmd = ( cmds && cmds.length > 0 ) ? cmds[0] : null;
         var makeErrorCommands = function(err, cb) {
 
-          log.error('creating error commands for: ' + common.j(err));
+          log.error('creating error commands for: ' + err);
           if ( err.exception )
             log.error('  ' + stacktrace({e: err.exception}).join('\n  '));
 
@@ -966,10 +973,19 @@ define([
 
             case constant.CMD_ALERT:
             {
-              if ( code != constant.STATUS_OK )
-                return cb(badStatus(child));
-              // TODO: do something with the Item/Data/Anchor/Next...
-              return cb();
+              if ( code == constant.STATUS_OK )
+                // TODO: do something with the Item/Data/Anchor/Next?...
+                return cb();
+              if ( code == constant.STATUS_REFRESH_REQUIRED && ! session.isServer )
+              {
+                // TODO: support the ability for the UA to control which kind of
+                //       refresh to do (slow-sync, client-refresh, server-refresh)
+                log.info('peer requires refresh for datastore "%s"'
+                         + ' (should send switched alert next)',
+                         sourceRef);
+                return cb();
+              }
+              return cb(badStatus(child));
             }
 
             case constant.CMD_GET:
@@ -1377,23 +1393,29 @@ define([
             return cb(new common.ProtocolError('request for unreflected local datastore "'
                                                + uri + '"'));
           ds.action = 'send';
-          if ( code != ds.mode )
-          {
+          if ( code == ds.mode )
+            return cb(null, ds);
+
+          var uaEvent = {
+            session   : session,
+            uri       : uri,
+            peerUri   : ruri,
+            modeReq   : ds.mode,
+            modeRes   : code
+          };
+          log.info('server requested sync mode switch from %s to %s for datastore "%s"',
+                   common.mode2string(ds.mode), common.mode2string(code), uri);
+          session.ua.acceptSyncModeSwitch(uaEvent, function(err) {
+            if ( err )
+            {
+              log.info('user-agent refused mode switch - aborting');
+              return cb(err);
+            }
             if ( session.context.listener )
-              session.context.listener({
-                type      : 'synctype.change',
-                context   : session.context,
-                adapter   : session.adapter,
-                peer      : session.peer,
-                uri       : uri,
-                peerUri   : ruri,
-                modeReq   : ds.mode,
-                mode      : code
-              });
-            log.info('server switched sync modes from %s to %s for datastore "%s"',
-                     common.mode2string(ds.mode), common.mode2string(code), uri);
-          }
-          return cb(null, ds);
+              session.context.listener(uaEvent);
+            log.info('user-agent accepted mode switch');
+            return cb(null, ds);
+          });
         }
       };
 

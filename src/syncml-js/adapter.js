@@ -109,12 +109,13 @@ define([
 
     //-------------------------------------------------------------------------
     _isMapper: function() {
-      // indicates whether or not this adapter is capable of mapping items.
-      // in the standard SyncML peer model, only the server ever does mapping,
-      // but in the dream-land of syncml-js, all peers can be mappers, or even
-      // better, implements an extension is adopted that does not require
-      // mapping. so, since that is just a dream-land for now, this will try
-      // to identify if this adapter represents a server...
+      // indicates whether or not this adapter is capable of mapping
+      // items. in the standard SyncML peer model, only the server
+      // ever does mapping, but in the dream-land of syncml-js, all
+      // peers can be mappers, or even better, implements an extension
+      // "is-uuid/adopted" that does not require mapping. so, since
+      // that is just a dream-land for now, this will try to identify
+      // if this adapter represents a server...
       // todo: enhance syncml-js so that it is not needed!...
       if ( ! this.isLocal )
         return this.url && this.url.length > 0;

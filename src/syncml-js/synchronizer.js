@@ -13,6 +13,7 @@ if ( typeof(define) !== 'function')
 
 define([
   'underscore',
+  'async',
   'elementtree',
   './logging',
   './common',
@@ -23,6 +24,7 @@ define([
   './storage'
 ], function(
   _,
+  async,
   ET,
   logging,
   common,
@@ -46,18 +48,15 @@ define([
 
     //-------------------------------------------------------------------------
     initStoreSync: function(session, cb) {
-      var err = null;
-      _.each(session.peer._getModel().stores, function(rstore) {
+      async.eachSeries(session.peer._getModel().stores, function(rstore, cb) {
         // TODO: should the server-side be doing this? probably not
         //       since store mapping is a client-side decision...
-        if ( err )
-          return;
         var ruri = session.peer.normUri(rstore.uri);
         if ( session.info.dsstates[ruri] || ! rstore.binding )
-          return;
+          return cb();
         var lstore = session.adapter.getStore(rstore.binding.uri);
         if ( ! lstore || ! lstore.agent )
-          return;
+          return cb();
         var ds = state.makeStoreSyncState({
           uri        : lstore.uri,
           peerUri    : ruri,
@@ -81,21 +80,42 @@ define([
             case constant.ALERT_ONE_WAY_FROM_CLIENT:
             case constant.ALERT_ONE_WAY_FROM_SERVER:
             {
-              log.debug('forcing slow-sync for store "'
-                        + ds.uri + '" (no previous successful synchronization)');
-              ds.mode = constant.ALERT_SLOW_SYNC;
-              break;
+              if ( session.info.mode == constant.SYNCTYPE_AUTO )
+              {
+                log.debug('forcing slow-sync for store "'
+                          + ds.uri + '" (no previous successful synchronization)');
+                ds.mode = constant.ALERT_SLOW_SYNC;
+                break;
+              }
+              var uaEvent = {
+                session   : session,
+                store     : lstore,
+                peerStore : rstore,
+                modeReq   : ds.mode
+              };
+              return session.ua.chooseRefreshRequired(uaEvent, function(err, mode) {
+                if ( err )
+                  return cb(err);
+                if ( ! _.contains([constant.ALERT_SLOW_SYNC,
+                                   constant.ALERT_REFRESH_FROM_CLIENT,
+                                   constant.ALERT_REFRESH_FROM_SERVER], mode) )
+                  return cb(new common.TypeError(
+                    'invalid mode chosen for refresh: ' + common.j(mode)));
+                ds.mode = mode;
+                session.info.dsstates[ds.uri] = ds;
+                return cb();
+              });
             }
             default:
             {
-              err = 'unexpected sync mode "' + ds.mode + '" requested';
-              return;
+              return cb(new common.InternalError(
+                'unexpected sync mode "' + ds.mode + '" requested'));
             }
           }
         }
         session.info.dsstates[ds.uri] = ds;
-      });
-      return cb(err);
+        return cb();
+      }, cb);
     },
 
     //-------------------------------------------------------------------------
@@ -385,6 +405,9 @@ define([
               if ( _.indexOf(dsstate.conflicts, '' + item.id) >= 0 )
                 return cb();
 
+              // note: need to check for mappings since on slow-sync, the
+              // server will already have received the client's "add" commands
+              // at this point (and therefore should not send them back...)
               var check_sync = function(cb) {
                 if ( ! session.isServer )
                   return cb(null, true);
@@ -572,6 +595,25 @@ define([
               if ( err )
                 return cb(err);
               return store.getPeerStore(session.peer)._delChange({}, cb);
+            });
+          });
+        };
+      }
+
+      if ( dsstate.mode == constant.ALERT_SLOW_SYNC
+           || ( session.isServer && dsstate.mode == constant.ALERT_REFRESH_FROM_SERVER ) )
+      {
+        // delete all mappings and pending changes
+        var peerStore = store.getPeerStore(session.peer);
+        var prepreprocess = preprocess;
+        preprocess = function(cb) {
+          prepreprocess(function(err) {
+            if ( err )
+              return cb(err);
+            peerStore._delChange({}, function(err) {
+              if ( err )
+                return cb(err);
+              peerStore._clearAllMappings(cb);
             });
           });
         };

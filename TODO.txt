@@ -78,3 +78,14 @@
   THEN AGAIN, MAYBE NOT: what if the other client has added a new item between
   last sync and when a refresh-from-client occurred... 
 
+- perhaps only do paranoid devinfo swaps after some period of time has
+  ellapsed *OR* when indicated by the caller *OR* when any kind of failure
+  happened (which should be detectable by a bad last anchor?)
+
+- allow the caller not to control:
+  - devinfo *changes* that result from a paranoid devinfo swap
+    - especially routing changes...
+  - data changes? (that might be implied by having the agent!)
+
+- ensure that any mode that the synchronizer chooses (or the UA chooses) is
+  a valid entry in store.syncTypes

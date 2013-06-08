@@ -235,6 +235,21 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    _getMappings: function(cb) {
+      if ( this._a.isLocal )
+        return cb(new common.InternalError(
+          'unexpected mapping request for local store'));
+      var mapdb = this._a._c._txn().objectStore('mapping').index('store_id');
+      storage.getAll(this._a._c, mapdb, {only: this.id}, function(err, list) {
+        if ( err )
+          return cb(err);
+        return cb(null, _.map(list, function(item) {
+          return [item.guid, item.luid];
+        }));
+      });
+    },
+
+    //-------------------------------------------------------------------------
     _getReverseMapping: function(luid, cb) {
       if ( this._a.isLocal )
         return cb(new common.InternalError(

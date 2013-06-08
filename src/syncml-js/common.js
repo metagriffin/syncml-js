@@ -87,6 +87,9 @@ define([
       if ( msg != undefined )
         this.message += ': ' + msg;
       this.exception = exception;
+    },
+    toString: function() {
+      return this.message;
     }
   });
 
