@@ -1,7 +1,7 @@
 {
   "name":           "syncml-js",
   "description":    "A pure javascript implementation of the SyncML adapter framework and protocol.",
-  "version":        "0.0.17",
+  "version":        "0.0.18",
   "main":           "src/syncml-js.js",
   "author":         "metagriffin <mg.npmjs@uberdev.org>",
   "homepage":       "http://jssyncml.org",
