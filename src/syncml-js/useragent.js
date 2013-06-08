@@ -32,9 +32,11 @@ define([
     acceptSyncModeSwitch:  null, // function(EVENT, CALLBACK(ERR))
     acceptDevInfoSwap:     null, // function(EVENT, CALLBACK(ERR))
     chooseRefreshRequired: null, // function(EVENT, CALLBACK(ERR, TYPE))
+    fetchCredentials:      null, // function(EVENT, CALLBACK(ERR, AUTH))
     // fallback handlers:
     accept:                null, // function(TYPE, EVENT, CALLBACK(ERR))
     choose:                null, // function(TYPE, EVENT, CALLBACK(ERR, CHOICE))
+    fetch:                 null, // function(TYPE, EVENT, CALLBACK(ERR, STRUCT))
     // catchall handler:
     handle:                null  // function(ACTION, TYPE, EVENT, CALLBACK(ERR, RESULT...))
   });
@@ -101,6 +103,20 @@ define([
     },
 
     //-------------------------------------------------------------------------
+    fetchCredentials: function(event, cb) {
+      return this._handle({
+        handler: 'fetchCredentials',
+        action:  'fetch',
+        type:    'auth.challenge',
+        choices: [
+          {value: constant.SYNCTYPE_SLOW_SYNC, default: true},
+          {value: constant.SYNCTYPE_REFRESH_FROM_CLIENT},
+          {value: constant.SYNCTYPE_REFRESH_FROM_SERVER}
+        ]
+      }, event, cb);
+    },
+
+    //-------------------------------------------------------------------------
     _handle: function(spec, event, cb) {
       event = _.extend({}, spec, event, {
         type         : spec.type,
@@ -121,25 +137,32 @@ define([
         return handler(spec.action, spec.type, event, cb);
       if ( spec.action == 'accept' )
       {
-        log.info('no user-agent defined to %s event type "%s", assuming ok',
-                 spec.action, spec.type);
+        log.info('no user-agent handler defined for event type'
+                 + ' "%s" (action: "%s"), assuming ok',
+                 spec.type, spec.action);
         return cb();
       }
-      if ( spec.action == 'choose' && event.choices && event.choices.length > 0 )
+      if ( spec.action == 'choose'
+           && event.choices && event.choices.length > 0 )
       {
         var choice = _.find(event.choices, function(c) { return c.default; });
         if ( ! choice )
           choice = event.choices[0];
         if ( choice.value )
           choice = choice.value;
-        log.info('no user-agent defined to %s event type "%s", using %s',
-                 spec.action, spec.type, choice);
+        log.info('no user-agent handler defined for event type'
+                 + ' "%s" (action: "%s"), using %s',
+                 spec.type, spec.action, choice);
         return cb(null, choice);
       }
-      log.error('no user-agent defined to %s event type "%s" - aborting',
-                spec.action, spec.type)
+      if ( spec.type == 'auth.challenge' )
+        return cb();
+      log.error('no user-agent handler defined for event type'
+                + ' "%s" (action: "%s") - aborting',
+                spec.type, spec.action)
       return cb(new common.NotImplementedError(
-        'user-agent handler for ' + spec.action + ' event type "' + spec.type + '"'));
+        'user-agent handler for event type "' + spec.type + '" (action: "'
+          + spec.action + '") not found or defined'));
     }
 
   });

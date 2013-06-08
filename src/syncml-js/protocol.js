@@ -75,7 +75,7 @@ define([
   }
 
   //---------------------------------------------------------------------------
-  var badStatus = function(xnode, kls) {
+  var badStatus = function(xnode, kls, attrs) {
     if ( ! kls )
       kls = common.ProtocolError;
     var code  = xnode.findtext('Data');
@@ -93,7 +93,7 @@ define([
       else
         msg += ': ' + error.message;
     }
-    return new kls(msg)
+    return new kls(msg, undefined, attrs)
   };
 
   //---------------------------------------------------------------------------
@@ -268,7 +268,11 @@ define([
         cmd.msgID       = session.info.msgID;
         cmd.target      = session.peer ? session.peer.devID || null : null;
         cmd.targetName  = session.peer ? session.peer.displayName || null : null;
-        cmd.auth        = session.peer ? session.peer.auth : null;
+        cmd.auth        = session.auth
+          ? session.auth.type
+          : session.peer
+            ? session.peer.auth
+            : null;
 
         if ( err )
           return cb(err, [cmd]);
@@ -427,8 +431,10 @@ define([
           ET.SubElement(xmeta, 'Format', {'xmlns': constant.NAMESPACE_METINF}).text = 'b64';
           ET.SubElement(xmeta, 'Type', {'xmlns': constant.NAMESPACE_METINF}).text   = hdrcmd.auth;
           ET.SubElement(xcred, 'Data').text = base64.encode(
-            session.peer.username + ':' + session.peer.password);
+            ( session.auth ? session.auth.username : session.peer.username )
+              + ':' + ( session.auth ? session.auth.password : session.peer.password ) );
         }
+
       }
       if ( hdrcmd.maxMsgSize || hdrcmd.maxObjSize )
       {
@@ -906,14 +912,24 @@ define([
               'unexpected status node "s' + session.info.id + '.m' + child.findtext('MsgRef')
                 + '.c' + child.findtext('CmdRef') + ' cmd=' + cname + '"'));
 
-          // TODO: check for unknown elements...
+          // TODO: check for unknown elements (and complain?)...
 
           var code = common.int(child.findtext('Data'));
 
           if ( code == constant.STATUS_MISSING_CREDENTIALS )
-            return cb(badStatus(child, common.CredentialsRequired));
+          {
+            var authtype = child.findtext('Chal/Meta/Type');
+            var attrs = {auth: {type: authtype}};
+            return cb(badStatus(child, common.CredentialsRequired, attrs));
+          }
+
           if ( code == constant.STATUS_INVALID_CREDENTIALS )
-            return cb(badStatus(child, common.InvalidCredentials));
+          {
+            // TODO: get the auth type... from where??...
+            var authtype = child.findtext('Chal/Meta/Type');
+            var attrs = {auth: {type: authtype}};
+            return cb(badStatus(child, common.InvalidCredentials, attrs));
+          }
 
           var targetRef = child.findtext('TargetRef');
           if ( targetRef )

@@ -292,10 +292,8 @@ define([
               expect(err).ok();
               if ( err )
                 return callback(err);
-
               for ( var device in sync )
                 add_helper_methods(device);
-
               callback();
             });
           });
@@ -496,7 +494,7 @@ define([
     //-------------------------------------------------------------------------
 
     //-------------------------------------------------------------------------
-    it('allows the client to control willingness to initially synchronize', function(done) {
+    it('allows control of willingness to initially synchronize', function(done) {
       var options = {
         ua: {
           acceptDevInfoSwap: function(event, cb) {
@@ -513,7 +511,7 @@ define([
     });
 
     //-------------------------------------------------------------------------
-    it('allows the client to abort a sync-mode switch', function(done) {
+    it('allows aborting of a sync-mode switch', function(done) {
       var no_slow_sync_options = { ua: {
         acceptSyncModeSwitch: function(event, cb) {
           return cb('no sync-mode-switch!');
@@ -552,7 +550,7 @@ define([
     });
 
     //-------------------------------------------------------------------------
-    it('allows the client to abort a refresh-required', function(done) {
+    it('allows aborting of a refresh-required sync', function(done) {
       var no_refresh_options = { ua: {
         chooseRefreshRequired: function(event, cb) {
           return cb('no refresh!');
@@ -587,7 +585,7 @@ define([
     });
 
     //-------------------------------------------------------------------------
-    it('allows the client to control a refresh-required mode', function(done) {
+    it('exposes control of the mode during a refresh-required sync', function(done) {
       var no_refresh_options = { ua: {
         chooseRefreshRequired: function(event, cb) {
           return cb('no refresh!');

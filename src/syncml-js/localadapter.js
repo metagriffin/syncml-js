@@ -362,15 +362,50 @@ define([
       //       .setRoute(), then things may have changed...
       //       corner-case, yes... but still valid.
 
-      session.context.synchronizer.initStoreSync(session, function(err) {
-        if ( err )
-          return cb(err);
+      var failed = 0;
+
+      var startSession = function() {
         session.context.protocol.initialize(session, null, function(err, commands) {
           if ( err )
             return cb(err);
           self._transmit(session, commands, function(err) {
             if ( err )
-              return cb(err);
+            {
+              if ( ! ( err instanceof common.InvalidCredentials )
+                   && ! ( err instanceof common.CredentialsRequired ) )
+                return cb(err);
+              if ( err instanceof common.InvalidCredentials )
+                failed += 1;
+              if ( failed > 100 )
+              {
+                console.log('too many credential failures');
+                return cb(err);
+              }
+              var credErr = err;
+              var uaEvent = {
+                session : session,
+                auth    : err.auth,
+                count   : failed
+              };
+              return session.ua.fetchCredentials(uaEvent, function(err, auth) {
+                if ( err )
+                  return cb(err);
+                if ( ! auth )
+                  return cb(credErr);
+                if ( auth.persist )
+                {
+                  session.peer.auth = auth.type;
+                  session.peer.username = auth.username;
+                  session.peer.password = auth.password;
+                }
+                else
+                  session.auth = auth;
+                // todo: should i just create a new session?...
+                session.info.id += 1;
+                session.info.msgID = 1;
+                return startSession();
+              });
+            }
             self._save(session.txn(), function(err) {
               if ( err )
                 return cb(err);
@@ -378,7 +413,14 @@ define([
             });
           });
         });
+      };
+
+      session.context.synchronizer.initStoreSync(session, function(err) {
+        if ( err )
+          return cb(err);
+        startSession();
       });
+
     },
 
     //-------------------------------------------------------------------------

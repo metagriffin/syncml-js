@@ -89,3 +89,42 @@
 
 - ensure that any mode that the synchronizer chooses (or the UA chooses) is
   a valid entry in store.syncTypes
+
+- implement server-side credential challenge... i.e.:
+    <SyncBody>
+      <Status>
+        <CmdID>1</CmdID>
+        <MsgRef>1</MsgRef>
+        <CmdRef>0</CmdRef>
+        <Cmd>SyncHdr</Cmd>
+        <TargetRef>http://localhost:8081/funambol/ds</TargetRef>
+        <SourceRef>lightsyncml:6e9391ab-947a-4fe1-978e-5a5c89cf71b4</SourceRef>
+        <Chal>
+          <Meta>
+            <Format xmlns="syncml:metinf">b64</Format>
+            <Type xmlns="syncml:metinf">syncml:auth-basic</Type>
+          </Meta>
+        </Chal>
+        <Data>407</Data>
+      </Status>
+      <Status>
+        <CmdID>2</CmdID>
+        <MsgRef>1</MsgRef>
+        <CmdRef>1</CmdRef>
+        <Cmd>Put</Cmd>
+        <SourceRef>./devinf12</SourceRef>
+        <Data>407</Data>
+      </Status>
+      <Status>
+        <CmdID>3</CmdID>
+        <MsgRef>1</MsgRef>
+        <CmdRef>2</CmdRef>
+        <Cmd>Get</Cmd>
+        <TargetRef>./devinf12</TargetRef>
+        <Data>407</Data>
+      </Status>
+      <Final/>
+    </SyncBody>
+  </SyncML>
+
+

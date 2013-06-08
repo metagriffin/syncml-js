@@ -749,7 +749,7 @@ define([
               expect(stats['cli_memo_2']).toEqualDict(syncml.makeStats({
                 mode: syncml.SYNCTYPE_SLOW_SYNC, peerErr: 1, error: {
                   message: 'Sync agent for store "srv_note_2" not available',
-                  code:    'syncml-js.InternalError',
+                  code:    'syncml-js.TypeError',
                   trace:   undefined
                 }
               }));
