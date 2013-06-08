@@ -560,7 +560,7 @@ define([
         dsstate.action = 'error';
         dsstate.error  = {
           message:  'Sync agent for store "' + store.uri + '" not available',
-          code:     'syncml-js.InternalError'
+          code:     'syncml-js.TypeError'
         };
         ret[0].statusCode = constant.STATUS_SERVICE_UNAVAILABLE;
         ret[0].errorMsg   = dsstate.error.message;
