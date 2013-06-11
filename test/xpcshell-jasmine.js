@@ -16,7 +16,7 @@ var syncmljsdir = __LOCATION__.parent.parent.path;
 var define_ = nodejs.make_define(__LOCATION__, {
   async: false,
   predirs: [
-    syncmljsdir + '/test/lib/override_node_modules'
+    syncmljsdir + '/test/lib/override_nodejs_modules'
   ],
   libdirs: [
     syncmljsdir + '/test/lib/nodejs4xpcom/nodejs_modules',
