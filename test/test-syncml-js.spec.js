@@ -1002,6 +1002,32 @@ define([
       ], done);
     });
 
+    //-------------------------------------------------------------------------
+    it('merges identical items during a refresh-required', function(done) {
+      async.series([
+        // initialize everything
+        initialize_and_sync_all_peers,
+        // sabotage the lastanchor and sync, but expect the adapters to
+        // realize something is wrong and declare a slow-sync
+        function(cb) {
+          // temporarily squelching logging (since the following causes warnings/errors)
+          var prevlevel = logging.level;
+          logging.level = logging.CRITICAL;
+          sync.c1.session = null;
+          sync.server.adapter._model.peers[0].stores[0].binding.remoteAnchor = 'bad-anchor';
+          sync.c1.adapter.sync(sync.c1.peer, syncml.SYNCTYPE_TWO_WAY, function(err, stats) {
+            logging.level = prevlevel;
+            expect(err).ok();
+            expect(stats).toEqualDict({cli_memo: syncml.makeStats({
+              mode: syncml.SYNCTYPE_SLOW_SYNC,
+              merged: 2
+            })});
+            return cb();
+          });
+        }
+      ], done);
+    });
+
   });
 });
 

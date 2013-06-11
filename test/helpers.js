@@ -240,9 +240,22 @@ define([
       //   return cb('changeSpec not expected on the client-side');
       this._storage.replace(item, cb);
     },
-    deleteItem: function(itemID, cb) { return this._storage.delete(itemID, cb); }
+    deleteItem: function(itemID, cb) { return this._storage.delete(itemID, cb); },
 
-    // TODO: matchItem: function(ITEM, CB)
+    matchItem: function(item, cb) {
+      this._storage.all(function(err, items) {
+        if ( err )
+          return cb(err);
+        for ( var idx=0 ; idx<items.length ; idx++ )
+        {
+          var curitem = items[idx];
+          if ( curitem.compare(item) == 0 )
+            return cb(null, curitem);
+        }
+        return cb();
+      });
+    }
+
     // TODO: mergeItems: function(OLDITEM, NEWITEM, CHANGESPEC, CB)
 
   });
