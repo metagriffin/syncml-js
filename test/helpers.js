@@ -149,6 +149,19 @@ define([
   };
 
   //---------------------------------------------------------------------------
+  exports.TestItem = common.Base.extend({
+    constructor: function(clone) {
+      this.id   = clone ? clone.id : null;
+      this.body = clone ? clone.body : null;
+    },
+    compare: function(target) {
+      if ( this.body == target.body )
+        return 0;
+      return 1;
+    }
+  });
+
+  //---------------------------------------------------------------------------
   exports.TestStorage = common.Base.extend({
 
     constructor: function(options) {
@@ -162,6 +175,7 @@ define([
     },
 
     add: function(item, cb) {
+      item = new exports.TestItem(item);
       item.id = '' + this._lastID;
       this._lastID += 1;
       this._items['' + item.id] = item;
@@ -175,6 +189,7 @@ define([
     },
 
     replace: function(item, cb) {
+      item = new exports.TestItem(item);
       this._items['' + item.id] = item;
       return cb();
     },
@@ -226,6 +241,9 @@ define([
       this._storage.replace(item, cb);
     },
     deleteItem: function(itemID, cb) { return this._storage.delete(itemID, cb); }
+
+    // TODO: matchItem: function(ITEM, CB)
+    // TODO: mergeItems: function(OLDITEM, NEWITEM, CHANGESPEC, CB)
 
   });
 

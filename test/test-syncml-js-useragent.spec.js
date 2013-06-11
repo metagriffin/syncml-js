@@ -365,20 +365,20 @@ define([
         // validate data
         function(cb) {
           expect(sync.server.storage._items).toEqualDict({
-            '100': {id: '100', body: 'some c1 data'},
-            '101': {id: '101', body: 'some c2 data'}
+            '100': new helpers.TestItem({id: '100', body: 'some c1 data'}),
+            '101': new helpers.TestItem({id: '101', body: 'some c2 data'})
           });
           expect(sync.c1.storage._items).toEqualDict({
             // note: c1 was sync'd before c2, so will not have c2 data
-            '200': {id: '200', body: 'some c1 data'}
+            '200': new helpers.TestItem({id: '200', body: 'some c1 data'})
           });
           expect(sync.c2.storage._items).toEqualDict({
-            '300': {id: '300', body: 'some c2 data'},
-            '301': {id: '301', body: 'some c1 data'}
+            '300': new helpers.TestItem({id: '300', body: 'some c2 data'}),
+            '301': new helpers.TestItem({id: '301', body: 'some c1 data'})
           });
           expect(sync.c3.storage._items).toEqualDict({
-            '400': {id: '400', body: 'some c1 data'},
-            '401': {id: '401', body: 'some c2 data'}
+            '400': new helpers.TestItem({id: '400', body: 'some c1 data'}),
+            '401': new helpers.TestItem({id: '401', body: 'some c2 data'})
           });
           cb();
         },
@@ -417,22 +417,21 @@ define([
         // and validate data again
         function(cb) {
           expect(sync.server.storage._items).toEqualDict({
-            '100': {id: '100', body: 'some c1 data'},
-            '101': {id: '101', body: 'some c2 data'}
+            '100': new helpers.TestItem({id: '100', body: 'some c1 data'}),
+            '101': new helpers.TestItem({id: '101', body: 'some c2 data'})
           });
           expect(sync.c1.storage._items).toEqualDict({
-            '200': {id: '200', body: 'some c1 data'},
-            '201': {id: '201', body: 'some c2 data'}
+            '200': new helpers.TestItem({id: '200', body: 'some c1 data'}),
+            '201': new helpers.TestItem({id: '201', body: 'some c2 data'})
           });
           expect(sync.c2.storage._items).toEqualDict({
-            '300': {id: '300', body: 'some c2 data'},
-            '301': {id: '301', body: 'some c1 data'}
+            '300': new helpers.TestItem({id: '300', body: 'some c2 data'}),
+            '301': new helpers.TestItem({id: '301', body: 'some c1 data'})
           });
           expect(sync.c3.storage._items).toEqualDict({
-            '400': {id: '400', body: 'some c1 data'},
-            '401': {id: '401', body: 'some c2 data'}
+            '400': new helpers.TestItem({id: '400', body: 'some c1 data'}),
+            '401': new helpers.TestItem({id: '401', body: 'some c2 data'})
           });
-
           return cb();
 
           // var dumps = [
