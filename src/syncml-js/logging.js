@@ -57,6 +57,13 @@ define([
     },
     addHandler: function(handler) {
       this._handlers.push(handler);
+      return this;
+    },
+    removeHandler: function(handler) {
+      this._handlers = _.filter(this._handlers, function(h) {
+        return h != handler;
+      });
+      return this;
     },
     handle: function(record) {
       for ( var idx=0 ; idx<this._handlers.length ; idx++ )
@@ -65,6 +72,7 @@ define([
           this._handlers[idx].handle(record);
         }catch(e){}
       }
+      return this;
     }
   });
 
@@ -180,6 +188,10 @@ define([
     addHandler: function(handler) {
       // TODO: implement this to have a per-logger handling facility...
       global_handler.addHandler(handler);
+    },
+    removeHandler: function(handler) {
+      // TODO: implement this to have a per-logger handling facility...
+      global_handler.removeHandler(handler);
     }
   });
 
