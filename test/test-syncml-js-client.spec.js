@@ -1210,16 +1210,113 @@ define([
             expect(contentType).toEqual('application/vnd.syncml+xml; charset=UTF-8');
             expect(requestBody).toEqualXml(chk);
 
-            callback(null);
+            var responseType = 'application/vnd.syncml+xml; charset=UTF-8';
+            var responseBody =
+              '<SyncML>'
+              + ' <SyncHdr>'
+              + '  <VerDTD>1.2</VerDTD>'
+              + '  <VerProto>SyncML/1.2</VerProto>'
+              + '  <SessionID>2</SessionID>'
+              + '  <MsgID>1</MsgID>'
+              + '  <Source>'
+              + '   <LocURI>https://example.com/sync</LocURI>'
+              + '   <LocName>Fake Server</LocName>'
+              + '  </Source>'
+              + '  <Target>'
+              + '   <LocURI>test-syncml-js-devid</LocURI>'
+              + '   <LocName>In-Memory Test Client</LocName>'
+              + '  </Target>'
+              + '  <RespURI>https://example.com/sync;s=9D35ACF5AEDDD26AC875EE1286F3C048</RespURI>'
+              + ' </SyncHdr>'
+              + ' <SyncBody>'
+              + '  <Status>'
+              + '   <CmdID>1</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>0</CmdRef>'
+              + '   <Cmd>SyncHdr</Cmd>'
+              + '   <SourceRef>test-syncml-js-devid</SourceRef>'
+              + '   <TargetRef>https://example.com/sync</TargetRef>'
+              + '   <Data>212</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>2</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>1</CmdRef>'
+              + '   <Cmd>Put</Cmd>'
+              + '   <SourceRef>./devinf12</SourceRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Status>'
+              + '   <CmdID>3</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>2</CmdRef>'
+              + '   <Cmd>Get</Cmd>'
+              + '   <TargetRef>./devinf12</TargetRef>'
+              + '   <Data>200</Data>'
+              + '  </Status>'
+              + '  <Results>'
+              + '   <CmdID>4</CmdID>'
+              + '   <MsgRef>1</MsgRef>'
+              + '   <CmdRef>2</CmdRef>'
+              + '   <Meta><Type xmlns="syncml:metinf">application/vnd.syncml-devinf+xml</Type></Meta>'
+              + '   <Item>'
+              + '    <Source><LocURI>./devinf12</LocURI></Source>'
+              + '    <Data>'
+              + '     <DevInf xmlns="syncml:devinf">'
+              + '      <VerDTD>1.2</VerDTD>'
+              + '      <Man>syncml-js</Man>'
+              + '      <Mod>syncml-js.test.suite.server</Mod>'
+              + '      <OEM>-</OEM>'
+              + '      <FwV>1.2.3</FwV>'
+              + '      <SwV>4.5.6</SwV>'
+              + '      <HwV>7.8.9</HwV>'
+              + '      <DevID>syncml-js.test.suite.server</DevID>'
+              + '      <DevTyp>server</DevTyp>'
+              + '      <UTC/>'
+              + '      <SupportLargeObjs/>'
+              + '      <SupportNumberOfChanges/>'
+              // + '      <SupportHierarchicalSync/>'
+              + '      <DataStore>'
+              + '       <SourceRef>srv_note</SourceRef>'
+              + '       <DisplayName>Note Storage</DisplayName>'
+              + '       <MaxGUIDSize>' + helpers.getAddressSize() + '</MaxGUIDSize>'
+              + '       <Rx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Rx-Pref>'
+              + '       <Rx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Rx>'
+              + '       <Rx><CTType>text/plain</CTType><VerCT>1.1</VerCT><VerCT>1.0</VerCT></Rx>'
+              + '       <Tx-Pref><CTType>text/x-s4j-sifn</CTType><VerCT>1.1</VerCT></Tx-Pref>'
+              + '       <Tx><CTType>text/x-s4j-sifn</CTType><VerCT>1.0</VerCT></Tx>'
+              + '       <Tx><CTType>text/plain</CTType><VerCT>1.1</VerCT><VerCT>1.0</VerCT></Tx>'
+              + '       <SyncCap>'
+              + '        <SyncType>1</SyncType>'
+              + '        <SyncType>2</SyncType>'
+              + '        <SyncType>3</SyncType>'
+              + '        <SyncType>4</SyncType>'
+              + '        <SyncType>5</SyncType>'
+              + '        <SyncType>6</SyncType>'
+              + '        <SyncType>7</SyncType>'
+              + '       </SyncCap>'
+              + '      </DataStore>'
+              + '     </DevInf>'
+              + '    </Data>'
+              + '   </Item>'
+              + '  </Results>'
+              + '  <Final/>'
+              + ' </SyncBody>'
+              + '</SyncML>';
+            var response = {
+              headers: { 'Content-Type': responseType },
+              body: responseBody
+            };
+            sync.peer._proxy = fake_response_1_2;
+            cb(null, response);
           }
         };
 
-        var fake_response_1_5 = {
+        var fake_response_1_2 = {
           sendRequest: function(session, contentType, requestBody, cb) {
-            seenRequests += '5';
-            // request #4 should have been the last...
-            expect('this').toBe('*not* called');
-            cb('error');
+
+            callback();
+
           }
         };
 
