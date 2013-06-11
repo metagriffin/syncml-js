@@ -128,7 +128,7 @@ define([
       });
     }
 
-    // TODO: mergeItems()
+    // TODO: mergeItems(OLDITEM, NEWITEM, CHANGESPEC, CB)
 
   });
 
