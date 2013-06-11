@@ -25,13 +25,18 @@ define([
   describe('syncml-js/client', function() {
 
     var seenRequests = '';
+    var handler = new logging.ConsoleHandler();
 
     //-------------------------------------------------------------------------
     beforeEach(function () {
       logging.level = logging.WARNING;
-      logging.getLogger().addHandler(new logging.ConsoleHandler());
+      logging.getLogger().addHandler(handler);
       this.addMatchers(helpers.matchers);
       seenRequests = '';
+    });
+
+    afterEach(function() {
+      logging.getLogger().removeHandler(handler);
     });
 
     //-------------------------------------------------------------------------

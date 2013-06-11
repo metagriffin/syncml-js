@@ -22,10 +22,16 @@ define([
 
   describe('syncml-js/codec', function() {
 
+    var handler = new logging.ConsoleHandler();
+
     beforeEach(function () {
       logging.level = logging.WARNING;
-      logging.getLogger().addHandler(new logging.ConsoleHandler());
+      logging.getLogger().addHandler(handler);
       this.addMatchers(helpers.matchers);
+    });
+
+    afterEach(function() {
+      logging.getLogger().removeHandler(handler);
     });
 
     //-------------------------------------------------------------------------

@@ -38,14 +38,19 @@ define([
     });
 
     var shared_idb = null;
+    var handler = new logging.ConsoleHandler();
 
     //-------------------------------------------------------------------------
     beforeEach(function() {
       logging.level = logging.WARNING;
-      logging.getLogger().addHandler(new logging.ConsoleHandler());
+      logging.getLogger().addHandler(handler);
       this.addMatchers(helpers.matchers);
       if ( ! shared_idb )
         shared_idb = helpers.getIndexedDBScope(':memory:');
+    });
+
+    afterEach(function() {
+      logging.getLogger().removeHandler(handler);
     });
 
     //-------------------------------------------------------------------------
