@@ -376,11 +376,6 @@ define([
                 return cb(err);
               if ( err instanceof common.InvalidCredentials )
                 failed += 1;
-              if ( failed > 100 )
-              {
-                console.log('too many credential failures');
-                return cb(err);
-              }
               var credErr = err;
               var uaEvent = {
                 session : session,
@@ -403,6 +398,7 @@ define([
                 // todo: should i just create a new session?...
                 session.info.id += 1;
                 session.info.msgID = 1;
+                session.info.respUri = null;
                 return startSession();
               });
             }
@@ -460,8 +456,8 @@ define([
           });
           session.peer.lastSessionID = session.info.id;
           pmodel.lastSessionID       = session.info.id;
-          log.debug('synchronization complete for "' + session.peer.devID + '" (s'
-                    + session.info.id + '.m' + session.info.lastMsgID + ')')
+          log.debug('synchronization complete for "%s" (s%s.m%s)',
+                    session.peer.devID, session.info.id, session.info.lastMsgID)
           return cb();
         }
         session.context.protocol.produce(session, commands, function(err, tree) {
@@ -475,6 +471,9 @@ define([
             // compared against that.
             // TODO: should that only be done on successful transmit?...
             session.info.lastCommands = commands;
+            log.debug('outbound SyncML %s message (s%s.m%s)',
+                      ( session.isServer ? 'response' : 'request' ),
+                      session.info.id, session.info.msgID);
             session.send(contentType, data, function(err) {
               if ( err )
                 return cb(err);
@@ -563,6 +562,13 @@ define([
         do_authorize(function(err) {
           if ( err )
             return cb(err);
+          // todo: technically, i can only know the session/message IDs after
+          // consuming the request... so, i should really only report this
+          // during `protocol.consume()`...
+          log.debug('inbound SyncML %s message (s%s.m%s)',
+                    ( session.isServer ? 'request' : 'response' ),
+                    session.info.id || '?',
+                    ( session.isServer ? session.info.msgID : session.info.lastMsgID ) || '?');
           session.context.protocol.consume(
             session, session.info.lastCommands, xtree,
             function(err, commands) {
