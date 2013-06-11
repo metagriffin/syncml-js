@@ -127,4 +127,4 @@
     </SyncBody>
   </SyncML>
 
-
+- give some way for peer credentials to be removed from persistence
