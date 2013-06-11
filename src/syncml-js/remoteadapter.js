@@ -206,8 +206,9 @@ define([
 
     //-------------------------------------------------------------------------
     _getModel: function() {
-      return _.find(this._a._model.peers,
-                    function(e) { return e.id == this.id; }, this);
+      this._model = _.find(this._a._model.peers,
+                           function(e) { return e.id == this.id; }, this);
+      return this._model;
     },
 
     //-------------------------------------------------------------------------
