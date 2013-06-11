@@ -194,12 +194,12 @@ define([
         // todo: check peer id...
         if ( session.info.id != common.int(xhdr.findtext('SessionID')) )
         {
-          log.error('session ID mismatch "%d" (expected "%d")',
+          log.error('mismatched session ID: "%d" (expected "%d")',
                     common.int(xhdr.findtext('SessionID')),
                     session.info.id);
-          return cb(new common.ProtocolError('session ID mismatch "'
+          return cb(new common.ProtocolError('mismatched session ID: "'
                                              + xhdr.findtext('SessionID')
-                                             + '" (expected: ' + session.info.id + ')'));
+                                             + '" (expected "' + session.info.id + '")'));
         }
         // todo: check message id...
         cb();
@@ -224,9 +224,9 @@ define([
           log.error('session ID mismatch "%d" (expected "%d")',
                     common.int(xhdr.findtext('SessionID')),
                     session.info.id);
-          return cb(new common.ProtocolError('session ID mismatch "'
+          return cb(new common.ProtocolError('mismatched session ID: "'
                                              + xhdr.findtext('SessionID')
-                                             + '" (expected: ' + session.info.id + ')'));
+                                             + '" (expected "' + session.info.id + '")'));
         }
         session.info.id     = common.int(xhdr.findtext('SessionID'));
         session.info.msgID  = common.int(xhdr.findtext('MsgID'));
@@ -367,7 +367,7 @@ define([
         //       confirm that the devInfo has not changed... i *could*
         //       issue the put/get as well as the alert, *assuming* that
         //       no devInfo is going to change...
-        log.debug('have peer.devinfo - not requesting from target');
+        // log.debug('have peer.devinfo - not requesting from target');
         return session.context.synchronizer.actions(session, commands, cb);
       };
 
@@ -423,7 +423,6 @@ define([
         // TODO: implement other auth schemes...
         if ( hdrcmd.auth != constant.NAMESPACE_AUTH_BASIC )
           return cb('auth method "' + hdrcmd.auth + '" not implemented');
-
         if ( hdrcmd.auth == constant.NAMESPACE_AUTH_BASIC )
         {
           var xcred = ET.SubElement(xhdr, 'Cred');
@@ -432,10 +431,11 @@ define([
           ET.SubElement(xmeta, 'Type', {'xmlns': constant.NAMESPACE_METINF}).text   = hdrcmd.auth;
           ET.SubElement(xcred, 'Data').text = base64.encode(
             ( session.auth ? session.auth.username : session.peer.username )
-              + ':' + ( session.auth ? session.auth.password : session.peer.password ) );
+              + ':' + ( session.auth ? session.auth.password : session.peer.password )
+          );
         }
-
       }
+
       if ( hdrcmd.maxMsgSize || hdrcmd.maxObjSize )
       {
         var xmeta = ET.SubElement(xhdr, 'Meta');
@@ -747,7 +747,7 @@ define([
       var hdrcmd     = commands[0];
       var statusCode = constant.STATUS_OK;
 
-      log.debug('consuming SyncHdr command: SyncHdr');
+      // log.debug('consuming SyncHdr command: SyncHdr');
 
       // analyze the SyncHdr
       var children = xsync.getchildren()[0].getchildren();
@@ -755,7 +755,7 @@ define([
       {
         var child = children[idx];
 
-        log.debug('consuming SyncHdr option: ' + child.tag);
+        // log.debug('consuming SyncHdr option: ' + child.tag);
 
         if ( child.tag == 'VerDTD' )
         {
@@ -778,7 +778,7 @@ define([
         {
           if ( child.text != hdrcmd.sessionID )
             return cb(new common.ProtocolError(
-              'session ID mismatch: "' + child.text + '" != "' + hdrcmd.sessionID + '"'));
+              'mismatched session ID: "' + child.text + '" (expected "' + hdrcmd.sessionID + '")'));
           continue;
         }
 
@@ -787,7 +787,7 @@ define([
           var chkmsg = ( session.isServer ? hdrcmd.msgID : lastcmds[0].msgID );
           if ( child.text != chkmsg )
             return cb(new common.ProtocolError(
-              'message ID mismatch: "' + child.text + '" != "' + chkmsg + '"'));
+              'mismatched message ID: "' + child.text + '" (expected "' + chkmsg + '")'));
           continue;
         }
 
@@ -799,7 +799,7 @@ define([
 
           if ( uri != hdrcmd.source )
             return cb(new common.ProtocolError(
-              'incoming target mismatch: "' + uri + '" != "' + hdrcmd.source + '"'));
+              'mismatched incoming target: "' + uri + '" (expected "' + hdrcmd.source + '")'));
           continue;
         }
 
@@ -808,7 +808,7 @@ define([
           var uri = child.findtext('LocURI');
           if ( uri != hdrcmd.target && uri != lastcmds[0].target )
             return cb(new common.ProtocolError(
-              'incoming source mismatch: "' + uri + '" != "' + hdrcmd.target + '"'));
+              'mismatched incoming source: "' + uri + '" (expected "' + hdrcmd.target + '")'));
           continue;
         }
 
@@ -864,11 +864,11 @@ define([
         _.each(e.data, function(sub) { chkcmds.push(sub); });
       });
 
-      _.each(chkcmds, function(chkcmd) {
-        log.debug('outstanding command node "s%s.m%s.c%s" (%s)',
-                  session.info.id, lastcmds[0].msgID,
-                  chkcmd.cmdID, chkcmd.name);
-      });
+      // _.each(chkcmds, function(chkcmd) {
+      //   log.debug('outstanding command node "s%s.m%s.c%s" (%s)',
+      //             session.info.id, lastcmds[0].msgID,
+      //             chkcmd.cmdID, chkcmd.name);
+      // });
 
       var children = xsync.getchildren()[1].getchildren();
 
@@ -883,9 +883,9 @@ define([
 
           cname = child.findtext('Cmd');
 
-          log.debug('checking status node for "s%s.m%s.c%s" (%s)',
-                    session.info.id, child.findtext('MsgRef'),
-                    child.findtext('CmdRef'), cname);
+          // log.debug('checking status node for "s%s.m%s.c%s" (%s)',
+          //           session.info.id, child.findtext('MsgRef'),
+          //           child.findtext('CmdRef'), cname);
 
           var blen   = chkcmds.length;
           var chkcmd = null;
@@ -918,16 +918,13 @@ define([
 
           if ( code == constant.STATUS_MISSING_CREDENTIALS )
           {
-            var authtype = child.findtext('Chal/Meta/Type');
-            var attrs = {auth: {type: authtype}};
+            var attrs = {auth: {type: child.findtext('Chal/Meta/Type')}};
             return cb(badStatus(child, common.CredentialsRequired, attrs));
           }
 
           if ( code == constant.STATUS_INVALID_CREDENTIALS )
           {
-            // TODO: get the auth type... from where??...
-            var authtype = child.findtext('Chal/Meta/Type');
-            var attrs = {auth: {type: authtype}};
+            var attrs = {auth: {type: child.findtext('Chal/Meta/Type')}};
             return cb(badStatus(child, common.InvalidCredentials, attrs));
           }
 
@@ -1448,7 +1445,7 @@ define([
         if ( ds.peerLastAnchor != session.peer.getStore(ruri)._getBinding().remoteAnchor )
         {
           log.warning(
-            'last-anchor mismatch (here: %s, peer: %s) for datastore "%s" - forcing slow-sync',
+            'mismatched last-anchor (here: %s, peer: %s) for datastore "%s" - forcing slow-sync',
             session.peer.getStore(ruri)._getBinding().remoteAnchor, ds.peerLastAnchor, uri);
           ds.peerLastAnchor = null;
           switch ( ds.mode )
