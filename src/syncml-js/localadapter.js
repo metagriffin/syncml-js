@@ -378,19 +378,20 @@ define([
                 failed += 1;
               var credErr = err;
               var uaEvent = {
-                session : session,
-                auth    : err.auth,
-                count   : failed
+                session  : session,
+                auth     : err.auth,
+                username : session.peer.username,
+                count    : failed
               };
               return session.ua.fetchCredentials(uaEvent, function(err, auth) {
                 if ( err )
                   return cb(err);
                 if ( ! auth )
                   return cb(credErr);
+                session.peer.username = auth.username;
                 if ( auth.persist )
                 {
                   session.peer.auth = auth.type;
-                  session.peer.username = auth.username;
                   session.peer.password = auth.password;
                 }
                 else

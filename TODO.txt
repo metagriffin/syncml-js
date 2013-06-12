@@ -128,3 +128,5 @@
   </SyncML>
 
 - give some way for peer credentials to be removed from persistence
+
+- on 407 (auth required) a Get/Put of devinfo is NOT re-issued... fix!

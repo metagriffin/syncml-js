@@ -1343,6 +1343,7 @@ define([
     it('requests credentials if not provided', function(done) {
       var ua = {
         fetchCredentials: function(event, cb) {
+          expect(event.username).toEqual('guest');
           return cb(null, {type: event.auth.type,
                            username: 'guest',
                            password: 'guest',
@@ -1350,7 +1351,10 @@ define([
                           });
         }
       };
-      initSync({ua: ua, auth: null, username: null, password: null}, function(err) {
+      // todo: if i set this `username` to null (causing the above `expect`
+      // to fail), the wrong test name in jasmine turns red... why? is it
+      // something that i'm doing?...
+      initSync({ua: ua, auth: null, username: 'guest', password: null}, function(err) {
         expect(err).ok();
         // temporarily squelching logging (since the following causes warnings/errors)
         var prevlevel = logging.level;
@@ -1363,6 +1367,36 @@ define([
       });
     });
 
+    //-------------------------------------------------------------------------
+    it('stores the credentials username', function(done) {
+      var ua = {
+        fetchCredentials: function(event, cb) {
+          expect(event.username).toBeNull();
+          return cb(null, {type: event.auth.type,
+                           username: 'guest',
+                           password: 'guest',
+                           persist: false
+                          });
+        }
+      };
+      // todo: if i set this `username` to null (causing the above `expect`
+      // to fail), the wrong test name in jasmine turns red... why? is it
+      // something that i'm doing?...
+      initSync({ua: ua, auth: null, username: null, password: null}, function(err) {
+        expect(err).ok();
+        expect(sync.peer.username).toBeNull();
+        expect(sync.adapter._model.peers[0].username).toBeNull();
+        // temporarily squelching logging (since the following causes warnings/errors)
+        var prevlevel = logging.level;
+        logging.level = logging.CRITICAL;
+        doAuthSync(sync, function(err) {
+          logging.level = prevlevel;
+          expect(err).ok();
+          expect(sync.peer.username).toBe('guest');
+          done();
+        });
+      });
+    });
 
   });
 });
