@@ -89,11 +89,14 @@ define([
         handler: 'chooseRefreshRequired',
         action:  'choose',
         type:    'refresh.required',
-        choices: [
+        choices: _.map([
           {value: constant.SYNCTYPE_SLOW_SYNC, default: true},
           {value: constant.SYNCTYPE_REFRESH_FROM_CLIENT},
           {value: constant.SYNCTYPE_REFRESH_FROM_SERVER}
-        ]
+        ], function(item) {
+          item.label = common.mode2string(common.synctype2alert(item.value));
+          return item;
+        })
       }, event, function(err, choice) {
         if ( err )
           return cb(err);
