@@ -318,16 +318,17 @@ define([
 
     //-------------------------------------------------------------------------
     sendRequest: function(session, contentType, data, cb) {
-
       // TODO: shouldn't proxies just overwrite .sendRequest() ?...
       if ( this._proxy )
         return this._proxy.sendRequest(session, contentType, data, cb);
-
       var req = {
         url     : session.info.respUri || this.url,
         method  : 'POST',
         headers : {'Content-Type': contentType},
-        body    : data
+        body    : data,
+        // todo: disabling cookies... should i? servers *should* be using
+        //       the <RespURI> instruction...
+        jar     : false
       };
       request(req, function(err, response, body) {
         if ( err )
