@@ -1534,6 +1534,19 @@ define([
           {
             return cb();
           }
+          case 'Meta':
+          {
+            log.warning('received unexpected sync command "' + child.tag + '"'
+                        + ' - assuming peer is picobeat.com & ignoring');
+            // todo: perhaps use this meta in some way? at last inspection,
+            //       picobeat was sending:
+            //         <Meta>
+            //           <MaxObjSize xmlns="syncml:metinf">10000000</MaxObjSize>
+            //         </Meta>
+            //       => for the duration of the 'Sync' command, i could limit
+            //          MaxObjSize to that value...
+            return cb();
+          }
           case constant.CMD_ADD:
           case constant.CMD_REPLACE:
           case constant.CMD_DELETE:
