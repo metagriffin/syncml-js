@@ -86,7 +86,7 @@ define([
   //---------------------------------------------------------------------------
   exports.ConsoleHandler = exports.Handler.extend({
     _handle: function(record) {
-      console.log(record.msg);
+      console.log('[' + (new Date()).toISOString() + '] ' + record.msg);
     }
   });
 
@@ -169,7 +169,8 @@ define([
         lvlstr = 'INFO';
       else
         lvlstr = 'DEBUG';
-      var msg = '[' + this._name + '] ' + lvlstr + ': ' + sprintf.sprintf.apply(null, args);
+      var msg = '[' + this._name + '] ' + lvlstr + ': '
+        + ( args.length > 1 ? sprintf.sprintf.apply(null, args) : args[0] );
       this._logmsg(lvl, msg);
     },
     _logmsg: function(lvl, msg) {
