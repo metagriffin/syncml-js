@@ -91,6 +91,8 @@ define([
         _.extend(this, attrs);
     },
     toString: function() {
+      if ( this.exception )
+        return this.message + ': ' + this.exception;
       return this.message;
     }
   });
