@@ -1537,7 +1537,7 @@ define([
           case 'Meta':
           {
             log.warning('received unexpected sync command "' + child.tag + '"'
-                        + ' - assuming peer is picobeat.com & ignoring');
+                        + ' - assuming peer is picobeat.com & ignoring (as a workaround)');
             // todo: perhaps use this meta in some way? at last inspection,
             //       picobeat was sending:
             //         <Meta>
