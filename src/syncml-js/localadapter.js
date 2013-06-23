@@ -489,6 +489,7 @@ define([
     authorize: function(request, sessionInfo, authorize, cb) {
       var self = this;
       var ct   = request.headers['Content-Type'];
+      // todo: what about the picobeat workaround?
       codec.Codec.autoDecode(ct, request.body, function(err, xtree, codecName) {
         if ( err )
           return cb(err);
@@ -500,6 +501,7 @@ define([
     getTargetID: function(request, sessionInfo, cb) {
       var self = this;
       var ct   = request.headers['Content-Type'];
+      // todo: what about the picobeat workaround?
       codec.Codec.autoDecode(ct, request.body, function(err, xtree, codecName) {
         if ( err )
           return cb(err);
@@ -551,6 +553,25 @@ define([
         session.info.msgID += 1;
       }
       var ct = request.headers['Content-Type'];
+      if ( ct.indexOf('text/html; charset=utf-8') == 0
+           && request.body.indexOf('mysql_escape_string(): This function is deprecated') >= 0
+           && request.body.match(/.*<\?xml.*<SyncML[\s\S]*<\/SyncML>/g) )
+      {
+        log.warning('PHP errors detected'
+                    + ' - assuming peer is picobeat.com & activating workaround');
+        var idx = request.body.indexOf('<?xml');
+        if ( idx < 0 )
+          return cb(new common.ProtocolError(
+            'picobeat.com workaround failed to identify XML begining'));
+        request.body = request.body.substr(idx);
+        idx = request.body.lastIndexOf('</SyncML>');
+        if ( idx < 0 )
+          return cb(new common.ProtocolError(
+            'picobeat.com workaround failed to identify SyncML termination'));
+        request.body = request.body.substr(0, idx + 9);
+        ct = request.headers['Content-Type'] = request.headers['content-type'] =
+          'application/vnd.syncml+xml; charset=utf-8';
+      }
       codec.Codec.autoDecode(ct, request.body, function(err, xtree, codecName) {
         if ( err )
           return cb(err);
