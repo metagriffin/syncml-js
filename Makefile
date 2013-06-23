@@ -31,7 +31,7 @@ xpc-ini:
 	  | sed -re 's/(.*)/[\1]/' \
 	  >> test/xpcshell.ini
 
-xpc: xpc-ini
+xpc-run:
 	$(MOZOBJDIR)/_virtualenv/bin/python \
           -u $(MOZDEVDIR)/config/pythonpath.py \
           -I$(MOZDEVDIR)/build \
@@ -46,3 +46,5 @@ xpc: xpc-ini
           --test-plugin-path=$(MOZOBJDIR)/dist/plugins \
           $(MOZOBJDIR)/dist/bin/xpcshell \
           $(SYNCMLDIR)/test
+
+xpc: xpc-ini xpc-run
