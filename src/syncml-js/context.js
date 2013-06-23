@@ -27,6 +27,7 @@ else
 }
 
 define([
+  'stacktrace-js',
   'underscore',
   'elementtree',
   './logging',
@@ -38,6 +39,7 @@ define([
   './protocol',
   './localadapter'
 ], function(
+  stacktrace,
   _,
   ET,
   logging,
@@ -124,7 +126,8 @@ define([
       try{
         this._getEasyClientAdapter(options, cb);
       }catch(e){
-        cb(e);
+        log.error('unexpected exception: ' + e);
+        cb(new common.InternalError('unexpected exception', e));
       }
     },
 
