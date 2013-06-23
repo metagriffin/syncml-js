@@ -958,9 +958,15 @@ define([
             else
             {
               if ( session.adapter.normUri(sourceRef) != session.adapter.normUri(chkcmd.source) )
-                return cb(new common.ProtocolError('unexpected source-ref "'
-                                                   + sourceRef + '" != "' + chkcmd.source
-                                                   + '" for command "' + cname + '"'));
+              {
+                if ( sourceRef == './devinf12' && cname == constant.CMD_GET )
+                  log.warning('remote peer issued SourceRef element instead of TargetRef'
+                              + ' - assuming peer is phonecopy.com & activating workaround');
+                else
+                  return cb(new common.ProtocolError('unexpected source-ref "'
+                                                     + sourceRef + '" != "' + chkcmd.source
+                                                     + '" for command "' + cname + '"'));
+              }
             }
           }
 
@@ -1245,7 +1251,17 @@ define([
     //-------------------------------------------------------------------------
     _consume_node_put_devinf12: function(session, lastcmds, xsync, xnode, cb) {
       var xdev = xnode.find('Item/Data/DevInf');
-      var res  = devinfo.DevInfo.fromSyncML(xdev);
+      if ( ! xdev )
+      {
+        xdev = xnode.find('Item/Data');
+        if ( ! xdev || xdev.getchildren().length != 0 || ! xdev.text )
+          return cb(new common.ProtocolError(
+            'DevInf element not found for command "' + xnode.tag + '"'))
+        log.warning('DevInf element not found in command "' + xnode.tag + '"'
+                    + ' - assuming peer is phonecopy.com & activating workaround');
+        xdev = ET.parse(xdev.text).getroot();
+      }
+      var res = devinfo.DevInfo.fromSyncML(xdev);
       session.peer._setRemoteInfo(res[0], res[1], function(err) {
         if ( err )
           return cb(err);
